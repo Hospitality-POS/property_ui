@@ -15,13 +15,9 @@ export default defineConfig({
     title: false,
   },
   layout: {
-    title: 'Fleet Mgt System',
+    title: 'RPM System',
   },
   routes: [
-    {
-      path: '/',
-      redirect: '/Login',
-    },
     {
       name: 'Login',
       path: '/login',
@@ -30,56 +26,56 @@ export default defineConfig({
     },
     {
       name: 'Dashboard',
-      path: '/Dashboard',
+      path: '/dashboard',
       icon: 'DashboardOutlined',
       component: './Dashboard',
     },
 
     {
       name: 'Products',
-      path: '/Product',
+      path: '/products',
       icon: 'ShopOutlined',
       component: './Product',
     },
     {
       name: 'Customers',
-      path: '/Customer',
+      path: '/customer',
       icon: 'UserOutlined',
       component: './Customer',
     },
     {
       name: 'Leads',
-      path: '/Lead',
+      path: '/leads',
       icon: 'UsergroupAddOutlined',
       component: './Lead',
     },
     {
       name: 'Sales',
-      path: '/Sales',
+      path: '/sales',
       icon: 'DollarOutlined',
       component: './Sales',
     },
     {
       name: 'Valuations',
-      path: '/Valuation',
+      path: '/valuation',
       icon: 'CalculatorOutlined',
       component: './Valuation',
     },
     {
       name: 'Payments',
-      path: '/Payments',
+      path: '/payments',
       icon: 'CreditCardOutlined',
       component: './Payments',
     },
     {
       name: 'Reports',
-      path: '/Vehicles',
+      path: '/reports',
       icon: 'UserOutlined',
       component: './Vehicles',
     },
     {
       name: 'Access Control',
-      path: '/Vehicles',
+      path: '/access-control',
       icon: 'UserOutlined',
       component: './Vehicles',
     },

@@ -1,5 +1,4 @@
 // 运行时配置
-
 import {
   DashboardOutlined,
   LogoutOutlined,
@@ -17,8 +16,6 @@ import {
   Space,
   Typography,
 } from 'antd';
-import { Provider } from 'react-redux';
-import { store } from '@/store';
 import Loading from './loading';
 import logo from '/public/assets/images/download.png';
 
@@ -28,10 +25,6 @@ export async function getInitialState(): Promise<any> {
   return { name: 'Real Estate Management Portal' };
 }
 
-// Add rootContainer to wrap the entire app with Redux Provider
-export function rootContainer(container) {
-  return <Provider store={store}>{container}</Provider>;
-}
 
 export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
   const queryClient = new QueryClient();

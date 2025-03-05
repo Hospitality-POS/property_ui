@@ -1,61 +1,24 @@
-import React, { useEffect } from 'react';
-import { GoogleOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
+import React from 'react';
+import {  LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ProForm, ProFormText } from '@ant-design/pro-components';
-import { Button, Divider, Typography, message } from 'antd';
-import { history, useModel } from 'umi';
+import {  Divider, Typography } from 'antd';
 import bgImage from '/public/assets/images/background.svg';
 import logo from '/public/assets/images/icon.png';
-import { loginUser } from '@/services/auth';
-import { useAppDispatch, useAppSelector } from '@/store';
 
 const LoginPage = () => {
-  const dispatch = useAppDispatch();
-  const { isLoading, isAuthenticated, error } = useAppSelector((state) => state.auth);
-  const { initialState, setInitialState } = useModel('@@initialState');
+ 
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      history.push('/dashboard');
-    }
-  }, [isAuthenticated]);
-
-  // Show error message if login fails
-  useEffect(() => {
-    if (error) {
-      message.error(error);
-    }
-  }, [error]);
-
+  
   const handleSubmit = async (values) => {
     try {
-      // Dispatch login action
-      const resultAction = await dispatch(loginUser(values));
-
-      if (loginUser.fulfilled.match(resultAction)) {
-        // Get user data from the result
-        const userData = resultAction.payload;
-
-        // Update the initialState with user info
-        await setInitialState((prevState) => ({
-          ...prevState,
-          currentUser: userData,
-          avatar: userData?.avatar || null,
-        }));
-
-        // Redirect to dashboard
-        history.push('/dashboard');
-      }
+      // Add login logic here
+      
     } catch (error) {
       console.error('Login failed:', error);
     }
   };
 
-  const handleGoogleLogin = () => {
-    // Add Google OAuth logic here
-    message.info('Google Login initiated');
-  };
-
+ 
   return (
     <div className="flex h-screen">
       <div className="flex flex-1">
@@ -91,7 +54,7 @@ const LoginPage = () => {
                     backgroundColor: '#27C6C1',
                     color: '#F8F8F8',
                   },
-                  loading: isLoading,
+                  // loading: isLoading,
                 },
               }}
             >
@@ -144,7 +107,7 @@ const LoginPage = () => {
 
               {/* Terms of Service */}
               <div className="text-center text-xs text-gray-600 mt-8 mb-8">
-                I agree to abide by Relia Property Mgt system's{' '}
+                I agree to abide by Relia Property Mgt system&apos;s{' '}
                 <a href="#" className="border-b border-gray-500 border-dotted">
                   Terms of Service
                 </a>{' '}
