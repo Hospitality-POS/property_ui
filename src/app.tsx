@@ -33,7 +33,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
     title: 'RPM System',
     layout: 'mix',
     colorPrimary: '#27C6C1',
-    // navTheme: 'realDark',
+    navTheme: 'realDark',
     menu: {
       locale: false,
     },

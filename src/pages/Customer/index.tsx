@@ -429,18 +429,10 @@ const CustomersList = () => {
     );
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header className="header" style={{ background: '#fff', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <Button
-                        type="text"
-                        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        onClick={() => setCollapsed(!collapsed)}
-                    />
-                    <Title level={4} style={{ margin: '0 0 0 12px' }}>Real Estate Management System</Title>
-                </div>
+        <>
+           
 
-                <Space>
+                <Space className="mb-4">
                     {viewCustomer ? (
                         <Button onClick={() => setViewCustomer(null)} icon={<ArrowLeftOutlined />}>
                             Back to List
@@ -449,17 +441,9 @@ const CustomersList = () => {
                         <Button type="primary" onClick={showAddModal}>Add New Customer</Button>
                     )}
                 </Space>
-            </Header>
+           
 
-            <Content style={{ margin: '16px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
-                {/* Breadcrumb */}
-                <div style={{ marginBottom: 16 }}>
-                    <Breadcrumb>
-                        <Breadcrumb.Item>Home</Breadcrumb.Item>
-                        <Breadcrumb.Item>Customers</Breadcrumb.Item>
-                        {viewCustomer && <Breadcrumb.Item>{viewCustomer.name}</Breadcrumb.Item>}
-                    </Breadcrumb>
-                </div>
+           
 
                 {viewCustomer ? (
                     // Single Customer View
@@ -503,11 +487,9 @@ const CustomersList = () => {
                         />
                     </>
                 )}
-            </Content>
+          
 
-            <Footer style={{ textAlign: 'center' }}>
-                Real Estate Management System ©2025
-            </Footer>
+           
 
             {/* Delete Confirmation Modal */}
             <Modal
@@ -646,7 +628,7 @@ const CustomersList = () => {
                     </Form.Item>
                 </Form>
             </Modal>
-        </Layout>
+        </>
     );
 };
 

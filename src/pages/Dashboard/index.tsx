@@ -205,31 +205,16 @@ const Dashboard = () => {
     ];
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header className="header" style={{ background: '#fff', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <Button
-                        type="text"
-                        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        onClick={() => setCollapsed(!collapsed)}
-                    />
-                    <Title level={4} style={{ margin: '0 0 0 12px' }}>Real Estate Management System</Title>
-                </div>
-                <Space>
+        <>
+           
+                <Space className="mb-4">
                     <Button type="primary">Add New Property</Button>
                     <Button>Add New Customer</Button>
                 </Space>
-            </Header>
+           
 
-            <Content style={{ margin: '16px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
-                <div style={{ marginBottom: 16 }}>
-                    <Breadcrumb>
-                        <Breadcrumb.Item>Home</Breadcrumb.Item>
-                        <Breadcrumb.Item>Dashboard</Breadcrumb.Item>
-                    </Breadcrumb>
-                    <Title level={3} style={{ marginTop: 16 }}>Property Management Dashboard</Title>
-                    <Text type="secondary">Overview of sales, properties, and customers</Text>
-                </div>
+          
+              
 
                 {/* Summary Statistics */}
                 <Row gutter={[16, 16]}>
@@ -431,12 +416,9 @@ const Dashboard = () => {
                         </Col>
                     </Row>
                 </Card>
-            </Content>
+          
 
-            <Footer style={{ textAlign: 'center' }}>
-                Real Estate Management System ©2025
-            </Footer>
-        </Layout>
+        </>
     );
 };
 

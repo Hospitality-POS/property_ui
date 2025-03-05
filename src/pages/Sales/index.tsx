@@ -646,33 +646,17 @@ const SalesManagement = () => {
     );
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Header className="header" style={{ background: '#fff', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <Button
-                        type="text"
-                        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        onClick={() => setCollapsed(!collapsed)}
-                    />
-                    <Title level={4} style={{ margin: '0 0 0 12px' }}>Real Estate Management System</Title>
-                </div>
+        <>
+            
 
-                <Space>
+                <Space className="mb-4">
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddSaleVisible(true)}>
                         Add Sale
                     </Button>
                 </Space>
-            </Header>
+         
 
-            <Content style={{ margin: '16px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
-                {/* Breadcrumb */}
-                <div style={{ marginBottom: 16 }}>
-                    <Breadcrumb>
-                        <Breadcrumb.Item>Home</Breadcrumb.Item>
-                        <Breadcrumb.Item>Sales</Breadcrumb.Item>
-                    </Breadcrumb>
-                    <Title level={3} style={{ marginTop: 8, marginBottom: 16 }}>Sales Management</Title>
-                </div>
+           
 
                 {/* Sales Statistics Cards */}
                 <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -827,11 +811,8 @@ const SalesManagement = () => {
                         );
                     }}
                 />
-            </Content>
-
-            <Footer style={{ textAlign: 'center' }}>
-                Real Estate Management System ©2025
-            </Footer>
+          
+          
 
             {/* Sale Details Drawer */}
             <Drawer
@@ -1389,7 +1370,7 @@ const SalesManagement = () => {
                     </Tabs>
                 </Form>
             </Modal>
-        </Layout>
+        </>
     );
 };
 
