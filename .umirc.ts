@@ -22,7 +22,7 @@ export default defineConfig({
       name: 'Login',
       path: '/login',
       layout: false,
-      component: './Login',
+      component: '@/components/Layout',
     },
     {
       name: 'Dashboard',
