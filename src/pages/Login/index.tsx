@@ -1,24 +1,41 @@
-import React from 'react';
-import {  LockOutlined, UserOutlined } from '@ant-design/icons';
+import { loginUser } from '@/services/auth.api';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ProForm, ProFormText } from '@ant-design/pro-components';
-import {  Divider, Typography } from 'antd';
+import { useMutation } from '@tanstack/react-query';
+import { history } from '@umijs/max';
+import { Divider, message, Typography } from 'antd';
 import bgImage from '/public/assets/images/background.svg';
 import logo from '/public/assets/images/icon.png';
 
 const LoginPage = () => {
- 
+  const loginMutation = useMutation({
+    mutationFn: async () => loginUser(values?.username, values?.password),
+    onSuccess: (data) => {
+      localStorage.setItem('token', data.token);
+      history.push('/dashboard');
+      message.success('Login successful! Redirecting...');
+    },
+    onError: (error) => {
+      // Handle different error scenarios
+      if (error.response && error.response.status === 401) {
+        message.error('Invalid username or password');
+      } else {
+        message.error('Login failed. Please try again later.');
+      }
+    },
+  });
 
-  
   const handleSubmit = async (values) => {
     try {
       // Add login logic here
-      
+      await loginMutation.mutateAsync(values);
+      return true;
     } catch (error) {
       console.error('Login failed:', error);
+      return false;
     }
   };
 
- 
   return (
     <div className="flex h-screen">
       <div className="flex flex-1">
@@ -54,7 +71,7 @@ const LoginPage = () => {
                     backgroundColor: '#27C6C1',
                     color: '#F8F8F8',
                   },
-                  // loading: isLoading,
+                  loading: loginMutation.isPending,
                 },
               }}
             >

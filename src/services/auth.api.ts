@@ -1,9 +1,9 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
 
-export const login = async (email: string, password: string) => {
+export const loginUser = async (username: string, password: string) => {
   try {
-    const response = await axios.post('/login', { email, password });
+    const response = await axios.post('/login', { username, password });
     return response.data;
   } catch (error) {
     throw new Error(error.response.data.message);
