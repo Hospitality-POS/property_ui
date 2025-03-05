@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RunTimeLayoutConfig } from '@umijs/max';
+import { history, RunTimeLayoutConfig } from '@umijs/max';
 import {
   Avatar,
   Breadcrumb,
@@ -17,14 +17,29 @@ import {
   Typography,
 } from 'antd';
 import Loading from './loading';
-import logo from '/public/assets/images/download.png';
+import { getUserInfo } from './services/auth.api';
+import logo from '/public/assets/images/icon.png';
 
-// 全局初始化数据配置，用于 Layout 用户信息和权限初始化
-// 更多信息见文档：https://umijs.org/docs/api/runtime-config#getinitialstate
+const checkIfUserIsValid = async () => {
+  try {
+    const userData = await getUserInfo();
+    return userData;
+  } catch (e) {
+    localStorage.removeItem('token');
+    return null;
+  }
+};
+
 export async function getInitialState(): Promise<any> {
-  return { name: 'Real Estate Management Portal' };
-}
+  const userData = await checkIfUserIsValid();
 
+  if (!userData) {
+    history.push('/login');
+    return { currentUser: null, fetchUserInfo: getUserInfo };
+  }
+
+  return { currentUser: userData, fetchUserInfo: getUserInfo };
+}
 
 export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
   const queryClient = new QueryClient();
@@ -120,6 +135,13 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
           </>
         );
       },
+    },
+    onPageChange: () => {
+      const { location } = history;
+      const loginPath = '/login';
+      if (!initialState?.currentUser && location.pathname !== loginPath) {
+        history.push(loginPath);
+      }
     },
   };
 };

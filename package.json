@@ -17,6 +17,7 @@
     "@umijs/max": "^4.3.36",
     "antd": "^5.4.0",
     "antd-country-phone-input": "^4.5.1",
+    "axios": "^1.8.1",
     "libphonenumber-js": "^1.11.16",
     "tailwindcss-debug-screens": "^2.2.1",
     "world_countries_lists": "^2.9.0"
