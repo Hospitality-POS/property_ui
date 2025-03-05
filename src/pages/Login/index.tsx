@@ -2,7 +2,7 @@ import { GoogleOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ProForm, ProFormText } from '@ant-design/pro-components';
 import { Button, Divider, message, Typography } from 'antd';
 import bgImage from '/public/assets/images/background.svg';
-import logo from '/public/assets/images/relialogo.png';
+import logo from '/public/assets/images/icon.png';
 
 const LoginPage = () => {
   const handleSubmit = async (values) => {
@@ -31,11 +31,11 @@ const LoginPage = () => {
               <img
                 src={logo}
                 alt="Company Logo"
-                className="mx-auto h-24 w-auto"
+                className="mx-auto h-48 w-auto"
               />
               <div className="text-center text-2xl font-bold text-gray-900">
                 <Typography.Paragraph>
-                  WE Are your property management solution
+                  Streamline Your Property Management Platform
                 </Typography.Paragraph>
               </div>
             </div>
