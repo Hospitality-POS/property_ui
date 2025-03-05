@@ -1,17 +1,53 @@
+import React, { useEffect } from 'react';
 import { GoogleOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ProForm, ProFormText } from '@ant-design/pro-components';
-import { Button, Divider, message, Typography } from 'antd';
+import { Button, Divider, Typography, message } from 'antd';
+import { history, useModel } from 'umi';
 import bgImage from '/public/assets/images/background.svg';
 import logo from '/public/assets/images/icon.png';
+import { loginUser } from '@/services/auth';
+import { useAppDispatch, useAppSelector } from '@/store';
 
 const LoginPage = () => {
+  const dispatch = useAppDispatch();
+  const { isLoading, isAuthenticated, error } = useAppSelector((state) => state.auth);
+  const { initialState, setInitialState } = useModel('@@initialState');
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      history.push('/dashboard');
+    }
+  }, [isAuthenticated]);
+
+  // Show error message if login fails
+  useEffect(() => {
+    if (error) {
+      message.error(error);
+    }
+  }, [error]);
+
   const handleSubmit = async (values) => {
     try {
-      // Add your login logic here
-      console.log('Login values:', values);
-      message.success('Login successful!');
+      // Dispatch login action
+      const resultAction = await dispatch(loginUser(values));
+
+      if (loginUser.fulfilled.match(resultAction)) {
+        // Get user data from the result
+        const userData = resultAction.payload;
+
+        // Update the initialState with user info
+        await setInitialState((prevState) => ({
+          ...prevState,
+          currentUser: userData,
+          avatar: userData?.avatar || null,
+        }));
+
+        // Redirect to dashboard
+        history.push('/dashboard');
+      }
     } catch (error) {
-      message.error('Login failed');
+      console.error('Login failed:', error);
     }
   };
 
@@ -55,34 +91,37 @@ const LoginPage = () => {
                     backgroundColor: '#27C6C1',
                     color: '#F8F8F8',
                   },
+                  loading: isLoading,
                 },
               }}
             >
-              {/* Google Login Button */}
-              {/* <Button
+              {/* Uncomment for Google Login
+              <Button
                 icon={<GoogleOutlined />}
                 onClick={handleGoogleLogin}
                 className="w-full mb-4"
                 size="large"
               >
                 Sign In with Google
-              </Button> */}
+              </Button>
 
-              {/* Divider */}
-              <Divider>sign in with E-mail</Divider>
+              <Divider>or</Divider>
+              */}
 
-              {/* Email Input */}
+              <Divider>sign in with Username</Divider>
+
+              {/* Username Input */}
               <ProFormText
                 name="username"
                 fieldProps={{
                   size: 'large',
                   prefix: <UserOutlined />,
                 }}
-                placeholder="Email"
+                placeholder="Username"
                 rules={[
                   {
                     required: true,
-                    message: 'Please input your email!',
+                    message: 'Please input your Username!',
                   },
                 ]}
               />

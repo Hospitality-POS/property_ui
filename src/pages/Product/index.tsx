@@ -19,38 +19,56 @@ import {
     Tabs,
     Form,
     Select,
-    Descriptions,
-    List,
+    DatePicker,
+    Tooltip,
+    Progress,
+    Badge,
+    Timeline,
+    Drawer,
     Avatar,
-    Carousel,
+    List,
     Statistic,
+    Descriptions,
+    Steps,
+    Popover,
+    Checkbox,
     Upload,
-    Timeline
+    Rate,
+    Carousel
 } from 'antd';
 import {
-    HomeOutlined,
-    ShopOutlined,
+    DollarOutlined,
     SearchOutlined,
-    FilterOutlined,
-    DownOutlined,
+    PlusOutlined,
+    FileTextOutlined,
     EditOutlined,
     DeleteOutlined,
     EnvironmentOutlined,
-    FileTextOutlined,
-    PlusOutlined,
-    DollarOutlined,
+    CalendarOutlined,
+    FilterOutlined,
+    DownOutlined,
+    CheckCircleOutlined,
+    ClockCircleOutlined,
+    UserOutlined,
+    HomeOutlined,
+    BankOutlined,
+    PrinterOutlined,
+    ExportOutlined,
+    FileDoneOutlined,
+    TeamOutlined,
+    BarChartOutlined,
+    PieChartOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
-    ArrowLeftOutlined,
-    CheckCircleOutlined,
-    AreaChartOutlined,
-    CalendarOutlined,
-    TeamOutlined,
-    UserOutlined,
-    EyeOutlined,
-    BarChartOutlined,
-    ClockCircleOutlined,
+    FileSearchOutlined,
+    ScissorOutlined,
     ApartmentOutlined,
+    AuditOutlined,
+    FileExcelOutlined,
+    MailOutlined,
+    PhoneOutlined,
+    CrownOutlined,
+    EyeOutlined,
     PictureOutlined
 } from '@ant-design/icons';
 
@@ -58,8 +76,10 @@ const { Header, Content, Footer } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
+const { Step } = Steps;
 
-// Sample property data (same as in your document)
+// Sample property data
 const propertiesData = [
     {
         id: 'P001',
@@ -80,7 +100,6 @@ const propertiesData = [
             'https://via.placeholder.com/800x600?text=Land+Plot+Image+2',
             'https://via.placeholder.com/800x600?text=Land+Plot+Image+3'
         ],
-        // Additional project details
         projectManager: 'John Kimani',
         dateAdded: '2024-12-10',
         dateUpdated: '2025-02-20',
@@ -88,13 +107,18 @@ const propertiesData = [
         unitsSold: 0,
         totalUnits: 1,
         totalSales: 0,
-        expectedRevenue: 5500000,
+        expectedRevenue: 55000,
         projectPhase: 'Planning',
         completionDate: '2025-08-15',
         developmentCost: 2200000,
         roi: 150,
         salesRate: 'N/A',
-        constructionStatus: 'Not Started'
+        constructionStatus: 'Not Started',
+        timeline: [
+            { date: '2024-12-10', event: 'Property Added', description: 'Property details entered into system' },
+            { date: '2025-01-15', event: 'Marketing Started', description: 'Property listing published' },
+            { date: '2025-02-20', event: 'Property Inspection', description: 'Site visit conducted with potential buyer' }
+        ]
     },
     {
         id: 'P002',
@@ -105,7 +129,7 @@ const propertiesData = [
         county: 'Nairobi',
         constituency: 'Roysambu',
         coordinates: '-1.2335, 36.8957',
-        price: 8900000,
+        price: 89000,
         status: 'Reserved',
         description: 'Luxurious 3-bedroom apartment with modern amenities in a gated community.',
         features: ['3 Bedrooms', '2 Bathrooms', 'Balcony', 'Parking Space', 'Swimming Pool', 'Gym'],
@@ -115,7 +139,6 @@ const propertiesData = [
             'https://via.placeholder.com/800x600?text=Apartment+Image+2',
             'https://via.placeholder.com/800x600?text=Apartment+Image+3'
         ],
-        // Additional project details
         projectManager: 'Sarah Wanjiku',
         dateAdded: '2024-11-15',
         dateUpdated: '2025-02-25',
@@ -123,13 +146,19 @@ const propertiesData = [
         unitsSold: 9,
         totalUnits: 20,
         totalSales: 80100000,
-        expectedRevenue: 178000000,
+        expectedRevenue: 178000,
         projectPhase: 'Construction',
         completionDate: '2025-06-30',
         developmentCost: 120000000,
         roi: 48,
         salesRate: '1.5 units/month',
-        constructionStatus: '65% Complete'
+        constructionStatus: '65% Complete',
+        timeline: [
+            { date: '2024-11-15', event: 'Property Added', description: 'Property details entered into system' },
+            { date: '2025-01-05', event: 'Client Viewing', description: 'Property shown to interested client' },
+            { date: '2025-02-10', event: 'Reservation', description: 'Property reserved pending payment' },
+            { date: '2025-02-25', event: 'Deposit Received', description: 'Initial deposit payment received' }
+        ]
     },
     {
         id: 'P003',
@@ -140,7 +169,7 @@ const propertiesData = [
         county: 'Nairobi',
         constituency: 'Embakasi South',
         coordinates: '-1.3308, 36.9176',
-        price: 3200000,
+        price: 32000,
         status: 'Available',
         description: 'Strategically located commercial plot suitable for business development.',
         features: ['Commercial Zoning', 'High Traffic Area', 'Electricity Connection', 'Water Connection'],
@@ -149,7 +178,6 @@ const propertiesData = [
             'https://via.placeholder.com/800x600?text=Commercial+Plot+Image+1',
             'https://via.placeholder.com/800x600?text=Commercial+Plot+Image+2'
         ],
-        // Additional project details
         projectManager: 'David Maina',
         dateAdded: '2025-01-05',
         dateUpdated: '2025-01-30',
@@ -163,7 +191,12 @@ const propertiesData = [
         developmentCost: 800000,
         roi: 300,
         salesRate: 'N/A',
-        constructionStatus: 'Not Applicable'
+        constructionStatus: 'Not Applicable',
+        timeline: [
+            { date: '2025-01-05', event: 'Property Added', description: 'Property details entered into system' },
+            { date: '2025-01-20', event: 'Marketing Started', description: 'Property listing published' },
+            { date: '2025-01-30', event: 'Site Visit', description: 'Site inspection with surveyor' }
+        ]
     },
     {
         id: 'P004',
@@ -174,7 +207,7 @@ const propertiesData = [
         county: 'Kiambu',
         constituency: 'Kikuyu',
         coordinates: '-1.2500, 36.7000',
-        price: 0, // Price per individual unit varies
+        price: 0,
         status: 'In Progress',
         description: 'A modern residential development with 25 townhouses in a serene environment.',
         features: ['Gated Community', '3 Bedroom Units', 'Playground', 'Paved Roads', 'Security'],
@@ -184,7 +217,6 @@ const propertiesData = [
             'https://via.placeholder.com/800x600?text=Sample+House',
             'https://via.placeholder.com/800x600?text=Compound'
         ],
-        // Additional project details
         projectManager: 'Samuel Odhiambo',
         dateAdded: '2024-09-15',
         dateUpdated: '2025-03-01',
@@ -192,26 +224,24 @@ const propertiesData = [
         unitsSold: 17,
         totalUnits: 25,
         totalSales: 102000000,
-        expectedRevenue: 150000000,
+        expectedRevenue: 150000,
         projectPhase: 'Construction',
         completionDate: '2025-07-30',
         developmentCost: 90000000,
         roi: 66,
         salesRate: '2.1 units/month',
         constructionStatus: '70% Complete',
-        // Unit details
         unitTypes: [
             { type: 'Type A', size: '150 sq m', bedrooms: 3, price: 6000000, available: 3, reserved: 2, sold: 3 },
             { type: 'Type B', size: '180 sq m', bedrooms: 3, price: 6500000, available: 2, reserved: 1, sold: 4 },
             { type: 'Type C', size: '200 sq m', bedrooms: 4, price: 7000000, available: 3, reserved: 0, sold: 7 }
         ],
-        // Timeline
         timeline: [
-            { date: '2024-09-15', event: 'Project Initiated' },
-            { date: '2024-10-20', event: 'Approvals Obtained' },
-            { date: '2024-11-05', event: 'Construction Started' },
-            { date: '2025-01-15', event: 'Phase 1 Foundation Complete' },
-            { date: '2025-03-01', event: 'Structural Work 70% Complete' }
+            { date: '2024-09-15', event: 'Project Initiated', description: 'Development project launched' },
+            { date: '2024-10-20', event: 'Approvals Obtained', description: 'All necessary permits secured' },
+            { date: '2024-11-05', event: 'Construction Started', description: 'Ground breaking and foundation work' },
+            { date: '2025-01-15', event: 'Phase 1 Foundation Complete', description: '100% foundation work complete' },
+            { date: '2025-03-01', event: 'Structural Work 70% Complete', description: 'Construction progressing well' }
         ]
     },
     {
@@ -223,7 +253,7 @@ const propertiesData = [
         county: 'Nairobi',
         constituency: 'Dagoretti North',
         coordinates: '-1.2898, 36.7769',
-        price: 0, // Price per individual unit varies
+        price: 0,
         status: 'In Progress',
         description: 'Luxury apartment complex with 40 units offering modern living in the heart of Kilimani.',
         features: ['Rooftop Pool', 'Gym', 'Secure Parking', '24/7 Security', 'Backup Generator'],
@@ -233,7 +263,6 @@ const propertiesData = [
             'https://via.placeholder.com/800x600?text=Sample+Apartment',
             'https://via.placeholder.com/800x600?text=Rooftop+Area'
         ],
-        // Additional project details
         projectManager: 'Elizabeth Owino',
         dateAdded: '2024-08-10',
         dateUpdated: '2025-02-28',
@@ -241,27 +270,25 @@ const propertiesData = [
         unitsSold: 22,
         totalUnits: 40,
         totalSales: 198000000,
-        expectedRevenue: 360000000,
+        expectedRevenue: 3600000,
         projectPhase: 'Construction',
         completionDate: '2025-09-15',
         developmentCost: 250000000,
         roi: 44,
         salesRate: '3.1 units/month',
         constructionStatus: '60% Complete',
-        // Unit details
         unitTypes: [
             { type: 'Studio', size: '45 sq m', bedrooms: 0, price: 4500000, available: 3, reserved: 2, sold: 5 },
             { type: '1 Bedroom', size: '65 sq m', bedrooms: 1, price: 6500000, available: 5, reserved: 2, sold: 8 },
             { type: '2 Bedroom', size: '85 sq m', bedrooms: 2, price: 8500000, available: 4, reserved: 1, sold: 5 },
             { type: '3 Bedroom', size: '120 sq m', bedrooms: 3, price: 12000000, available: 2, reserved: 1, sold: 2 }
         ],
-        // Timeline
         timeline: [
-            { date: '2024-08-10', event: 'Project Initiated' },
-            { date: '2024-09-05', event: 'Approvals Obtained' },
-            { date: '2024-10-15', event: 'Construction Started' },
-            { date: '2025-01-10', event: 'Foundation Complete' },
-            { date: '2025-02-28', event: 'Structural Work 60% Complete' }
+            { date: '2024-08-10', event: 'Project Initiated', description: 'Development project launched' },
+            { date: '2024-09-05', event: 'Approvals Obtained', description: 'All necessary permits secured' },
+            { date: '2024-10-15', event: 'Construction Started', description: 'Ground breaking and foundation work' },
+            { date: '2025-01-10', event: 'Foundation Complete', description: '100% foundation work complete' },
+            { date: '2025-02-28', event: 'Structural Work 60% Complete', description: 'Construction progressing well' }
         ]
     }
 ];
@@ -269,53 +296,41 @@ const propertiesData = [
 const PropertyTable = () => {
     const [collapsed, setCollapsed] = useState(false);
     const [searchText, setSearchText] = useState('');
-    const [viewProperty, setViewProperty] = useState(null);
-    const [viewProject, setViewProject] = useState(null);
+    const [selectedProperty, setSelectedProperty] = useState(null);
+    const [drawerVisible, setDrawerVisible] = useState(false);
+    const [activeTab, setActiveTab] = useState('1');
+    const [addPropertyVisible, setAddPropertyVisible] = useState(false);
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
     const [propertyToDelete, setPropertyToDelete] = useState(null);
-    const [propertyType, setPropertyType] = useState('all');
-    const [addModalVisible, setAddModalVisible] = useState(false);
-    const [newPropertyType, setNewPropertyType] = useState('Land');
+    const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
+    const [propertyStatusFilter, setPropertyStatusFilter] = useState('all');
+    const [dateRange, setDateRange] = useState(null);
 
-    // New property form state
-    const [newProperty, setNewProperty] = useState({
-        title: '',
-        type: 'Land',
-        size: '',
-        location: '',
-        county: '',
-        constituency: '',
-        coordinates: '',
-        price: 0,
-        status: 'Available',
-        description: '',
-        features: [],
-        documents: [],
-        projectManager: '',
-        totalUnits: 1
-    });
-
-    // Table columns
+    // Table columns for properties list
     const columns = [
         {
-            title: 'ID',
+            title: 'Property ID',
             dataIndex: 'id',
             key: 'id',
-            width: 80,
+            fixed: 'left',
+            width: 120,
+            render: (text, record) => (
+                <a onClick={() => handleViewProperty(record)}>{text}</a>
+            ),
+            sorter: (a, b) => a.id.localeCompare(b.id),
         },
         {
             title: 'Title',
             dataIndex: 'title',
             key: 'title',
-            render: (text, record) => (
-                <a onClick={() => handleViewProperty(record)}>{text}</a>
-            ),
+            width: 200,
             sorter: (a, b) => a.title.localeCompare(b.title),
         },
         {
             title: 'Type',
             dataIndex: 'type',
             key: 'type',
+            width: 120,
             render: (type) => {
                 let color = 'blue';
                 if (type === 'Land') color = 'green';
@@ -332,12 +347,17 @@ const PropertyTable = () => {
                 { text: 'Development', value: 'Development' },
             ],
             onFilter: (value, record) => record.type === value,
-            width: 120,
         },
         {
             title: 'Location',
             dataIndex: 'location',
             key: 'location',
+            width: 150,
+            render: (text, record) => (
+                <span>
+                    <EnvironmentOutlined style={{ marginRight: 5 }} /> {text}
+                </span>
+            ),
         },
         {
             title: 'Size',
@@ -349,19 +369,20 @@ const PropertyTable = () => {
             title: 'Price (KES)',
             dataIndex: 'price',
             key: 'price',
+            width: 160,
             render: (price, record) => {
                 if (record.type === 'Development') {
-                    return 'Various';
+                    return <Text type="secondary">Various</Text>;
                 }
-                return price > 0 ? price.toLocaleString() : 'N/A';
+                return price > 0 ? price.toLocaleString() : <Text type="secondary">N/A</Text>;
             },
             sorter: (a, b) => a.price - b.price,
-            width: 120,
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
+            width: 150,
             render: (status) => {
                 let color = 'green';
                 if (status === 'Reserved') color = 'orange';
@@ -380,80 +401,86 @@ const PropertyTable = () => {
                 { text: 'In Progress', value: 'In Progress' },
             ],
             onFilter: (value, record) => record.status === value,
-            width: 120,
         },
         {
             title: 'Project Manager',
             dataIndex: 'projectManager',
             key: 'projectManager',
+            width: 130,
+            filters: [
+                { text: 'John Kimani', value: 'John Kimani' },
+                { text: 'Sarah Wanjiku', value: 'Sarah Wanjiku' },
+                { text: 'David Maina', value: 'David Maina' },
+                { text: 'Samuel Odhiambo', value: 'Samuel Odhiambo' },
+                { text: 'Elizabeth Owino', value: 'Elizabeth Owino' },
+            ],
+            onFilter: (value, record) => record.projectManager === value,
+        },
+        {
+            title: 'Date Added',
+            dataIndex: 'dateAdded',
+            key: 'dateAdded',
+            width: 120,
+            sorter: (a, b) => new Date(a.dateAdded) - new Date(b.dateAdded),
         },
         {
             title: 'Sales Progress',
             dataIndex: 'salesProgress',
             key: 'salesProgress',
+            width: 160,
             render: (progress, record) => {
                 if (record.type === 'Development') {
-                    return `${progress}%`;
+                    return (
+                        <Progress percent={progress} size="small" status="active" />
+                    );
                 }
                 if (record.status === 'Sold') {
-                    return '100%';
+                    return <Progress percent={100} size="small" status="success" />;
                 }
                 if (record.status === 'Reserved') {
-                    return '50%';
+                    return <Progress percent={50} size="small" status="active" />;
                 }
-                return '0%';
+                return <Progress percent={0} size="small" />;
             },
-            width: 120,
         },
         {
             title: 'Actions',
             key: 'actions',
+            fixed: 'right',
+            width: 120,
             render: (_, record) => (
                 <Space>
-                    {record.type === 'Development' ? (
+                    <Tooltip title="View Details">
                         <Button
-                            icon={<BarChartOutlined />}
-                            size="small"
-                            onClick={() => handleViewProject(record)}
-                            title="View Project Details"
-                        />
-                    ) : (
-                        <Button
-                            icon={<EyeOutlined />}
+                            icon={<FileSearchOutlined />}
                             size="small"
                             onClick={() => handleViewProperty(record)}
-                            title="View Property Details"
                         />
-                    )}
-                    <Button
-                        icon={<EditOutlined />}
-                        size="small"
-                        onClick={() => handleEditProperty(record)}
-                        title="Edit Property"
-                    />
-                    <Button
-                        icon={<DeleteOutlined />}
-                        size="small"
-                        danger
-                        onClick={() => showDeleteConfirm(record)}
-                        title="Delete Property"
-                    />
+                    </Tooltip>
+                    <Tooltip title="Edit">
+                        <Button
+                            icon={<EditOutlined />}
+                            size="small"
+                            onClick={() => handleEditProperty(record)}
+                        />
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                        <Button
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            danger
+                            onClick={() => showDeleteConfirm(record)}
+                        />
+                    </Tooltip>
                 </Space>
             ),
-            width: 120,
         },
     ];
 
     // Handle view property
     const handleViewProperty = (property) => {
-        setViewProperty(property);
-        setViewProject(null);
-    };
-
-    // Handle view project
-    const handleViewProject = (project) => {
-        setViewProject(project);
-        setViewProperty(null);
+        setSelectedProperty(property);
+        setDrawerVisible(true);
     };
 
     // Handle edit property
@@ -481,84 +508,57 @@ const PropertyTable = () => {
         setSearchText(e.target.value);
     };
 
-    // Handle property type filter
-    const handlePropertyTypeChange = (value) => {
-        setPropertyType(value);
+    // Handle date range change
+    const handleDateRangeChange = (dates) => {
+        setDateRange(dates);
     };
 
-    // Show add property modal
-    const showAddModal = () => {
-        setAddModalVisible(true);
+    // Calculate property portfolio statistics
+    const getTotalPropertyValue = () => {
+        return propertiesData
+            .filter(property => property.price > 0)
+            .reduce((total, property) => total + property.price, 0) +
+            propertiesData
+                .filter(property => property.type === 'Development')
+                .reduce((total, property) => total + property.expectedRevenue, 0);
     };
 
-    // Handle add property form changes
-    const handleNewPropertyChange = (e) => {
-        const { name, value } = e.target;
-        setNewProperty({
-            ...newProperty,
-            [name]: value
-        });
+    const getAvailablePropertiesCount = () => {
+        return propertiesData.filter(property => property.status === 'Available').length;
     };
 
-    // Handle add property submission
-    const handleAddProperty = () => {
-        // In a real app, this would call an API to add the property
-        const today = new Date().toISOString().split('T')[0];
-        const newId = `P${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-
-        const propertyToAdd = {
-            ...newProperty,
-            id: newId,
-            dateAdded: today,
-            dateUpdated: today,
-            salesProgress: 0,
-            unitsSold: 0,
-            images: ['https://via.placeholder.com/800x600?text=Property+Image'],
-            totalSales: 0,
-            expectedRevenue: newProperty.type === 'Development' ? 0 : newProperty.price
-        };
-
-        console.log('Add property:', propertyToAdd);
-        setAddModalVisible(false);
-
-        // Reset form
-        setNewProperty({
-            title: '',
-            type: 'Land',
-            size: '',
-            location: '',
-            county: '',
-            constituency: '',
-            coordinates: '',
-            price: 0,
-            status: 'Available',
-            description: '',
-            features: [],
-            documents: [],
-            projectManager: '',
-            totalUnits: 1
-        });
+    const getReservedPropertiesCount = () => {
+        return propertiesData.filter(property => property.status === 'Reserved').length;
     };
 
-    // Handle new property type change
-    const handleNewPropertyTypeChange = (value) => {
-        setNewPropertyType(value);
-        setNewProperty({
-            ...newProperty,
-            type: value,
-            features: [],
-            documents: []
-        });
+    const getTotalDevelopmentValue = () => {
+        return propertiesData
+            .filter(property => property.type === 'Development')
+            .reduce((total, property) => total + property.expectedRevenue, 0);
     };
 
-    // Filter properties based on search text and property type
+    // Filter properties based on search text and filters
     const filteredProperties = propertiesData.filter(
-        (property) =>
-            (propertyType === 'all' || property.type === propertyType) &&
-            (property.title.toLowerCase().includes(searchText.toLowerCase()) ||
-                property.location.toLowerCase().includes(searchText.toLowerCase()) ||
+        (property) => {
+            const matchesSearch =
                 property.id.toLowerCase().includes(searchText.toLowerCase()) ||
-                property.projectManager.toLowerCase().includes(searchText.toLowerCase()))
+                property.title.toLowerCase().includes(searchText.toLowerCase()) ||
+                property.location.toLowerCase().includes(searchText.toLowerCase()) ||
+                property.projectManager.toLowerCase().includes(searchText.toLowerCase());
+
+            const matchesType = propertyTypeFilter === 'all' || property.type === propertyTypeFilter;
+            const matchesStatus = propertyStatusFilter === 'all' || property.status === propertyStatusFilter;
+
+            let matchesDateRange = true;
+            if (dateRange && dateRange[0] && dateRange[1]) {
+                const addedDate = new Date(property.dateAdded);
+                const startDate = new Date(dateRange[0]);
+                const endDate = new Date(dateRange[1]);
+                matchesDateRange = addedDate >= startDate && addedDate <= endDate;
+            }
+
+            return matchesSearch && matchesType && matchesStatus && matchesDateRange;
+        }
     );
 
     return (
@@ -574,18 +574,9 @@ const PropertyTable = () => {
                 </div>
 
                 <Space>
-                    {viewProperty || viewProject ? (
-                        <Button
-                            onClick={() => { setViewProperty(null); setViewProject(null); }}
-                            icon={<ArrowLeftOutlined />}
-                        >
-                            Back to Properties
-                        </Button>
-                    ) : (
-                        <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
-                            Add Property
-                        </Button>
-                    )}
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddPropertyVisible(true)}>
+                        Add Property
+                    </Button>
                 </Space>
             </Header>
 
@@ -595,94 +586,479 @@ const PropertyTable = () => {
                     <Breadcrumb>
                         <Breadcrumb.Item>Home</Breadcrumb.Item>
                         <Breadcrumb.Item>Properties</Breadcrumb.Item>
-                        {viewProperty && <Breadcrumb.Item>{viewProperty.title}</Breadcrumb.Item>}
-                        {viewProject && <Breadcrumb.Item>{viewProject.title}</Breadcrumb.Item>}
                     </Breadcrumb>
+                    <Title level={3} style={{ marginTop: 8, marginBottom: 16 }}>Property Portfolio Management</Title>
                 </div>
 
-                {viewProperty ? (
-                    // Single Property View
-                    <PropertyView property={viewProperty} onBack={() => setViewProperty(null)} />
-                ) : viewProject ? (
-                    // Single Project View
-                    <ProjectView project={viewProject} onBack={() => setViewProject(null)} />
-                ) : (
-                    // Properties Table View
-                    <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                            <div>
-                                <Title level={3}>Property Portfolio</Title>
-                                <Text type="secondary">Manage your real estate inventory</Text>
-                            </div>
-                        </div>
+                {/* Property Statistics Cards */}
+                <Row gutter={16} style={{ marginBottom: 24 }}>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card>
+                            <Statistic
+                                title="Total Portfolio Value"
+                                value={getTotalPropertyValue()}
+                                valueStyle={{ color: '#1890ff' }}
+                                prefix={<BankOutlined />}
+                                formatter={value => `KES ${value.toLocaleString()}`}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card>
+                            <Statistic
+                                title="Available Properties"
+                                value={getAvailablePropertiesCount()}
+                                valueStyle={{ color: '#52c41a' }}
+                                prefix={<CheckCircleOutlined />}
+                                suffix={`/ ${propertiesData.length}`}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card>
+                            <Statistic
+                                title="Reserved Properties"
+                                value={getReservedPropertiesCount()}
+                                valueStyle={{ color: '#faad14' }}
+                                prefix={<ClockCircleOutlined />}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card>
+                            <Statistic
+                                title="Development Projects Value"
+                                value={getTotalDevelopmentValue()}
+                                valueStyle={{ color: '#722ed1' }}
+                                prefix={<ApartmentOutlined />}
+                                formatter={value => `KES ${value.toLocaleString()}`}
+                            />
+                        </Card>
+                    </Col>
+                </Row>
 
-                        {/* Search and Filter */}
-                        <Row gutter={16} style={{ marginTop: 16, marginBottom: 16 }}>
-                            <Col xs={24} sm={18} md={20} lg={20}>
-                                <Input
-                                    placeholder="Search properties by title, location, ID, or project manager..."
-                                    prefix={<SearchOutlined />}
-                                    onChange={handleSearch}
-                                    value={searchText}
-                                    allowClear
-                                />
-                            </Col>
-                            <Col xs={24} sm={6} md={4} lg={4}>
-                                <Select
-                                    style={{ width: '100%' }}
-                                    value={propertyType}
-                                    onChange={handlePropertyTypeChange}
-                                >
-                                    <Option value="all">All Types</Option>
-                                    <Option value="Land">Land</Option>
-                                    <Option value="Apartment">Apartments</Option>
-                                    <Option value="Development">Developments</Option>
-                                </Select>
-                            </Col>
-                        </Row>
-
-                        {/* Properties Table */}
-                        <Table
-                            columns={columns}
-                            dataSource={filteredProperties}
-                            rowKey="id"
-                            pagination={{ pageSize: 10 }}
-                            scroll={{ x: 1200 }}
-                            expandable={{
-                                expandedRowRender: record => (
-                                    <p style={{ margin: 0 }}>
-                                        <strong>Description:</strong> {record.description}
-                                    </p>
-                                ),
-                            }}
+                {/* Search and Filters */}
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col xs={24} sm={24} md={6}>
+                        <Input
+                            placeholder="Search by ID, title, location or manager..."
+                            prefix={<SearchOutlined />}
+                            value={searchText}
+                            onChange={handleSearch}
+                            allowClear
                         />
-                    </>
-                )}
+                    </Col>
+                    <Col xs={24} sm={8} md={5}>
+                        <Select
+                            style={{ width: '100%' }}
+                            placeholder="Filter by Type"
+                            defaultValue="all"
+                            onChange={value => setPropertyTypeFilter(value)}
+                        >
+                            <Option value="all">All Types</Option>
+                            <Option value="Land">Land</Option>
+                            <Option value="Apartment">Apartment</Option>
+                            <Option value="Development">Development</Option>
+                        </Select>
+                    </Col>
+                    <Col xs={24} sm={8} md={5}>
+                        <Select
+                            style={{ width: '100%' }}
+                            placeholder="Filter by Status"
+                            defaultValue="all"
+                            onChange={value => setPropertyStatusFilter(value)}
+                        >
+                            <Option value="all">All Statuses</Option>
+                            <Option value="Available">Available</Option>
+                            <Option value="Reserved">Reserved</Option>
+                            <Option value="Sold">Sold</Option>
+                            <Option value="In Progress">In Progress</Option>
+                        </Select>
+                    </Col>
+                    <Col xs={24} sm={8} md={6}>
+                        <RangePicker
+                            style={{ width: '100%' }}
+                            placeholder={['Start Date', 'End Date']}
+                            onChange={handleDateRangeChange}
+                        />
+                    </Col>
+                    <Col xs={24} sm={24} md={2}>
+                        <Dropdown overlay={
+                            <Menu>
+                                <Menu.Item key="1" icon={<FileExcelOutlined />}>Export to Excel</Menu.Item>
+                                <Menu.Item key="2" icon={<PrinterOutlined />}>Print Report</Menu.Item>
+                            </Menu>
+                        }>
+                            <Button style={{ width: '100%' }}>
+                                <ExportOutlined /> Export <DownOutlined />
+                            </Button>
+                        </Dropdown>
+                    </Col>
+                </Row>
+
+                {/* Properties Table */}
+                <Table
+                    columns={columns}
+                    dataSource={filteredProperties}
+                    rowKey="id"
+                    pagination={{ pageSize: 10 }}
+                    scroll={{ x: 1500 }}
+                    expandable={{
+                        expandedRowRender: record => (
+                            <p style={{ margin: 0 }}>
+                                <strong>Description:</strong> {record.description}
+                            </p>
+                        ),
+                    }}
+                    summary={pageData => {
+                        if (pageData.length === 0) return null;
+
+                        let pageTotal = 0;
+                        let developmentTotal = 0;
+
+                        pageData.forEach(({ price, expectedRevenue, type }) => {
+                            if (type === 'Development') {
+                                developmentTotal += expectedRevenue || 0;
+                            } else {
+                                pageTotal += price || 0;
+                            }
+                        });
+
+                        return (
+                            <Table.Summary fixed>
+                                <Table.Summary.Row>
+                                    <Table.Summary.Cell index={0} colSpan={5}><strong>Page Total</strong></Table.Summary.Cell>
+                                    <Table.Summary.Cell index={5}>
+                                        <Text type="danger">KES {pageTotal.toLocaleString()}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={6} colSpan={5}>
+                                        <Text type="danger">Development Value: KES {developmentTotal.toLocaleString()}</Text>
+                                    </Table.Summary.Cell>
+                                </Table.Summary.Row>
+                            </Table.Summary>
+                        );
+                    }}
+                />
             </Content>
 
             <Footer style={{ textAlign: 'center' }}>
                 Real Estate Management System ©2025
             </Footer>
 
-            {/* Delete Confirmation Modal */}
-            <Modal
-                title="Confirm Delete"
-                visible={deleteModalVisible}
-                onOk={handleDeleteProperty}
-                onCancel={() => setDeleteModalVisible(false)}
-                okText="Delete"
-                okButtonProps={{ danger: true }}
+            {/* Property Details Drawer */}
+            <Drawer
+                title={selectedProperty ? `Property Details: ${selectedProperty.id}` : 'Property Details'}
+                placement="right"
+                onClose={() => setDrawerVisible(false)}
+                visible={drawerVisible}
+                width={700}
+                footer={
+                    <div style={{ textAlign: 'right' }}>
+                        <Button type="primary" icon={<FileTextOutlined />} style={{ marginRight: 8 }}>
+                            Generate Report
+                        </Button>
+                        <Button onClick={() => setDrawerVisible(false)}>Close</Button>
+                    </div>
+                }
             >
-                <p>Are you sure you want to delete <strong>{propertyToDelete?.title}</strong>?</p>
-                <p>This action cannot be undone.</p>
-            </Modal>
+                {selectedProperty && (
+                    <>
+                        <div style={{ marginBottom: 24 }}>
+                            <Row gutter={16}>
+                                <Col span={16}>
+                                    <Title level={4}>{selectedProperty.title}</Title>
+                                    <Space direction="vertical">
+                                        <Text><HomeOutlined style={{ marginRight: 8 }} />{selectedProperty.type} - {selectedProperty.size}</Text>
+                                        <Text><EnvironmentOutlined style={{ marginRight: 8 }} />{selectedProperty.location}, {selectedProperty.county}</Text>
+                                        <Text><UserOutlined style={{ marginRight: 8 }} />Project Manager: {selectedProperty.projectManager}</Text>
+                                    </Space>
+                                </Col>
+                                <Col span={8} style={{ textAlign: 'right' }}>
+                                    <Tag color={
+                                        selectedProperty.status === 'Available' ? 'green' :
+                                            selectedProperty.status === 'Reserved' ? 'orange' :
+                                                selectedProperty.status === 'Sold' ? 'red' : 'blue'
+                                    } style={{ fontSize: '14px', padding: '4px 8px' }}>
+                                        {selectedProperty.status}
+                                    </Tag>
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text strong>Added:</Text> {selectedProperty.dateAdded}
+                                    </div>
+                                    <div style={{ marginTop: 4 }}>
+                                        <Text strong>Updated:</Text> {selectedProperty.dateUpdated}
+                                    </div>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        <Divider style={{ margin: '16px 0' }} />
+
+                        {/* Property Progress Steps */}
+                        <div style={{ marginBottom: 24 }}>
+                            <Steps size="small" current={
+                                selectedProperty.status === 'Available' ? 0 :
+                                    selectedProperty.status === 'Reserved' ? 1 :
+                                        selectedProperty.status === 'Sold' ? 2 :
+                                            selectedProperty.type === 'Development' ? 1 : 0
+                            }>
+                                <Step title="Available" />
+                                <Step title="Reserved/In Progress" />
+                                <Step title="Sold/Completed" />
+                            </Steps>
+                        </div>
+
+                        {/* Property Image Carousel */}
+                        <Card style={{ marginBottom: 16 }}>
+                            <Carousel autoplay>
+                                {selectedProperty.images.map((image, index) => (
+                                    <div key={index}>
+                                        <div style={{ height: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f0f0f0' }}>
+                                            <img
+                                                src={image}
+                                                alt={`Property ${index + 1}`}
+                                                style={{ maxWidth: '100%', maxHeight: '300px' }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </Carousel>
+                        </Card>
+
+                        {/* Property Overview */}
+                        <Card title="Property Overview" style={{ marginBottom: 16 }}>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Descriptions column={1} size="small">
+                                        <Descriptions.Item label="Property Type">{selectedProperty.type}</Descriptions.Item>
+                                        <Descriptions.Item label="Size">{selectedProperty.size}</Descriptions.Item>
+                                        <Descriptions.Item label="Location">{selectedProperty.location}</Descriptions.Item>
+                                        <Descriptions.Item label="County">{selectedProperty.county}</Descriptions.Item>
+                                        <Descriptions.Item label="Constituency">{selectedProperty.constituency}</Descriptions.Item>
+                                    </Descriptions>
+                                </Col>
+                                <Col span={12}>
+                                    <Descriptions column={1} size="small">
+                                        <Descriptions.Item label="Price">
+                                            {selectedProperty.type === 'Development' ?
+                                                'Various Units Pricing' :
+                                                `KES ${selectedProperty.price.toLocaleString()}`
+                                            }
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Status">{selectedProperty.status}</Descriptions.Item>
+                                        <Descriptions.Item label="Sales Progress">
+                                            {selectedProperty.type === 'Development' ?
+                                                `${selectedProperty.salesProgress}% (${selectedProperty.unitsSold}/${selectedProperty.totalUnits} units)` :
+                                                selectedProperty.status === 'Sold' ? '100%' :
+                                                    selectedProperty.status === 'Reserved' ? '50%' : '0%'
+                                            }
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Project Manager">{selectedProperty.projectManager}</Descriptions.Item>
+                                        <Descriptions.Item label="Documents">{selectedProperty.documents.length} documents</Descriptions.Item>
+                                    </Descriptions>
+                                </Col>
+                            </Row>
+                        </Card>
+
+                        <Tabs defaultActiveKey="1" onChange={setActiveTab}>
+                            <TabPane tab="Property Details" key="1">
+                                <Card title="Description" style={{ marginBottom: 16 }}>
+                                    <Paragraph>{selectedProperty.description}</Paragraph>
+                                </Card>
+
+                                <Card title="Features" style={{ marginBottom: 16 }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {selectedProperty.features.map((feature, idx) => (
+                                            <Tag key={idx} color="blue">
+                                                <CheckCircleOutlined /> {feature}
+                                            </Tag>
+                                        ))}
+                                    </div>
+                                </Card>
+
+                                {selectedProperty.type === 'Development' && selectedProperty.unitTypes && (
+                                    <Card title="Unit Types" style={{ marginBottom: 16 }}>
+                                        <Table
+                                            columns={[
+                                                {
+                                                    title: 'Type',
+                                                    dataIndex: 'type',
+                                                    key: 'type',
+                                                },
+                                                {
+                                                    title: 'Size',
+                                                    dataIndex: 'size',
+                                                    key: 'size',
+                                                },
+                                                {
+                                                    title: 'Bedrooms',
+                                                    dataIndex: 'bedrooms',
+                                                    key: 'bedrooms',
+                                                },
+                                                {
+                                                    title: 'Price (KES)',
+                                                    dataIndex: 'price',
+                                                    key: 'price',
+                                                    render: price => price.toLocaleString(),
+                                                },
+                                                {
+                                                    title: 'Status',
+                                                    key: 'status',
+                                                    render: (_, record) => (
+                                                        <Space>
+                                                            <Tag color="green">{record.available} Available</Tag>
+                                                            <Tag color="orange">{record.reserved} Reserved</Tag>
+                                                            <Tag color="red">{record.sold} Sold</Tag>
+                                                        </Space>
+                                                    ),
+                                                },
+                                            ]}
+                                            dataSource={selectedProperty.unitTypes}
+                                            rowKey="type"
+                                            pagination={false}
+                                            size="small"
+                                        />
+                                    </Card>
+                                )}
+                            </TabPane>
+
+                            <TabPane tab="Timeline" key="2">
+                                <Timeline mode="left">
+                                    {selectedProperty.timeline.map((item, index) => (
+                                        <Timeline.Item
+                                            key={index}
+                                            label={item.date}
+                                            color={
+                                                item.event.includes('Sold') || item.event.includes('Complete') ? 'green' :
+                                                    item.event.includes('Reserved') || item.event.includes('Progress') ? 'blue' :
+                                                        'gray'
+                                            }
+                                        >
+                                            <div style={{ fontWeight: 'bold' }}>{item.event}</div>
+                                            <div>{item.description}</div>
+                                        </Timeline.Item>
+                                    ))}
+
+                                    {selectedProperty.status !== 'Sold' && (
+                                        <Timeline.Item label="Future" color="gray" dot={<ClockCircleOutlined />}>
+                                            <div style={{ fontWeight: 'bold' }}>
+                                                {selectedProperty.status === 'Available' ? 'Reserve Property' :
+                                                    selectedProperty.status === 'Reserved' ? 'Complete Sale' : 'Handover'}
+                                            </div>
+                                            <div>Next step in the property lifecycle</div>
+                                        </Timeline.Item>
+                                    )}
+                                </Timeline>
+
+                                <Button
+                                    type="dashed"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 16 }}
+                                    block
+                                >
+                                    Add Timeline Event
+                                </Button>
+                            </TabPane>
+
+                            <TabPane tab="Financial Details" key="3">
+                                <Card>
+                                    {selectedProperty.type === 'Development' ? (
+                                        <Descriptions title="Development Financial Information" bordered column={1}>
+                                            <Descriptions.Item label="Total Expected Revenue">
+                                                KES {selectedProperty.expectedRevenue.toLocaleString()}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Development Cost">
+                                                KES {selectedProperty.developmentCost.toLocaleString()}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Return on Investment">{selectedProperty.roi}%</Descriptions.Item>
+                                            <Descriptions.Item label="Total Sales to Date">
+                                                KES {selectedProperty.totalSales.toLocaleString()}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Sales Rate">{selectedProperty.salesRate}</Descriptions.Item>
+                                            <Descriptions.Item label="Units Sold">
+                                                {selectedProperty.unitsSold} of {selectedProperty.totalUnits} ({selectedProperty.salesProgress}%)
+                                            </Descriptions.Item>
+                                            <Descriptions.Item label="Completion Status">{selectedProperty.constructionStatus}</Descriptions.Item>
+                                            <Descriptions.Item label="Expected Completion">{selectedProperty.completionDate}</Descriptions.Item>
+                                        </Descriptions>
+                                    ) : (
+                                        <Descriptions title="Property Financial Information" bordered column={1}>
+                                            <Descriptions.Item label="Listing Price">KES {selectedProperty.price.toLocaleString()}</Descriptions.Item>
+                                            <Descriptions.Item label="Status">{selectedProperty.status}</Descriptions.Item>
+                                            {selectedProperty.status === 'Reserved' && (
+                                                <Descriptions.Item label="Reservation Fee">KES 100,000</Descriptions.Item>
+                                            )}
+                                            <Descriptions.Item label="Property Tax (Annual)">KES {Math.round(selectedProperty.price * 0.01).toLocaleString()}</Descriptions.Item>
+                                            <Descriptions.Item label="Management Fee (Monthly)">KES {Math.round(selectedProperty.price * 0.0005).toLocaleString()}</Descriptions.Item>
+                                            <Descriptions.Item label="Estimated ROI">
+                                                {selectedProperty.type === 'Land' ? '8-12% p.a.' : '5-7% p.a.'}
+                                            </Descriptions.Item>
+                                        </Descriptions>
+                                    )}
+                                    <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                                        <Space>
+                                            <Button icon={<DollarOutlined />}>Price History</Button>
+                                            <Button icon={<BarChartOutlined />}>Financial Analysis</Button>
+                                            <Button type="primary" icon={<FileTextOutlined />}>Generate Financial Report</Button>
+                                        </Space>
+                                    </div>
+                                </Card>
+                            </TabPane>
+
+                            <TabPane tab="Documents" key="4">
+                                <List
+                                    itemLayout="horizontal"
+                                    dataSource={selectedProperty.documents}
+                                    renderItem={item => (
+                                        <List.Item
+                                            actions={[
+                                                <Button type="link">View</Button>,
+                                                <Button type="link">Download</Button>
+                                            ]}
+                                        >
+                                            <List.Item.Meta
+                                                avatar={<Avatar icon={<FileTextOutlined />} />}
+                                                title={item}
+                                                description="Document details would appear here"
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 16 }}
+                                >
+                                    Upload Document
+                                </Button>
+                            </TabPane>
+
+                            <TabPane tab="Location & Map" key="5">
+                                <Card>
+                                    <div style={{ height: '300px', background: '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                        <Text type="secondary">Map would be displayed here showing the property location at coordinates: {selectedProperty.coordinates}</Text>
+                                    </div>
+                                    <Descriptions title="Location Details" bordered>
+                                        <Descriptions.Item label="Address" span={3}>{selectedProperty.location}</Descriptions.Item>
+                                        <Descriptions.Item label="County">{selectedProperty.county}</Descriptions.Item>
+                                        <Descriptions.Item label="Constituency">{selectedProperty.constituency}</Descriptions.Item>
+                                        <Descriptions.Item label="GPS Coordinates">{selectedProperty.coordinates}</Descriptions.Item>
+                                        <Descriptions.Item label="Nearby Facilities" span={3}>
+                                            <Text>Information about nearby schools, hospitals, shopping centers, etc. would be displayed here.</Text>
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </Card>
+                            </TabPane>
+                        </Tabs>
+                    </>
+                )}
+            </Drawer>
 
             {/* Add Property Modal */}
             <Modal
                 title="Add New Property"
-                visible={addModalVisible}
-                onOk={handleAddProperty}
-                onCancel={() => setAddModalVisible(false)}
+                visible={addPropertyVisible}
+                onOk={() => setAddPropertyVisible(false)}
+                onCancel={() => setAddPropertyVisible(false)}
                 width={800}
                 okText="Add Property"
             >
@@ -692,21 +1068,12 @@ const PropertyTable = () => {
                             <Row gutter={16}>
                                 <Col span={16}>
                                     <Form.Item label="Property Title" required>
-                                        <Input
-                                            name="title"
-                                            value={newProperty.title}
-                                            onChange={handleNewPropertyChange}
-                                            placeholder="Enter property title"
-                                        />
+                                        <Input placeholder="Enter property title" />
                                     </Form.Item>
                                 </Col>
                                 <Col span={8}>
                                     <Form.Item label="Property Type" required>
-                                        <Select
-                                            value={newPropertyType}
-                                            onChange={handleNewPropertyTypeChange}
-                                            style={{ width: '100%' }}
-                                        >
+                                        <Select placeholder="Select property type">
                                             <Option value="Land">Land</Option>
                                             <Option value="Apartment">Apartment</Option>
                                             <Option value="Development">Development Project</Option>
@@ -717,13 +1084,8 @@ const PropertyTable = () => {
 
                             <Row gutter={16}>
                                 <Col span={12}>
-                                    <Form.Item label="Size">
-                                        <Input
-                                            name="size"
-                                            value={newProperty.size}
-                                            onChange={handleNewPropertyChange}
-                                            placeholder={newPropertyType === 'Land' ? 'e.g., 0.5 acres' : 'e.g., 120 sq m'}
-                                        />
+                                    <Form.Item label="Size" required>
+                                        <Input placeholder="e.g., 0.5 acres or 150 sq m" />
                                     </Form.Item>
                                 </Col>
                                 <Col span={12}>
@@ -731,16 +1093,10 @@ const PropertyTable = () => {
                                         <InputNumber
                                             style={{ width: '100%' }}
                                             min={0}
-                                            step={100000}
-                                            value={newProperty.price}
                                             formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                             parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                                            onChange={(value) => setNewProperty({ ...newProperty, price: value })}
-                                            disabled={newPropertyType === 'Development'}
+                                            placeholder="Enter property price"
                                         />
-                                        {newPropertyType === 'Development' && (
-                                            <Text type="secondary">Price will be set per unit type</Text>
-                                        )}
                                     </Form.Item>
                                 </Col>
                             </Row>
@@ -748,27 +1104,16 @@ const PropertyTable = () => {
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item label="Location" required>
-                                        <Input
-                                            name="location"
-                                            value={newProperty.location}
-                                            onChange={handleNewPropertyChange}
-                                            placeholder="Area/neighborhood"
-                                        />
+                                        <Input placeholder="Area/neighborhood" />
                                     </Form.Item>
                                 </Col>
                                 <Col span={12}>
                                     <Form.Item label="Status">
-                                        <Select
-                                            value={newProperty.status}
-                                            onChange={(value) => setNewProperty({ ...newProperty, status: value })}
-                                            style={{ width: '100%' }}
-                                        >
+                                        <Select defaultValue="Available">
                                             <Option value="Available">Available</Option>
                                             <Option value="Reserved">Reserved</Option>
                                             <Option value="Sold">Sold</Option>
-                                            {newPropertyType === 'Development' && (
-                                                <Option value="In Progress">In Progress</Option>
-                                            )}
+                                            <Option value="In Progress">In Progress</Option>
                                         </Select>
                                     </Form.Item>
                                 </Col>
@@ -777,205 +1122,64 @@ const PropertyTable = () => {
                             <Row gutter={16}>
                                 <Col span={8}>
                                     <Form.Item label="County">
-                                        <Input
-                                            name="county"
-                                            value={newProperty.county}
-                                            onChange={handleNewPropertyChange}
-                                            placeholder="County name"
-                                        />
+                                        <Input placeholder="County name" />
                                     </Form.Item>
                                 </Col>
                                 <Col span={8}>
                                     <Form.Item label="Constituency">
-                                        <Input
-                                            name="constituency"
-                                            value={newProperty.constituency}
-                                            onChange={handleNewPropertyChange}
-                                            placeholder="Constituency name"
-                                        />
+                                        <Input placeholder="Constituency name" />
                                     </Form.Item>
                                 </Col>
                                 <Col span={8}>
-                                    <Form.Item label="GPS Coordinates">
-                                        <Input
-                                            name="coordinates"
-                                            value={newProperty.coordinates}
-                                            onChange={handleNewPropertyChange}
-                                            placeholder="e.g., -1.2921, 36.8219"
-                                        />
+                                    <Form.Item label="Project Manager">
+                                        <Input placeholder="Name of project manager" />
                                     </Form.Item>
                                 </Col>
                             </Row>
 
-                            <Form.Item label="Project Manager">
-                                <Input
-                                    name="projectManager"
-                                    value={newProperty.projectManager}
-                                    onChange={handleNewPropertyChange}
-                                    placeholder="Name of project manager"
-                                />
-                            </Form.Item>
-
-                            {newPropertyType === 'Development' && (
-                                <Form.Item label="Total Units">
-                                    <InputNumber
-                                        style={{ width: '100%' }}
-                                        min={1}
-                                        value={newProperty.totalUnits}
-                                        onChange={(value) => setNewProperty({ ...newProperty, totalUnits: value })}
-                                    />
-                                </Form.Item>
-                            )}
-
                             <Form.Item label="Description">
-                                <Input.TextArea
-                                    rows={4}
-                                    name="description"
-                                    value={newProperty.description}
-                                    onChange={handleNewPropertyChange}
-                                    placeholder="Detailed description of the property..."
-                                />
+                                <Input.TextArea rows={4} placeholder="Detailed description of the property..." />
                             </Form.Item>
                         </TabPane>
 
                         <TabPane tab="Features & Documents" key="2">
                             <Form.Item label="Features">
-                                <Select
-                                    mode="tags"
-                                    style={{ width: '100%' }}
-                                    placeholder="Add property features"
-                                    value={newProperty.features}
-                                    onChange={(values) => setNewProperty({ ...newProperty, features: values })}
-                                >
-                                    {newPropertyType === 'Land' && (
-                                        <>
-                                            <Option value="Fenced">Fenced</Option>
-                                            <Option value="Road Access">Road Access</Option>
-                                            <Option value="Electricity Connection">Electricity Connection</Option>
-                                            <Option value="Water Connection">Water Connection</Option>
-                                            <Option value="Commercial Zoning">Commercial Zoning</Option>
-                                            <Option value="Residential Zoning">Residential Zoning</Option>
-                                        </>
-                                    )}
-
-                                    {newPropertyType === 'Apartment' && (
-                                        <>
-                                            <Option value="1 Bedroom">1 Bedroom</Option>
-                                            <Option value="2 Bedrooms">2 Bedrooms</Option>
-                                            <Option value="3 Bedrooms">3 Bedrooms</Option>
-                                            <Option value="Balcony">Balcony</Option>
-                                            <Option value="Parking Space">Parking Space</Option>
-                                            <Option value="Swimming Pool">Swimming Pool</Option>
-                                            <Option value="Gym">Gym</Option>
-                                            <Option value="Security">Security</Option>
-                                            <Option value="Furnished">Furnished</Option>
-                                        </>
-                                    )}
-
-                                    {newPropertyType === 'Development' && (
-                                        <>
-                                            <Option value="Gated Community">Gated Community</Option>
-                                            <Option value="24/7 Security">24/7 Security</Option>
-                                            <Option value="Playground">Playground</Option>
-                                            <Option value="Swimming Pool">Swimming Pool</Option>
-                                            <Option value="Gym">Gym</Option>
-                                            <Option value="Parking">Parking</Option>
-                                            <Option value="Backup Generator">Backup Generator</Option>
-                                            <Option value="CCTV Surveillance">CCTV Surveillance</Option>
-                                        </>
-                                    )}
+                                <Select mode="tags" style={{ width: '100%' }} placeholder="Add property features">
+                                    <Option value="Fenced">Fenced</Option>
+                                    <Option value="Road Access">Road Access</Option>
+                                    <Option value="Electricity Connection">Electricity Connection</Option>
+                                    <Option value="Water Connection">Water Connection</Option>
+                                    <Option value="3 Bedrooms">3 Bedrooms</Option>
+                                    <Option value="2 Bathrooms">2 Bathrooms</Option>
+                                    <Option value="Parking Space">Parking Space</Option>
+                                    <Option value="Swimming Pool">Swimming Pool</Option>
+                                    <Option value="Gym">Gym</Option>
+                                    <Option value="Security">Security</Option>
                                 </Select>
                             </Form.Item>
 
                             <Form.Item label="Required Documents">
-                                <Select
-                                    mode="tags"
-                                    style={{ width: '100%' }}
-                                    placeholder="Add required documents"
-                                    value={newProperty.documents}
-                                    onChange={(values) => setNewProperty({ ...newProperty, documents: values })}
-                                >
-                                    {newPropertyType === 'Land' && (
-                                        <>
-                                            <Option value="Title Deed">Title Deed</Option>
-                                            <Option value="Survey Plan">Survey Plan</Option>
-                                            <Option value="Clearance Certificate">Clearance Certificate</Option>
-                                            <Option value="Land Rates Receipt">Land Rates Receipt</Option>
-                                        </>
-                                    )}
-
-                                    {newPropertyType === 'Apartment' && (
-                                        <>
-                                            <Option value="Sale Agreement">Sale Agreement</Option>
-                                            <Option value="Floor Plan">Floor Plan</Option>
-                                            <Option value="Building Approval">Building Approval</Option>
-                                            <Option value="Completion Certificate">Completion Certificate</Option>
-                                        </>
-                                    )}
-
-                                    {newPropertyType === 'Development' && (
-                                        <>
-                                            <Option value="Master Plan">Master Plan</Option>
-                                            <Option value="Building Approvals">Building Approvals</Option>
-                                            <Option value="EIA Certificate">EIA Certificate</Option>
-                                            <Option value="Project Schedule">Project Schedule</Option>
-                                            <Option value="Sales Brochure">Sales Brochure</Option>
-                                        </>
-                                    )}
+                                <Select mode="tags" style={{ width: '100%' }} placeholder="Add required documents">
+                                    <Option value="Title Deed">Title Deed</Option>
+                                    <Option value="Survey Plan">Survey Plan</Option>
+                                    <Option value="Floor Plan">Floor Plan</Option>
+                                    <Option value="Building Approval">Building Approval</Option>
+                                    <Option value="Sale Agreement">Sale Agreement</Option>
+                                    <Option value="Master Plan">Master Plan</Option>
                                 </Select>
                             </Form.Item>
 
-                            {newPropertyType === 'Development' && (
-                                <>
-                                    <Divider orientation="left">Project Information</Divider>
-                                    <Row gutter={16}>
-                                        <Col span={12}>
-                                            <Form.Item label="Project Phase">
-                                                <Select
-                                                    style={{ width: '100%' }}
-                                                    placeholder="Select project phase"
-                                                    onChange={(value) => setNewProperty({ ...newProperty, projectPhase: value })}
-                                                >
-                                                    <Option value="Planning">Planning</Option>
-                                                    <Option value="Design">Design</Option>
-                                                    <Option value="Approvals">Approvals</Option>
-                                                    <Option value="Marketing">Marketing</Option>
-                                                    <Option value="Construction">Construction</Option>
-                                                    <Option value="Handover">Handover</Option>
-                                                </Select>
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item label="Construction Status">
-                                                <Input
-                                                    placeholder="e.g., 50% Complete"
-                                                    onChange={(e) => setNewProperty({ ...newProperty, constructionStatus: e.target.value })}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item label="Expected Completion Date">
-                                                <Input
-                                                    placeholder="YYYY-MM-DD"
-                                                    onChange={(e) => setNewProperty({ ...newProperty, completionDate: e.target.value })}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Form.Item label="Development Cost (KES)">
-                                                <InputNumber
-                                                    style={{ width: '100%' }}
-                                                    min={0}
-                                                    step={1000000}
-                                                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                                                    onChange={(value) => setNewProperty({ ...newProperty, developmentCost: value })}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
-                                </>
-                            )}
+                            <Form.Item label="Upload Property Documents">
+                                <Upload.Dragger multiple listType="picture">
+                                    <p className="ant-upload-drag-icon">
+                                        <FileTextOutlined />
+                                    </p>
+                                    <p className="ant-upload-text">Click or drag documents to this area to upload</p>
+                                    <p className="ant-upload-hint">
+                                        Upload any property documents like title deeds, survey plans, etc.
+                                    </p>
+                                </Upload.Dragger>
+                            </Form.Item>
                         </TabPane>
 
                         <TabPane tab="Images" key="3">
@@ -984,481 +1188,48 @@ const PropertyTable = () => {
                                     <p className="ant-upload-drag-icon">
                                         <PictureOutlined />
                                     </p>
-                                    <p className="ant-upload-text">Click or drag files to this area to upload</p>
+                                    <p className="ant-upload-text">Click or drag images to this area to upload</p>
                                     <p className="ant-upload-hint">
-                                        Support for multiple images. Please upload clear photos of the property.
+                                        Upload clear images of the property from different angles
                                     </p>
                                 </Upload.Dragger>
                             </Form.Item>
                         </TabPane>
 
-                        {newPropertyType === 'Development' && (
-                            <TabPane tab="Unit Types" key="4">
-                                <Button type="dashed" block icon={<PlusOutlined />} style={{ marginBottom: 16 }}>
-                                    Add Unit Type
-                                </Button>
-                                <Text type="secondary">
-                                    For development projects, you can add different unit types with their details and pricing.
-                                    This will be available after saving the project.
-                                </Text>
-                            </TabPane>
-                        )}
+                        <TabPane tab="Location" key="4">
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Form.Item label="GPS Coordinates">
+                                        <Input placeholder="e.g., -1.2921, 36.8219" />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item label="Nearby Facilities">
+                                        <Input placeholder="e.g., 5 mins to shopping center" />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                            <div style={{ height: '200px', background: '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                <Text type="secondary">Map selection tool would be displayed here</Text>
+                            </div>
+                        </TabPane>
                     </Tabs>
                 </Form>
             </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                title="Confirm Delete"
+                visible={deleteModalVisible}
+                onOk={handleDeleteProperty}
+                onCancel={() => setDeleteModalVisible(false)}
+                okText="Delete"
+                okButtonProps={{ danger: true }}
+            >
+                <p>Are you sure you want to delete the property <strong>{propertyToDelete?.title}</strong>?</p>
+                <p>This action cannot be undone.</p>
+            </Modal>
         </Layout>
-    );
-};
-
-// Property View Component
-const PropertyView = ({ property, onBack }) => {
-    // Get status color
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'Available': return 'green';
-            case 'Reserved': return 'orange';
-            case 'Sold': return 'red';
-            default: return 'default';
-        }
-    };
-
-    return (
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Title level={3}>{property.title}</Title>
-                <Space>
-                    <Tag color={property.type === 'Land' ? 'green' : 'blue'} style={{ fontSize: '14px', padding: '4px 8px' }}>
-                        {property.type}
-                    </Tag>
-                    <Tag color={getStatusColor(property.status)} style={{ fontSize: '14px', padding: '4px 8px' }}>
-                        {property.status}
-                    </Tag>
-                </Space>
-            </div>
-
-            {/* Property Images */}
-            <Card style={{ marginBottom: 24 }}>
-                <Carousel autoplay>
-                    {property.images.map((image, index) => (
-                        <div key={index}>
-                            <div style={{ height: '400px', background: '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                <img
-                                    src={image}
-                                    alt={`${property.title} - Image ${index + 1}`}
-                                    style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </Carousel>
-            </Card>
-
-            {/* Property Details */}
-            <Row gutter={24}>
-                <Col xs={24} md={16}>
-                    <Card title="Property Details" style={{ marginBottom: 24 }}>
-                        <Descriptions bordered column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}>
-                            <Descriptions.Item label="Property ID">{property.id}</Descriptions.Item>
-                            <Descriptions.Item label="Type">{property.type}</Descriptions.Item>
-                            <Descriptions.Item label="Size">{property.size}</Descriptions.Item>
-                            <Descriptions.Item label="Location">{property.location}</Descriptions.Item>
-                            <Descriptions.Item label="County">{property.county}</Descriptions.Item>
-                            <Descriptions.Item label="Constituency">{property.constituency}</Descriptions.Item>
-                            <Descriptions.Item label="GPS Coordinates">{property.coordinates}</Descriptions.Item>
-                            <Descriptions.Item label="Status" span={2}>
-                                <Tag color={getStatusColor(property.status)}>
-                                    {property.status}
-                                </Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Price" span={3}>
-                                <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
-                                    KES {property.price.toLocaleString()}
-                                </Text>
-                            </Descriptions.Item>
-                        </Descriptions>
-
-                        <Divider orientation="left">Description</Divider>
-                        <Paragraph>{property.description}</Paragraph>
-
-                        <Divider orientation="left">Features</Divider>
-                        <div>
-                            {property.features.map((feature, index) => (
-                                <Tag key={index} color="blue" style={{ margin: '0 8px 8px 0' }}>
-                                    <CheckCircleOutlined /> {feature}
-                                </Tag>
-                            ))}
-                        </div>
-
-                        <Divider orientation="left">Required Documents</Divider>
-                        <div>
-                            {property.documents.map((document, index) => (
-                                <Tag key={index} color="purple" style={{ margin: '0 8px 8px 0' }}>
-                                    <FileTextOutlined /> {document}
-                                </Tag>
-                            ))}
-                        </div>
-                    </Card>
-                </Col>
-
-                <Col xs={24} md={8}>
-                    <Card title="Location Map" style={{ marginBottom: 24 }}>
-                        <div style={{ background: '#f0f0f0', height: '200px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            <Text type="secondary">Map would be displayed here</Text>
-                        </div>
-                        <List style={{ marginTop: 16 }}>
-                            <List.Item>
-                                <EnvironmentOutlined style={{ marginRight: 8 }} />
-                                {property.location}
-                            </List.Item>
-                            <List.Item>
-                                <Text>{property.county} County, {property.constituency} Constituency</Text>
-                            </List.Item>
-                            <List.Item>
-                                <Text>GPS: {property.coordinates}</Text>
-                            </List.Item>
-                        </List>
-                    </Card>
-
-                    <Card title="Project Information" style={{ marginBottom: 24 }}>
-                        <List>
-                            <List.Item>
-                                <Text><UserOutlined /> Manager: {property.projectManager}</Text>
-                            </List.Item>
-                            <List.Item>
-                                <Text><CalendarOutlined /> Added: {property.dateAdded}</Text>
-                            </List.Item>
-                            <List.Item>
-                                <Text><ClockCircleOutlined /> Last Updated: {property.dateUpdated}</Text>
-                            </List.Item>
-                        </List>
-                    </Card>
-
-                    <Card title="Actions" style={{ marginBottom: 24 }}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Button type="primary" block icon={<DollarOutlined />}>
-                                {property.status === 'Available' ? 'Reserve Property' :
-                                    property.status === 'Reserved' ? 'Process Payment' : 'View Transaction'}
-                            </Button>
-                            <Button block icon={<EditOutlined />}>
-                                Edit Property
-                            </Button>
-                            <Button danger block icon={<DeleteOutlined />}>
-                                Delete Property
-                            </Button>
-                        </Space>
-                    </Card>
-                </Col>
-            </Row>
-        </div>
-    );
-};
-
-// Project View Component
-const ProjectView = ({ project, onBack }) => {
-    return (
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Title level={3}>{project.title}</Title>
-                <Space>
-                    <Tag color="purple" style={{ fontSize: '14px', padding: '4px 8px' }}>
-                        {project.type}
-                    </Tag>
-                    <Tag color="blue" style={{ fontSize: '14px', padding: '4px 8px' }}>
-                        {project.status}
-                    </Tag>
-                </Space>
-            </div>
-
-            {/* Project Images */}
-            <Card style={{ marginBottom: 24 }}>
-                <Carousel autoplay>
-                    {project.images.map((image, index) => (
-                        <div key={index}>
-                            <div style={{ height: '400px', background: '#f0f0f0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                <img
-                                    src={image}
-                                    alt={`${project.title} - Image ${index + 1}`}
-                                    style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </Carousel>
-            </Card>
-
-            {/* Project Overview */}
-            <Row gutter={16} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={12} md={6}>
-                    <Card>
-                        <Statistic
-                            title="Sales Progress"
-                            value={project.salesProgress}
-                            suffix="%"
-                            valueStyle={{ color: '#52c41a' }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card>
-                        <Statistic
-                            title="Units Sold"
-                            value={`${project.unitsSold}/${project.totalUnits}`}
-                            valueStyle={{ color: '#1890ff' }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card>
-                        <Statistic
-                            title="Total Sales (KES)"
-                            value={project.totalSales}
-                            precision={0}
-                            formatter={value => `${value.toLocaleString()}`}
-                            valueStyle={{ color: '#52c41a' }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card>
-                        <Statistic
-                            title="Expected Revenue (KES)"
-                            value={project.expectedRevenue}
-                            precision={0}
-                            formatter={value => `${value.toLocaleString()}`}
-                            valueStyle={{ color: '#faad14' }}
-                        />
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* Project Details Tabs */}
-            <Card>
-                <Tabs defaultActiveKey="1">
-                    <TabPane tab="Project Details" key="1">
-                        <Row gutter={24}>
-                            <Col xs={24} md={16}>
-                                <Descriptions title="Project Information" bordered column={{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }}>
-                                    <Descriptions.Item label="Project ID">{project.id}</Descriptions.Item>
-                                    <Descriptions.Item label="Location">{project.location}</Descriptions.Item>
-                                    <Descriptions.Item label="Size">{project.size}</Descriptions.Item>
-                                    <Descriptions.Item label="County">{project.county}</Descriptions.Item>
-                                    <Descriptions.Item label="Constituency">{project.constituency}</Descriptions.Item>
-                                    <Descriptions.Item label="GPS Coordinates">{project.coordinates}</Descriptions.Item>
-                                    <Descriptions.Item label="Project Phase">{project.projectPhase}</Descriptions.Item>
-                                    <Descriptions.Item label="Construction Status">{project.constructionStatus}</Descriptions.Item>
-                                    <Descriptions.Item label="Completion Date">{project.completionDate}</Descriptions.Item>
-                                    <Descriptions.Item label="Project Manager">{project.projectManager}</Descriptions.Item>
-                                    <Descriptions.Item label="Date Added">{project.dateAdded}</Descriptions.Item>
-                                    <Descriptions.Item label="Last Updated">{project.dateUpdated}</Descriptions.Item>
-                                </Descriptions>
-
-                                <Divider orientation="left">Description</Divider>
-                                <Paragraph>{project.description}</Paragraph>
-
-                                <Divider orientation="left">Features & Amenities</Divider>
-                                <div>
-                                    {project.features.map((feature, index) => (
-                                        <Tag key={index} color="blue" style={{ margin: '0 8px 8px 0' }}>
-                                            <CheckCircleOutlined /> {feature}
-                                        </Tag>
-                                    ))}
-                                </div>
-                            </Col>
-
-                            <Col xs={24} md={8}>
-                                <Card title="Financial Summary" style={{ marginBottom: 24 }}>
-                                    <Descriptions column={1} size="small">
-                                        <Descriptions.Item label="Development Cost">
-                                            KES {project.developmentCost.toLocaleString()}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Expected Revenue">
-                                            KES {project.expectedRevenue.toLocaleString()}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Return on Investment">
-                                            {project.roi}%
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Sales Rate">
-                                            {project.salesRate}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </Card>
-
-                                <Card title="Location Map" style={{ marginBottom: 24 }}>
-                                    <div style={{ background: '#f0f0f0', height: '200px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                        <Text type="secondary">Map would be displayed here</Text>
-                                    </div>
-                                    <List style={{ marginTop: 16 }}>
-                                        <List.Item>
-                                            <EnvironmentOutlined style={{ marginRight: 8 }} />
-                                            {project.location}
-                                        </List.Item>
-                                        <List.Item>
-                                            <Text>{project.county} County, {project.constituency} Constituency</Text>
-                                        </List.Item>
-                                        <List.Item>
-                                            <Text>GPS: {project.coordinates}</Text>
-                                        </List.Item>
-                                    </List>
-                                </Card>
-
-                                <Card title="Actions">
-                                    <Space direction="vertical" style={{ width: '100%' }}>
-                                        <Button type="primary" block icon={<BarChartOutlined />}>
-                                            Sales Report
-                                        </Button>
-                                        <Button block icon={<TeamOutlined />}>
-                                            Manage Team
-                                        </Button>
-                                        <Button block icon={<CalendarOutlined />}>
-                                            Project Timeline
-                                        </Button>
-                                        <Button block icon={<EditOutlined />}>
-                                            Edit Project
-                                        </Button>
-                                    </Space>
-                                </Card>
-                            </Col>
-                        </Row>
-                    </TabPane>
-
-                    <TabPane tab="Unit Types & Inventory" key="2">
-                        {project.unitTypes && (
-                            <Table
-                                dataSource={project.unitTypes}
-                                rowKey="type"
-                                pagination={false}
-                                columns={[
-                                    {
-                                        title: 'Unit Type',
-                                        dataIndex: 'type',
-                                        key: 'type',
-                                    },
-                                    {
-                                        title: 'Size',
-                                        dataIndex: 'size',
-                                        key: 'size',
-                                    },
-                                    {
-                                        title: 'Bedrooms',
-                                        dataIndex: 'bedrooms',
-                                        key: 'bedrooms',
-                                    },
-                                    {
-                                        title: 'Price (KES)',
-                                        dataIndex: 'price',
-                                        key: 'price',
-                                        render: price => price.toLocaleString()
-                                    },
-                                    {
-                                        title: 'Available',
-                                        dataIndex: 'available',
-                                        key: 'available',
-                                        render: value => <Tag color="green">{value}</Tag>
-                                    },
-                                    {
-                                        title: 'Reserved',
-                                        dataIndex: 'reserved',
-                                        key: 'reserved',
-                                        render: value => <Tag color="orange">{value}</Tag>
-                                    },
-                                    {
-                                        title: 'Sold',
-                                        dataIndex: 'sold',
-                                        key: 'sold',
-                                        render: value => <Tag color="red">{value}</Tag>
-                                    },
-                                    {
-                                        title: 'Actions',
-                                        key: 'actions',
-                                        render: () => (
-                                            <Space>
-                                                <Button size="small">View</Button>
-                                                <Button size="small" type="primary">Manage</Button>
-                                            </Space>
-                                        )
-                                    }
-                                ]}
-                            />
-                        )}
-                    </TabPane>
-
-                    <TabPane tab="Project Timeline" key="3">
-                        {project.timeline && (
-                            <div style={{ padding: '20px 0' }}>
-                                <Row>
-                                    <Col span={24} md={16}>
-                                        <Card title="Project Milestones">
-                                            <Timeline mode="left">
-                                                {project.timeline.map((item, index) => (
-                                                    <Timeline.Item key={index} label={item.date}>
-                                                        {item.event}
-                                                    </Timeline.Item>
-                                                ))}
-                                                <Timeline.Item label={project.completionDate} color="green">
-                                                    Expected Completion
-                                                </Timeline.Item>
-                                            </Timeline>
-                                        </Card>
-                                    </Col>
-                                    <Col span={24} md={8}>
-                                        <Card title="Construction Progress" style={{ marginBottom: 16 }}>
-                                            <Statistic
-                                                title={project.constructionStatus}
-                                                value={parseInt(project.constructionStatus.split('%')[0]) || 0}
-                                                prefix={<ApartmentOutlined />}
-                                                suffix="%"
-                                            />
-                                            <div style={{ marginTop: 16 }}>
-                                                <Text type="secondary">Expected Completion:</Text>
-                                                <div>{project.completionDate}</div>
-                                            </div>
-                                        </Card>
-                                        <Card title="Sales Timeline">
-                                            <div style={{ marginBottom: 16 }}>
-                                                <Text type="secondary">Sales Rate:</Text>
-                                                <div>{project.salesRate}</div>
-                                            </div>
-                                            <div>
-                                                <Text type="secondary">Sales Progress:</Text>
-                                                <div>{project.salesProgress}% ({project.unitsSold}/{project.totalUnits} units)</div>
-                                            </div>
-                                        </Card>
-                                    </Col>
-                                </Row>
-                            </div>
-                        )}
-                    </TabPane>
-
-                    <TabPane tab="Documents" key="4">
-                        <Row gutter={16}>
-                            <Col span={24}>
-                                <List
-                                    grid={{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 4 }}
-                                    dataSource={project.documents}
-                                    renderItem={document => (
-                                        <List.Item>
-                                            <Card
-                                                hoverable
-                                                actions={[
-                                                    <Button type="link" icon={<EyeOutlined />}>View</Button>,
-                                                    <Button type="link" icon={<FileTextOutlined />}>Download</Button>
-                                                ]}
-                                            >
-                                                <Card.Meta
-                                                    avatar={<FileTextOutlined style={{ fontSize: 36, color: '#1890ff' }} />}
-                                                    title={document}
-                                                    description="Document description and details would appear here."
-                                                />
-                                            </Card>
-                                        </List.Item>
-                                    )}
-                                />
-                            </Col>
-                        </Row>
-                    </TabPane>
-                </Tabs>
-            </Card>
-        </div>
     );
 };
 
