@@ -2,6 +2,9 @@ import { defineConfig } from "@umijs/max";
 
 export default defineConfig({
   antd: {},
+  define: {
+    'BASE_URL': 'http://localhost:5000',
+  },
   access: {},
   model: {},
   initialState: {},
@@ -17,7 +20,7 @@ export default defineConfig({
   routes: [
     {
       path: '/',
-      redirect: '/Dashboard',
+      redirect: '/Login',
     },
     {
       name: 'Login',
@@ -69,7 +72,13 @@ export default defineConfig({
       component: './Payments',
     },
     {
-      name: 'users',
+      name: 'Reports',
+      path: '/Vehicles',
+      icon: 'UserOutlined',
+      component: './Vehicles',
+    },
+    {
+      name: 'Access Control',
       path: '/Vehicles',
       icon: 'UserOutlined',
       component: './Vehicles',

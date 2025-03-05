@@ -17,6 +17,8 @@ import {
   Space,
   Typography,
 } from 'antd';
+import { Provider } from 'react-redux';
+import { store } from '@/store';
 import Loading from './loading';
 import logo from '/public/assets/images/download.png';
 
@@ -24,6 +26,11 @@ import logo from '/public/assets/images/download.png';
 // 更多信息见文档：https://umijs.org/docs/api/runtime-config#getinitialstate
 export async function getInitialState(): Promise<any> {
   return { name: 'Real Estate Management Portal' };
+}
+
+// Add rootContainer to wrap the entire app with Redux Provider
+export function rootContainer(container) {
+  return <Provider store={store}>{container}</Provider>;
 }
 
 export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
@@ -78,7 +85,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
             paddingBlockStart: 12,
           }}
         >
-          <div>© {new Date().getFullYear()} ReliaTech Solutions</div>
+          <div>© {new Date().getFullYear()} Powered By ReliaTech Solutions</div>
         </div>
       );
     },
