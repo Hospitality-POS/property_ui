@@ -65,3 +65,16 @@ export const updateUser = async (userId: string, userData: any, token?: ParamsTy
     throw error;
   }
 };
+export const deleteUser = async (userId: string, token?: ParamsType) => {
+  try {
+    const response = await axios.delete(`${BASE_URL}/users/${userId}`, {
+      headers: {
+        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};

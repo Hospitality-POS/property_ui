@@ -43,7 +43,7 @@ import {
 } from 'antd';
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { registerUser, fetchAllUsers, updateUser } from '@/services/auth.api';
+import { registerUser, fetchAllUsers, updateUser, deleteUser, getUserInfo } from '@/services/auth.api';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -64,6 +64,11 @@ const UserManagement = () => {
     const [dateRange, setDateRange] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); // Added refresh key for forcing refresh
+    const [currentUser, setCurrentUser] = useState(null);
+
+
+
+
 
     // Format date helper function
     const formatDate = (dateString) => {
@@ -73,6 +78,21 @@ const UserManagement = () => {
             ? date.toISOString().split('T')[0]
             : '';
     };
+
+
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const userData = await getUserInfo();
+
+                setCurrentUser(userData.data);
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        };
+
+        fetchCurrentUser();
+    }, []);
 
     // Fetch all users with automatic refresh
     const { data: usersData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
@@ -260,14 +280,17 @@ const UserManagement = () => {
                             onClick={() => handleEditUser(record)}
                         />
                     </Tooltip>
-                    <Tooltip title="Delete">
-                        <Button
-                            icon={<DeleteOutlined />}
-                            size="small"
-                            danger
-                            onClick={() => showDeleteConfirm(record)}
-                        />
-                    </Tooltip>
+                    {currentUser && currentUser.role === 'admin' && (
+                        <Tooltip title={record.id === currentUser.id ? "Cannot delete yourself" : "Delete"}>
+                            <Button
+                                icon={<DeleteOutlined />}
+                                size="small"
+                                danger
+                                onClick={() => showDeleteConfirm(record)}
+                                disabled={record.id === currentUser.id}
+                            />
+                        </Tooltip>
+                    )}
                 </Space>
             ),
         },
@@ -297,22 +320,53 @@ const UserManagement = () => {
 
     // Show delete confirmation modal
     const showDeleteConfirm = (user) => {
+        // Check if user is trying to delete themselves
+        if (currentUser && user.id === currentUser.id) {
+            message.error('You cannot delete your own account');
+            return;
+        }
+
+        // Check if current user has admin role
+        if (currentUser && currentUser.role !== 'admin') {
+            message.error('Only administrators can delete users');
+            return;
+        }
+
+        // If validation passes, show the delete modal
         setUserToDelete(user);
         setDeleteModalVisible(true);
     };
 
     // Handle delete user
-    const handleDeleteUser = () => {
+    const handleDeleteUser = async () => {
+        if (!userToDelete || !userToDelete.id) {
+            message.error('Invalid user to delete');
+            setDeleteModalVisible(false);
+            return;
+        }
+
         setIsLoading(true);
 
-        // In a real app, this would call an API to delete the user
-        setTimeout(() => {
+        try {
+            await deleteUser(userToDelete.id);
+
+            message.success(`User ${userToDelete.name} has been deleted successfully`);
+
+            // Close modal and reset state
             setDeleteModalVisible(false);
             setUserToDelete(null);
+
+            // Refresh user list
+            setTimeout(() => {
+                setRefreshKey(prevKey => prevKey + 1);
+                refetchUsers({ force: true });
+            }, 500);
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            message.error('Failed to delete user. Please try again.');
+        } finally {
             setIsLoading(false);
-            message.success(`User ${userToDelete.name} has been deleted successfully`);
-            handleRefresh(); // Use our refresh function
-        }, 1000);
+        }
     };
 
     // Handle search
