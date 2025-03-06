@@ -3,7 +3,7 @@ import axios from 'axios';
 
 export const loginUser = async (username: string, password: string) => {
   try {
-    const response = await axios.post('/login', { username, password });
+    const response = await axios.post(`${BASE_URL}/users/login`, { username, password });
     return response.data;
   } catch (error) {
     throw new Error(error.response.data.message);
@@ -12,11 +12,11 @@ export const loginUser = async (username: string, password: string) => {
 
 export const getUserInfo = async (token?: ParamsType) => {
   try {
-    const response = await axios.get('/user-info', {
+
+    const response = await axios.get(`${BASE_URL}/users/user-info`, {
       headers: {
-        Authorization: `Bearer ${
-          token || JSON.parse(localStorage.getItem('token') || '{}')
-        }`,
+        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('token') || '{}')
+          }`,
       },
     });
     return response.data;

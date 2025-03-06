@@ -15,9 +15,9 @@ const queryClient = new QueryClient();
 
 const LoginPage = () => {
   const loginMutation = useMutation({
-    mutationFn: async () => loginUser(values?.username, values?.password),
+    mutationFn: async (values) => loginUser(values.username, values.password),
     onSuccess: (data) => {
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('token', JSON.stringify(data.token));
       history.push('/dashboard');
       message.success('Login successful! Redirecting...');
     },
@@ -33,7 +33,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (values) => {
     try {
-      // Add login logic here
+      // Pass the values directly to mutateAsync
       await loginMutation.mutateAsync(values);
       return true;
     } catch (error) {
