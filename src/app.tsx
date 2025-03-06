@@ -30,6 +30,14 @@ const checkIfUserIsValid = async () => {
   }
 };
 
+const handleLogout = () => {
+  // Clear the token from localStorage
+  localStorage.removeItem('property_token');
+
+  // Redirect to login page
+  history.push('/login');
+};
+
 export async function getInitialState(): Promise<any> {
   const userData = await checkIfUserIsValid();
 
@@ -48,7 +56,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
     title: 'RPM System',
     layout: 'mix',
     colorPrimary: '#27C6C1',
-    navTheme: 'realDark',
+    // navTheme: 'realDark',
     menu: {
       locale: false,
     },
@@ -117,7 +125,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
             key: '2',
             label: 'Logout',
             icon: <LogoutOutlined />,
-            // onClick: () => navigate('/login'),
+            onClick: handleLogout,
           },
         ];
         return (
