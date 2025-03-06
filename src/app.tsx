@@ -25,7 +25,7 @@ const checkIfUserIsValid = async () => {
     const userData = await getUserInfo();
     return userData;
   } catch (e) {
-    localStorage.removeItem('token');
+    localStorage.removeItem('property_token');
     return null;
   }
 };
@@ -142,6 +142,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
       if (!initialState?.currentUser && location.pathname !== loginPath) {
         history.push(loginPath);
       }
+      return true;
     },
   };
 };

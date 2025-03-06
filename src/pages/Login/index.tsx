@@ -18,7 +18,7 @@ const LoginPage = () => {
     mutationFn: async (values) =>
       await loginUser(values?.username, values?.password),
     onSuccess: (data) => {
-      localStorage.setItem('token', JSON.stringify(data.token));
+      localStorage.setItem('property_token', JSON.stringify(data.token));
       history.push('/dashboard');
       message.success('Login successful! Redirecting...');
     },

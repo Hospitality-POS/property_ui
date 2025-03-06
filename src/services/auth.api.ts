@@ -19,7 +19,7 @@ export const getUserInfo = async (token?: ParamsType) => {
     const response = await axios.get(`${BASE_URL}/users/user-info`, {
       headers: {
         Authorization: `Bearer ${
-          token || JSON.parse(localStorage.getItem('token') || '{}')
+          token || JSON.parse(localStorage.getItem('property_token') || '{}')
         }`,
       },
     });
