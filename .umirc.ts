@@ -1,9 +1,13 @@
-import { defineConfig } from "@umijs/max";
+import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
-  antd: {},
+  antd: {
+    theme: {
+      'primary-color': '#1890ff',
+    },
+  },
   define: {
-    'BASE_URL': 'http://localhost:5000',
+    BASE_URL: 'http://localhost:5000',
   },
   access: {},
   model: {},

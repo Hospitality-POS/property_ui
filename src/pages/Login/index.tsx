@@ -15,7 +15,8 @@ const queryClient = new QueryClient();
 
 const LoginPage = () => {
   const loginMutation = useMutation({
-    mutationFn: async () => loginUser(values?.username, values?.password),
+    mutationFn: async (values) =>
+      await loginUser(values?.username, values?.password),
     onSuccess: (data) => {
       localStorage.setItem('token', data.token);
       history.push('/dashboard');
