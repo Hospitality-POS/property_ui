@@ -36,16 +36,10 @@ export default defineConfig({
     },
 
     {
-      name: 'Products',
+      name: 'Portfolio',
       path: '/products',
       icon: 'ShopOutlined',
       component: './Product',
-    },
-    {
-      name: 'Customers',
-      path: '/customer',
-      icon: 'UserOutlined',
-      component: './Customer',
     },
     {
       name: 'Leads',
@@ -53,6 +47,13 @@ export default defineConfig({
       icon: 'UsergroupAddOutlined',
       component: './Lead',
     },
+    {
+      name: 'Customers',
+      path: '/customer',
+      icon: 'UserOutlined',
+      component: './Customer',
+    },
+
     {
       name: 'Sales',
       path: '/sales',

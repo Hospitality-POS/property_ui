@@ -212,6 +212,10 @@ const UserManagement = () => {
                         color = 'orange';
                         displayText = 'Customer';
                         break;
+                    case 'valuer':
+                        color = 'yellow';
+                        displayText = 'Valuation Officer';
+                        break;
                 }
 
                 return <Tag color={color}>{displayText}</Tag>;
@@ -222,6 +226,7 @@ const UserManagement = () => {
                 { text: 'Sales Agent', value: 'sales_agent' },
                 { text: 'Finance Officer', value: 'finance_officer' },
                 { text: 'Customer', value: 'customer' },
+                { text: ' Valuation Officer', value: 'valuer' },
             ],
             onFilter: (value, record) => record.role === value,
         },
@@ -536,6 +541,7 @@ const UserManagement = () => {
                         <Option value="sales_agent">Sales Agent</Option>
                         <Option value="finance_officer">Finance Officer</Option>
                         <Option value="customer">Customer</Option>
+                        <Option value="valuer"> Valuation Officer</Option>
                     </Select>
                 </Col>
                 <Col xs={24} sm={8} md={5}>
@@ -690,8 +696,9 @@ const UserManagement = () => {
                                                 {selectedUser.role === 'admin' ? 'Admin' :
                                                     selectedUser.role === 'property_manager' ? 'Property Manager' :
                                                         selectedUser.role === 'sales_agent' ? 'Sales Agent' :
-                                                            selectedUser.role === 'finance_officer' ? 'Finance Officer' :
-                                                                'Customer'}
+                                                            selectedUser.role === 'valuer' ? 'Valuation Officer' :
+                                                                selectedUser.role === 'finance_officer' ? 'Finance Officer' :
+                                                                    'Customer'}
                                             </Tag>
                                         </Descriptions.Item>
                                     </Descriptions>
@@ -795,6 +802,7 @@ const UserManagement = () => {
                                             <Option value="sales_agent">Sales Agent</Option>
                                             <Option value="finance_officer">Finance Officer</Option>
                                             <Option value="customer">Customer</Option>
+                                            <Option value="valuer"> Valuation Officer</Option>
                                         </Select>
                                     </Form.Item>
                                 </Col>
