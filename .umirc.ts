@@ -34,7 +34,6 @@ export default defineConfig({
       icon: 'DashboardOutlined',
       component: './Dashboard',
     },
-
     {
       name: 'Portfolio',
       path: '/products',
@@ -53,7 +52,6 @@ export default defineConfig({
       icon: 'UserOutlined',
       component: './Customer',
     },
-
     {
       name: 'Sales',
       path: '/sales',
@@ -79,6 +77,49 @@ export default defineConfig({
       component: './Vehicles',
     },
     {
+      name: 'Settings',
+      path: '/settings',
+      icon: 'SettingOutlined',
+      routes: [
+        {
+          name: 'Property Types',
+          path: '/settings/reports',
+          component: './Vehicles',
+          icon: 'HomeOutlined',
+        },
+        {
+          name: 'Counties',
+          path: '/settings/reports',
+          component: './Vehicles',
+          icon: 'GlobalOutlined',
+        },
+        {
+          name: 'Roles',
+          path: '/settings/reports',
+          component: './Vehicles',
+          icon: 'TeamOutlined',
+        },
+        {
+          name: 'Doc Types',
+          path: '/settings/reports',
+          component: './Vehicles',
+          icon: 'FileOutlined',
+        },
+        {
+          name: 'Valuation Methodologies',
+          path: '/settings/reports',
+          component: './Vehicles',
+          icon: 'CalculatorOutlined',
+        },
+        {
+          name: 'Status',
+          path: '/settings/reports',
+          component: './Vehicles',
+          icon: 'CheckCircleOutlined',
+        },
+      ],
+    },
+    {
       name: 'User Management',
       path: '/access-control',
       icon: 'UserOutlined',
@@ -89,7 +130,6 @@ export default defineConfig({
       component: './404',
     },
   ],
-
   npmClient: 'yarn',
   tailwindcss: {},
 });

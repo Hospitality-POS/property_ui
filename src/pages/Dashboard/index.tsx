@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Card, Row, Col, Statistic, Table, Tabs, Button, Progress, Tag, Avatar, List, Typography, Space, Breadcrumb } from 'antd';
+import { Layout, Card, Row, Col, Statistic, Table, Tabs, Button, Progress, Tag, Avatar, List, Typography, Space, Breadcrumb, Calendar, Badge, Modal, Form, Input, DatePicker, Select } from 'antd';
 import {
     HomeOutlined,
     ShopOutlined,
@@ -15,16 +15,143 @@ import {
     BellOutlined,
     PieChartOutlined,
     MenuFoldOutlined,
-    MenuUnfoldOutlined
+    MenuUnfoldOutlined,
+    DashboardOutlined
 } from '@ant-design/icons';
+import moment from 'moment';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 const { Header, Content, Footer } = Layout;
 
-const Dashboard = () => {
-    const [collapsed, setCollapsed] = useState(false);
+// Event Calendar Component
+const EventCalendar = () => {
+    const [events, setEvents] = useState([]);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [form] = Form.useForm();
 
+    // Function to handle date selection
+    const onSelect = (value) => {
+        setSelectedDate(value);
+        setIsModalVisible(true);
+    };
+
+    // Function to add a new event
+    const handleAddEvent = () => {
+        form.validateFields().then(values => {
+            const newEvent = {
+                id: `event_${Date.now()}`,
+                title: values.title,
+                date: values.date,
+                type: values.type,
+                description: values.description
+            };
+
+            setEvents([...events, newEvent]);
+            setIsModalVisible(false);
+            form.resetFields();
+        }).catch(errorInfo => {
+            console.log('Validation Failed:', errorInfo);
+        });
+    };
+
+    // Function to render events for a specific date
+    const dateCellRender = (value) => {
+        const dateEvents = events.filter(event =>
+            event.date && event.date.isSame(value, 'day')
+        );
+
+        return (
+            <ul className="events">
+                {dateEvents.map(event => (
+                    <li key={event.id}>
+                        <Badge
+                            status={
+                                event.type === 'meeting' ? 'success' :
+                                    event.type === 'task' ? 'warning' : 'error'
+                            }
+                            text={event.title}
+                        />
+                    </li>
+                ))}
+            </ul>
+        );
+    };
+
+    return (
+        <div className="calendar-container">
+            <Row gutter={[0, 16]}>
+                <Col span={24}>
+                    <Space style={{ marginBottom: 16 }}>
+                        <Button type="primary" onClick={() => setIsModalVisible(true)}>
+                            Add New Event
+                        </Button>
+                    </Space>
+                </Col>
+                <Col span={24}>
+                    <Card>
+                        <Calendar
+                            onSelect={onSelect}
+                            dateCellRender={dateCellRender}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            <Modal
+                title="Add New Event"
+                visible={isModalVisible}
+                onOk={handleAddEvent}
+                onCancel={() => {
+                    setIsModalVisible(false);
+                    form.resetFields();
+                }}
+            >
+                <Form form={form} layout="vertical">
+                    <Form.Item
+                        name="title"
+                        label="Event Title"
+                        rules={[{ required: true, message: 'Please input event title!' }]}
+                    >
+                        <Input prefix={<CalendarOutlined />} placeholder="Enter event title" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="date"
+                        label="Date"
+                        initialValue={selectedDate}
+                        rules={[{ required: true, message: 'Please select a date!' }]}
+                    >
+                        <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="type"
+                        label="Event Type"
+                        rules={[{ required: true, message: 'Please select event type!' }]}
+                    >
+                        <Select placeholder="Select event type">
+                            <Select.Option value="meeting">Meeting</Select.Option>
+                            <Select.Option value="task">Task</Select.Option>
+                            <Select.Option value="reminder">Reminder</Select.Option>
+                        </Select>
+                    </Form.Item>
+
+                    <Form.Item
+                        name="description"
+                        label="Description"
+                    >
+                        <Input.TextArea rows={3} placeholder="Optional event description" />
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </div>
+    );
+};
+
+// Main Dashboard Component Content
+const DashboardContent = () => {
     // Sample data - in a real application, this would come from API calls
     const [salesData] = useState([
         { month: 'Jan', sales: 580000 },
@@ -206,219 +333,233 @@ const Dashboard = () => {
 
     return (
         <>
-           
-                <Space className="mb-4">
-                    <Button type="primary">Add New Property</Button>
-                    <Button>Add New Customer</Button>
-                </Space>
-           
+            <Space className="mb-4">
+                <Button type="primary">Add New Property</Button>
+                <Button>Add New Customer</Button>
+            </Space>
 
-          
-              
+            {/* Summary Statistics */}
+            <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} md={6}>
+                    <Card>
+                        <Statistic
+                            title="Total Properties"
+                            value={42}
+                            prefix={<HomeOutlined />}
+                            suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 15%</span>}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                    <Card>
+                        <Statistic
+                            title="Active Leads"
+                            value={28}
+                            prefix={<UserOutlined />}
+                            suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 8%</span>}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                    <Card>
+                        <Statistic
+                            title="Sales This Month"
+                            value={3}
+                            prefix={<ShopOutlined />}
+                            suffix={<span style={{ fontSize: '14px', color: '#ff4d4f' }}><FallOutlined /> 10%</span>}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                    <Card>
+                        <Statistic
+                            title="Revenue (KES)"
+                            value={24500000}
+                            precision={0}
+                            formatter={value => `${value.toLocaleString()}`}
+                            prefix={<DollarOutlined />}
+                            suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 12%</span>}
+                        />
+                    </Card>
+                </Col>
+            </Row>
 
-                {/* Summary Statistics */}
-                <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card>
-                            <Statistic
-                                title="Total Properties"
-                                value={42}
-                                prefix={<HomeOutlined />}
-                                suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 15%</span>}
-                            />
-                        </Card>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                {/* Sales Trend Chart */}
+                <Col xs={24} lg={12}>
+                    <Card
+                        title={<><BarChartOutlined /> Sales Trend</>}
+                        extra={<Button type="link">View Reports</Button>}
+                    >
+                        <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text type="secondary">Sales Trend Chart would render here using Ant Charts or Recharts</Text>
+                        </div>
+                    </Card>
+                </Col>
+
+                {/* Property Distribution Chart */}
+                <Col xs={24} lg={12}>
+                    <Card
+                        title={<><PieChartOutlined /> Property Distribution</>}
+                        extra={<Button type="link">View Details</Button>}
+                    >
+                        <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text type="secondary">Property Distribution Chart would render here using Ant Charts or Recharts</Text>
+                        </div>
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Tabs for different data views */}
+            <Card style={{ marginTop: 16 }}>
+                <Tabs defaultActiveKey="1">
+                    <TabPane
+                        tab={<span><BellOutlined /> Pending Payments</span>}
+                        key="1"
+                    >
+                        <Table
+                            columns={paymentColumns}
+                            dataSource={pendingPayments}
+                            rowKey="id"
+                            pagination={{ pageSize: 5 }}
+                        />
+                    </TabPane>
+                    <TabPane
+                        tab={<span><UserOutlined /> Recent Leads</span>}
+                        key="2"
+                    >
+                        <Table
+                            columns={leadColumns}
+                            dataSource={recentLeads}
+                            rowKey="id"
+                            pagination={{ pageSize: 5 }}
+                        />
+                    </TabPane>
+                    <TabPane
+                        tab={<span><HomeOutlined /> Properties</span>}
+                        key="3"
+                    >
+                        <Table
+                            columns={propertyColumns}
+                            dataSource={properties}
+                            rowKey="id"
+                            pagination={{ pageSize: 5 }}
+                        />
+                    </TabPane>
+                </Tabs>
+            </Card>
+
+            {/* Top Performing Agents */}
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} md={12}>
+                    <Card title={<><TeamOutlined /> Top Performing Agents</>}>
+                        <List
+                            itemLayout="horizontal"
+                            dataSource={topAgents}
+                            renderItem={item => (
+                                <List.Item>
+                                    <List.Item.Meta
+                                        avatar={<Avatar icon={<UserOutlined />} />}
+                                        title={item.name}
+                                        description={`${item.sales} sales | KES ${item.commission.toLocaleString()} commission`}
+                                    />
+                                    <Progress
+                                        percent={Math.round((item.sales / 10) * 100)}
+                                        size="small"
+                                        status="active"
+                                        style={{ width: 120 }}
+                                    />
+                                </List.Item>
+                            )}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} md={12}>
+                    <Card title={<><CalendarOutlined /> Upcoming Tasks</>}>
+                        <List
+                            itemLayout="horizontal"
+                            dataSource={[
+                                { id: 1, title: 'Property viewing with Sarah Wanjiku', time: 'Today, 2:00 PM', priority: 'High' },
+                                { id: 2, title: 'Follow up with Michael Ochieng', time: 'Tomorrow, 10:00 AM', priority: 'Medium' },
+                                { id: 3, title: 'Property valuation at Thika Road', time: 'Mar 10, 9:00 AM', priority: 'Medium' },
+                                { id: 4, title: 'Meet with James about commission structure', time: 'Mar 12, 11:00 AM', priority: 'Low' },
+                            ]}
+                            renderItem={item => (
+                                <List.Item
+                                    actions={[
+                                        <Button size="small" type={item.priority === 'High' ? 'primary' : 'default'}>
+                                            {item.priority}
+                                        </Button>
+                                    ]}
+                                >
+                                    <List.Item.Meta
+                                        title={item.title}
+                                        description={item.time}
+                                    />
+                                </List.Item>
+                            )}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Quick Links */}
+            <Card style={{ marginTop: 16 }}>
+                <Row gutter={16}>
+                    <Col xs={24} sm={8} md={4}>
+                        <Button type="default" block icon={<HomeOutlined />}>
+                            Add Property
+                        </Button>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card>
-                            <Statistic
-                                title="Active Leads"
-                                value={28}
-                                prefix={<UserOutlined />}
-                                suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 8%</span>}
-                            />
-                        </Card>
+                    <Col xs={24} sm={8} md={4}>
+                        <Button type="default" block icon={<UserOutlined />}>
+                            Add Customer
+                        </Button>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card>
-                            <Statistic
-                                title="Sales This Month"
-                                value={3}
-                                prefix={<ShopOutlined />}
-                                suffix={<span style={{ fontSize: '14px', color: '#ff4d4f' }}><FallOutlined /> 10%</span>}
-                            />
-                        </Card>
+                    <Col xs={24} sm={8} md={4}>
+                        <Button type="default" block icon={<DollarOutlined />}>
+                            Record Payment
+                        </Button>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card>
-                            <Statistic
-                                title="Revenue (KES)"
-                                value={24500000}
-                                precision={0}
-                                formatter={value => `${value.toLocaleString()}`}
-                                prefix={<DollarOutlined />}
-                                suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 12%</span>}
-                            />
-                        </Card>
+                    <Col xs={24} sm={8} md={4}>
+                        <Button type="default" block icon={<FileTextOutlined />}>
+                            Generate Report
+                        </Button>
+                    </Col>
+                    <Col xs={24} sm={8} md={4}>
+                        <Button type="default" block icon={<EnvironmentOutlined />}>
+                            View Map
+                        </Button>
+                    </Col>
+                    <Col xs={24} sm={8} md={4}>
+                        <Button type="default" block icon={<TeamOutlined />}>
+                            Manage Agents
+                        </Button>
                     </Col>
                 </Row>
-
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                    {/* Sales Trend Chart */}
-                    <Col xs={24} lg={12}>
-                        <Card
-                            title={<><BarChartOutlined /> Sales Trend</>}
-                            extra={<Button type="link">View Reports</Button>}
-                        >
-                            <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text type="secondary">Sales Trend Chart would render here using Ant Charts or Recharts</Text>
-                            </div>
-                        </Card>
-                    </Col>
-
-                    {/* Property Distribution Chart */}
-                    <Col xs={24} lg={12}>
-                        <Card
-                            title={<><PieChartOutlined /> Property Distribution</>}
-                            extra={<Button type="link">View Details</Button>}
-                        >
-                            <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text type="secondary">Property Distribution Chart would render here using Ant Charts or Recharts</Text>
-                            </div>
-                        </Card>
-                    </Col>
-                </Row>
-
-                {/* Tabs for different data views */}
-                <Card style={{ marginTop: 16 }}>
-                    <Tabs defaultActiveKey="1">
-                        <TabPane
-                            tab={<span><BellOutlined /> Pending Payments</span>}
-                            key="1"
-                        >
-                            <Table
-                                columns={paymentColumns}
-                                dataSource={pendingPayments}
-                                rowKey="id"
-                                pagination={{ pageSize: 5 }}
-                            />
-                        </TabPane>
-                        <TabPane
-                            tab={<span><UserOutlined /> Recent Leads</span>}
-                            key="2"
-                        >
-                            <Table
-                                columns={leadColumns}
-                                dataSource={recentLeads}
-                                rowKey="id"
-                                pagination={{ pageSize: 5 }}
-                            />
-                        </TabPane>
-                        <TabPane
-                            tab={<span><HomeOutlined /> Properties</span>}
-                            key="3"
-                        >
-                            <Table
-                                columns={propertyColumns}
-                                dataSource={properties}
-                                rowKey="id"
-                                pagination={{ pageSize: 5 }}
-                            />
-                        </TabPane>
-                    </Tabs>
-                </Card>
-
-                {/* Top Performing Agents */}
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                    <Col xs={24} md={12}>
-                        <Card title={<><TeamOutlined /> Top Performing Agents</>}>
-                            <List
-                                itemLayout="horizontal"
-                                dataSource={topAgents}
-                                renderItem={item => (
-                                    <List.Item>
-                                        <List.Item.Meta
-                                            avatar={<Avatar icon={<UserOutlined />} />}
-                                            title={item.name}
-                                            description={`${item.sales} sales | KES ${item.commission.toLocaleString()} commission`}
-                                        />
-                                        <Progress
-                                            percent={Math.round((item.sales / 10) * 100)}
-                                            size="small"
-                                            status="active"
-                                            style={{ width: 120 }}
-                                        />
-                                    </List.Item>
-                                )}
-                            />
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={12}>
-                        <Card title={<><CalendarOutlined /> Upcoming Tasks</>}>
-                            <List
-                                itemLayout="horizontal"
-                                dataSource={[
-                                    { id: 1, title: 'Property viewing with Sarah Wanjiku', time: 'Today, 2:00 PM', priority: 'High' },
-                                    { id: 2, title: 'Follow up with Michael Ochieng', time: 'Tomorrow, 10:00 AM', priority: 'Medium' },
-                                    { id: 3, title: 'Property valuation at Thika Road', time: 'Mar 10, 9:00 AM', priority: 'Medium' },
-                                    { id: 4, title: 'Meet with James about commission structure', time: 'Mar 12, 11:00 AM', priority: 'Low' },
-                                ]}
-                                renderItem={item => (
-                                    <List.Item
-                                        actions={[
-                                            <Button size="small" type={item.priority === 'High' ? 'primary' : 'default'}>
-                                                {item.priority}
-                                            </Button>
-                                        ]}
-                                    >
-                                        <List.Item.Meta
-                                            title={item.title}
-                                            description={item.time}
-                                        />
-                                    </List.Item>
-                                )}
-                            />
-                        </Card>
-                    </Col>
-                </Row>
-
-                {/* Quick Links */}
-                <Card style={{ marginTop: 16 }}>
-                    <Row gutter={16}>
-                        <Col xs={24} sm={8} md={4}>
-                            <Button type="default" block icon={<HomeOutlined />}>
-                                Add Property
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={8} md={4}>
-                            <Button type="default" block icon={<UserOutlined />}>
-                                Add Customer
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={8} md={4}>
-                            <Button type="default" block icon={<DollarOutlined />}>
-                                Record Payment
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={8} md={4}>
-                            <Button type="default" block icon={<FileTextOutlined />}>
-                                Generate Report
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={8} md={4}>
-                            <Button type="default" block icon={<EnvironmentOutlined />}>
-                                View Map
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={8} md={4}>
-                            <Button type="default" block icon={<TeamOutlined />}>
-                                Manage Agents
-                            </Button>
-                        </Col>
-                    </Row>
-                </Card>
-          
-
+            </Card>
         </>
+    );
+};
+
+const Dashboard = () => {
+    const [collapsed, setCollapsed] = useState(false);
+
+    return (
+        <Tabs defaultActiveKey="1" type="card" size="large" style={{ marginBottom: 16 }}>
+            <TabPane
+                tab={<span><DashboardOutlined /> Dashboard</span>}
+                key="1"
+            >
+                <DashboardContent />
+            </TabPane>
+            <TabPane
+                tab={<span><CalendarOutlined /> Calendar</span>}
+                key="2"
+            >
+                <EventCalendar />
+            </TabPane>
+        </Tabs>
     );
 };
 
