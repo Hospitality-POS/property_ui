@@ -78,7 +78,7 @@ export default defineConfig({
       component: './Vehicles',
     },
     {
-      name: 'Access Control',
+      name: 'User Management',
       path: '/access-control',
       icon: 'UserOutlined',
       component: './Users',
