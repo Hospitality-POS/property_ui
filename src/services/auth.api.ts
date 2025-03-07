@@ -1,6 +1,8 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
 
+const token = JSON.parse(localStorage.getItem('property_token') || '{}');
+
 export const loginUser = async (username: string, password: string) => {
   try {
     const response = await axios.post(`${BASE_URL}/users/login`, {
@@ -49,18 +51,14 @@ export const fetchAllUsers = async (token?: ParamsType) => {
         }`,
       },
     });
-    return response.data;
+    return response.data.data;
   } catch (error) {
     console.log(error);
     throw error;
   }
 };
 
-export const updateUser = async (
-  userId: string,
-  userData: any,
-  token?: ParamsType,
-) => {
+export const updateUser = async (userId: string, userData: any) => {
   try {
     const response = await axios.put(`${BASE_URL}/users/${userId}`, userData, {
       headers: {
