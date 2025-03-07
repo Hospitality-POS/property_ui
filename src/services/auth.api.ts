@@ -28,10 +28,12 @@ export const getUserInfo = async (token?: ParamsType) => {
   try {
     const response = await axios.get(`${BASE_URL}/users/user-info`, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`,
+        Authorization: `Bearer ${
+          token || JSON.parse(localStorage.getItem('property_token') || '{}')
+        }`,
       },
     });
-    return response.data;
+    return response.data?.data || null;
   } catch (error) {
     console.log(error);
     throw error;
@@ -42,7 +44,9 @@ export const fetchAllUsers = async (token?: ParamsType) => {
   try {
     const response = await axios.get(`${BASE_URL}/users`, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`,
+        Authorization: `Bearer ${
+          token || JSON.parse(localStorage.getItem('property_token') || '{}')
+        }`,
       },
     });
     return response.data;
@@ -52,11 +56,17 @@ export const fetchAllUsers = async (token?: ParamsType) => {
   }
 };
 
-export const updateUser = async (userId: string, userData: any, token?: ParamsType) => {
+export const updateUser = async (
+  userId: string,
+  userData: any,
+  token?: ParamsType,
+) => {
   try {
     const response = await axios.put(`${BASE_URL}/users/${userId}`, userData, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`,
+        Authorization: `Bearer ${
+          token || JSON.parse(localStorage.getItem('property_token') || '{}')
+        }`,
       },
     });
     return response.data;
@@ -69,7 +79,9 @@ export const deleteUser = async (userId: string, token?: ParamsType) => {
   try {
     const response = await axios.delete(`${BASE_URL}/users/${userId}`, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`,
+        Authorization: `Bearer ${
+          token || JSON.parse(localStorage.getItem('property_token') || '{}')
+        }`,
       },
     });
     return response.data;

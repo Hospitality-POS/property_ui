@@ -49,7 +49,11 @@ export async function getInitialState(): Promise<any> {
   return { currentUser: userData, fetchUserInfo: getUserInfo };
 }
 
-export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
+export const layout: RunTimeLayoutConfig = ({
+  initialState,
+  loading,
+  setInitialState,
+}) => {
   const queryClient = new QueryClient();
   return {
     logo: `${logo}`,
@@ -66,29 +70,33 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
       }
       return (
         <QueryClientProvider client={queryClient}>
-          <PageContainer
-            // style={{ backgroundColor: 'white' }}
-            header={{
-              extra: [
-                <Breadcrumb key="1">
-                  <Breadcrumb.Item>
-                    <DashboardOutlined />
-                    <span>Dashboard</span>
-                  </Breadcrumb.Item>
-                  <Breadcrumb.Item>
-                    <ShopOutlined />
-                    <span>Products</span>
-                  </Breadcrumb.Item>
-                  <Breadcrumb.Item>
-                    <UserOutlined />
-                    <span>Customers</span>
-                  </Breadcrumb.Item>
-                </Breadcrumb>,
-              ],
-            }}
-          >
-            {children}
-          </PageContainer>
+          {history.location.pathname === '/login' ? (
+            <>{children}</>
+          ) : (
+            <PageContainer
+              // style={{ backgroundColor: 'white' }}
+              header={{
+                extra: [
+                  <Breadcrumb key="1">
+                    <Breadcrumb.Item>
+                      <DashboardOutlined />
+                      <span>Dashboard</span>
+                    </Breadcrumb.Item>
+                    <Breadcrumb.Item>
+                      <ShopOutlined />
+                      <span>Products</span>
+                    </Breadcrumb.Item>
+                    <Breadcrumb.Item>
+                      <UserOutlined />
+                      <span>Customers</span>
+                    </Breadcrumb.Item>
+                  </Breadcrumb>,
+                ],
+              }}
+            >
+              {children}
+            </PageContainer>
+          )}
         </QueryClientProvider>
       );
     },
@@ -125,7 +133,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
             key: '2',
             label: 'Logout',
             icon: <LogoutOutlined />,
-            onClick: handleLogout,
+            onClick: () => {
+              handleLogout();
+              setInitialState(null);
+            },
           },
         ];
         return (
@@ -137,6 +148,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
                 ) : (
                   <Avatar icon={<UserOutlined />} />
                 )}{' '}
+                {/* <Typography>{initialState?.currentUser?.name}</Typography> */}
                 <Typography>My Account</Typography>
               </Space>
             </Dropdown>
@@ -145,11 +157,8 @@ export const layout: RunTimeLayoutConfig = ({ initialState, loading }) => {
       },
     },
     onPageChange: () => {
-      const { location } = history;
-      const loginPath = '/login';
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
-        history.push(loginPath);
-      }
+      console.log('my initial state', initialState);
+
       return true;
     },
   };
