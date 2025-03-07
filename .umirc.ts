@@ -86,7 +86,7 @@ export default defineConfig({
           path: '/settings/reports',
           component: './Vehicles',
           icon: 'HomeOutlined',
-          hideInMenu: true,
+          hideInMenu: false,
         },
         {
           name: 'Counties',
