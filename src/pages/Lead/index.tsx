@@ -398,22 +398,41 @@ const LeadsManagement = () => {
     setDeleteModalVisible(true);
   };
 
-  // Handle delete lead
-  const handleDeleteLead = () => {
-    // In a real app, this would call an API to delete the lead
-    console.log('Delete lead:', leadToDelete);
 
-    // Call deleteLead service
-    // deleteLead(leadToDelete._id)
-    //  .then(() => {
-    //     // Update UI
-    //  })
-    //  .catch(error => {
-    //     console.error('Error deleting lead:', error);
-    //  });
+  // Handle delete property
+  const handleDeleteLead = async () => {
+    try {
+      // Check if propertyToDelete exists and has an ID
+      if (!leadToDelete || !leadToDelete._id) {
+        throw new Error('Invalid property selected for deletion');
+      }
 
-    setDeleteModalVisible(false);
-    setLeadToDelete(null);
+      // Show loading message
+      const hideLoadingMessage = message.loading('Deleting property...', 0);
+
+      // Call the delete API
+      await deleteLead(leadToDelete._id);
+
+      // Close loading message
+      hideLoadingMessage();
+
+      // Show success message
+      message.success(`Property "${leadToDelete.name}" deleted successfully`);
+
+      // Close the modal and reset state
+      setDeleteModalVisible(false);
+      setLeadToDelete(null);
+
+      // Refresh the property list
+      refetchLeads({ force: true });
+    } catch (error) {
+      // Handle error - display meaningful error message
+      console.error('Error deleting lead:', error);
+      message.error(`Failed to delete lead: ${error.message || 'Unknown error occurred'}`);
+
+      // Close the modal but maintain propertyToDelete state in case user wants to retry
+      setDeleteModalVisible(false);
+    }
   };
 
   const showAddLeadModal = () => {

@@ -36,9 +36,9 @@ export default defineConfig({
     },
     {
       name: 'Portfolio',
-      path: '/products',
+      path: '/property',
       icon: 'ShopOutlined',
-      component: './Product',
+      component: './Property',
     },
     {
       name: 'Leads',

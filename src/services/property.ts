@@ -1,9 +1,9 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
 
-export const createNewLead = async (leadData) => {
+export const createNewProperty = async (leadProperty) => {
     try {
-        const response = await axios.post(`${BASE_URL}/leads`, leadData,
+        const response = await axios.post(`${BASE_URL}/properties`, leadProperty,
             {
                 headers: {
                     Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
@@ -17,9 +17,9 @@ export const createNewLead = async (leadData) => {
         throw error;
     }
 };
-export const fetchAllLeads = async (token?: ParamsType) => {
+export const fetchAllProperties = async (token?: ParamsType) => {
     try {
-        const response = await axios.get(`${BASE_URL}/leads`, {
+        const response = await axios.get(`${BASE_URL}/properties`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -32,13 +32,13 @@ export const fetchAllLeads = async (token?: ParamsType) => {
     }
 };
 
-export const updateLead = async (
-    leadId: string,
-    leadData: any,
+export const updateProperty = async (
+    propertyId: string,
+    propertyData: any,
     token?: ParamsType,
 ) => {
     try {
-        const response = await axios.put(`${BASE_URL}/leads/${leadId}`, leadData, {
+        const response = await axios.put(`${BASE_URL}/properties/${propertyId}`, propertyData, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -50,10 +50,9 @@ export const updateLead = async (
         throw error;
     }
 };
-
-export const deleteLead = async (leadId: string, token?: ParamsType) => {
+export const deleteProperty = async (propertyId: string, token?: ParamsType) => {
     try {
-        const response = await axios.delete(`${BASE_URL}/leads/${leadId}`, {
+        const response = await axios.delete(`${BASE_URL}/properties/${propertyId}`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
