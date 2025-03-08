@@ -1,8 +1,6 @@
 import {
     BankOutlined,
     CheckCircleOutlined,
-    ClockCircleOutlined,
-    CrownOutlined,
     DeleteOutlined,
     DollarOutlined,
     DownOutlined,
@@ -19,9 +17,19 @@ import {
     PlusOutlined,
     PrinterOutlined,
     SearchOutlined,
+    TeamOutlined,
     UserOutlined,
+    IdcardOutlined,
+    CommentOutlined,
+    MessageOutlined,
+    ShoppingOutlined,
+    BellOutlined,
+    CreditCardOutlined,
+    CrownOutlined,
+    UploadOutlined,
 } from '@ant-design/icons';
 import {
+    Alert,
     Avatar,
     Button,
     Card,
@@ -32,12 +40,14 @@ import {
     Divider,
     Drawer,
     Dropdown,
+    Empty,
     Form,
     Input,
     InputNumber,
     Layout,
     List,
     Menu,
+    message,
     Modal,
     Rate,
     Row,
@@ -52,6 +62,7 @@ import {
     Tooltip,
     Typography,
     Upload,
+    Badge,
 } from 'antd';
 import { useState } from 'react';
 
@@ -60,542 +71,459 @@ const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
+import { createNewCustomer, fetchAllCustomers, updateCustomer } from '@/services/customer';
+import { fetchAllLeads, updateLead } from '@/services/lead';
+import moment from 'moment';
+import { useQuery } from '@tanstack/react-query';
 
-// Sample valuations data
-const valuationsData = [
-    {
-        id: 'V001',
-        property: {
-            id: 'P002',
-            title: 'Garden City 3-Bedroom Apartment',
-            type: 'Apartment',
-            location: 'Garden City, Thika Road',
-            size: '150 sq m',
-        },
-        client: {
-            id: 'C001',
-            name: 'John Kamau',
-            contactNumber: '+254 712 345 678',
-            email: 'john.kamau@example.com',
-            type: 'Individual',
-        },
-        purpose: 'Sale',
-        requestDate: '2025-01-05',
-        completionDate: '2025-01-15',
-        status: 'Completed',
-        valuer: 'Daniel Omondi',
-        valuationFee: 45000,
-        marketValue: 8900000,
-        forcedSaleValue: 7500000,
-        methodology: ['Market Approach', 'Income Approach'],
-        report: 'Valuation_Report_V001.pdf',
-        notes: 'Property in good condition with premium finishes.',
-        timeline: [
-            {
-                date: '2025-01-05',
-                event: 'Request Received',
-                description: 'Valuation request submitted by client',
-            },
-            {
-                date: '2025-01-08',
-                event: 'Site Visit',
-                description: 'Valuer inspected the property and took measurements',
-            },
-            {
-                date: '2025-01-12',
-                event: 'Draft Report',
-                description: 'Preliminary valuation report prepared',
-            },
-            {
-                date: '2025-01-15',
-                event: 'Final Report',
-                description: 'Final valuation report issued to client',
-            },
-        ],
-        comparableProperties: [
-            {
-                id: 'CP001',
-                address: 'Garden City, Unit B7',
-                size: '145 sq m',
-                price: 8500000,
-            },
-            {
-                id: 'CP002',
-                address: 'Garden City, Unit D3',
-                size: '155 sq m',
-                price: 9200000,
-            },
-            {
-                id: 'CP003',
-                address: 'Garden City, Unit A9',
-                size: '150 sq m',
-                price: 8700000,
-            },
-        ],
-        documents: [
-            'Property Deed',
-            'Floor Plan',
-            'Property Photos',
-            'Final Valuation Report',
-        ],
-        propertyRatings: {
-            location: 4,
-            condition: 4,
-            accessibility: 5,
-            amenities: 4,
-            infrastructure: 4,
-        },
-    },
-    {
-        id: 'V002',
-        property: {
-            id: 'P003',
-            title: 'Commercial Plot in Mombasa Road',
-            type: 'Land',
-            location: 'Mombasa Road',
-            size: '0.25 acres',
-        },
-        client: {
-            id: 'C002',
-            name: 'Sarah Wanjiku',
-            contactNumber: '+254 723 456 789',
-            email: 'sarah.wanjiku@example.com',
-            type: 'Individual',
-        },
-        purpose: 'Mortgage',
-        requestDate: '2025-02-10',
-        completionDate: '2025-02-25',
-        status: 'Completed',
-        valuer: 'Daniel Omondi',
-        valuationFee: 35000,
-        marketValue: 3200000,
-        forcedSaleValue: 2700000,
-        methodology: ['Market Approach', 'Cost Approach'],
-        report: 'Valuation_Report_V002.pdf',
-        notes: 'Prime commercial plot with good visibility and access.',
-        timeline: [
-            {
-                date: '2025-02-10',
-                event: 'Request Received',
-                description: 'Valuation request submitted by client',
-            },
-            {
-                date: '2025-02-15',
-                event: 'Site Visit',
-                description: 'Valuer inspected the land and surrounding area',
-            },
-            {
-                date: '2025-02-20',
-                event: 'Draft Report',
-                description: 'Preliminary valuation report prepared',
-            },
-            {
-                date: '2025-02-25',
-                event: 'Final Report',
-                description: 'Final valuation report issued to client',
-            },
-        ],
-        comparableProperties: [
-            {
-                id: 'CP004',
-                address: 'Mombasa Road, Plot 123',
-                size: '0.22 acres',
-                price: 2900000,
-            },
-            {
-                id: 'CP005',
-                address: 'Mombasa Road, Plot 156',
-                size: '0.27 acres',
-                price: 3400000,
-            },
-            {
-                id: 'CP006',
-                address: 'Mombasa Road, Plot 189',
-                size: '0.25 acres',
-                price: 3100000,
-            },
-        ],
-        documents: [
-            'Land Title',
-            'Survey Plan',
-            'Land Photos',
-            'Final Valuation Report',
-        ],
-        propertyRatings: {
-            location: 5,
-            accessibility: 4,
-            infrastructure: 3,
-            zoning: 5,
-            topography: 4,
-        },
-    },
-    {
-        id: 'V003',
-        property: {
-            id: 'P006',
-            title: '1-Bedroom Studio in Kilimani',
-            type: 'Apartment',
-            location: 'Kilimani',
-            size: '75 sq m',
-        },
-        client: {
-            id: 'C003',
-            name: 'Robert Kariuki',
-            contactNumber: '+254 734 567 890',
-            email: 'robert.kariuki@example.com',
-            type: 'Individual',
-        },
-        purpose: 'Insurance',
-        requestDate: '2025-02-20',
-        completionDate: null,
-        status: 'In Progress',
-        valuer: 'Faith Muthoni',
-        valuationFee: 30000,
-        marketValue: null,
-        forcedSaleValue: null,
-        methodology: ['Market Approach'],
-        report: null,
-        notes: 'Awaiting inspection and comparable property analysis.',
-        timeline: [
-            {
-                date: '2025-02-20',
-                event: 'Request Received',
-                description: 'Valuation request submitted by client',
-            },
-            {
-                date: '2025-03-05',
-                event: 'Site Visit Scheduled',
-                description: 'Property inspection planned',
-            },
-        ],
-        comparableProperties: [],
-        documents: ['Property Deed', 'Floor Plan'],
-        propertyRatings: {
-            location: 0,
-            condition: 0,
-            accessibility: 0,
-            amenities: 0,
-            infrastructure: 0,
-        },
-    },
-    {
-        id: 'V004',
-        property: {
-            id: 'P005',
-            title: 'Agricultural Land in Thika',
-            type: 'Land',
-            location: 'Thika Road',
-            size: '0.8 acres',
-        },
-        client: {
-            id: 'B001',
-            name: 'KCB Bank',
-            contactNumber: '+254 745 678 901',
-            email: 'mortgages@kcbbank.com',
-            type: 'Institution',
-        },
-        purpose: 'Mortgage',
-        requestDate: '2025-03-01',
-        completionDate: null,
-        status: 'Pending Inspection',
-        valuer: 'Faith Muthoni',
-        valuationFee: 40000,
-        marketValue: null,
-        forcedSaleValue: null,
-        methodology: [],
-        report: null,
-        notes: 'Bank requires urgent valuation for mortgage application.',
-        timeline: [
-            {
-                date: '2025-03-01',
-                event: 'Request Received',
-                description: 'Valuation request submitted by bank',
-            },
-            {
-                date: '2025-03-08',
-                event: 'Site Visit Scheduled',
-                description: 'Property inspection planned',
-            },
-        ],
-        comparableProperties: [],
-        documents: ['Land Title', 'Survey Plan'],
-        propertyRatings: {
-            location: 0,
-            accessibility: 0,
-            infrastructure: 0,
-            zoning: 0,
-            topography: 0,
-        },
-    },
-    {
-        id: 'V005',
-        property: {
-            id: 'P008',
-            title: 'Penthouse in Riverside Drive',
-            type: 'Apartment',
-            location: 'Riverside Drive',
-            size: '230 sq m',
-        },
-        client: {
-            id: 'B002',
-            name: 'Equity Bank',
-            contactNumber: '+254 756 789 012',
-            email: 'valuations@equitybank.com',
-            type: 'Institution',
-        },
-        purpose: 'Mortgage',
-        requestDate: '2025-02-15',
-        completionDate: '2025-03-01',
-        status: 'Completed',
-        valuer: 'Daniel Omondi',
-        valuationFee: 60000,
-        marketValue: 18500000,
-        forcedSaleValue: 15500000,
-        methodology: ['Market Approach', 'Income Approach', 'Cost Approach'],
-        report: 'Valuation_Report_V005.pdf',
-        notes: 'Premium property with high-end finishes and amenities.',
-        timeline: [
-            {
-                date: '2025-02-15',
-                event: 'Request Received',
-                description: 'Valuation request submitted by bank',
-            },
-            {
-                date: '2025-02-20',
-                event: 'Site Visit',
-                description: 'Valuer inspected the property and amenities',
-            },
-            {
-                date: '2025-02-25',
-                event: 'Draft Report',
-                description: 'Preliminary valuation report prepared',
-            },
-            {
-                date: '2025-03-01',
-                event: 'Final Report',
-                description: 'Final valuation report issued to client',
-            },
-        ],
-        comparableProperties: [
-            {
-                id: 'CP007',
-                address: 'Riverside Drive, PH3',
-                size: '220 sq m',
-                price: 17800000,
-            },
-            {
-                id: 'CP008',
-                address: 'Riverside Drive, PH7',
-                size: '245 sq m',
-                price: 19500000,
-            },
-            {
-                id: 'CP009',
-                address: 'Westlands, PH2',
-                size: '230 sq m',
-                price: 18200000,
-            },
-        ],
-        documents: [
-            'Property Deed',
-            'Floor Plan',
-            'Property Photos',
-            'Final Valuation Report',
-            'Building Approval',
-        ],
-        propertyRatings: {
-            location: 5,
-            condition: 5,
-            accessibility: 4,
-            amenities: 5,
-            infrastructure: 5,
-        },
-    },
-];
 
-const ValuationManagement = () => {
-    const [collapsed, setCollapsed] = useState(false);
+
+
+const CustomerManagement = () => {
     const [searchText, setSearchText] = useState('');
-    const [selectedValuation, setSelectedValuation] = useState(null);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [activeTab, setActiveTab] = useState('1');
-    const [addValuationVisible, setAddValuationVisible] = useState(false);
+    const [addCustomerVisible, setAddCustomerVisible] = useState(false);
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-    const [valuationToDelete, setValuationToDelete] = useState(null);
-    const [valuationStatusFilter, setValuationStatusFilter] = useState('all');
-    const [valuationPurposeFilter, setValuationPurposeFilter] = useState('all');
+    const [customerToDelete, setCustomerToDelete] = useState(null);
+    const [customerTypeFilter, setCustomerTypeFilter] = useState('all');
     const [dateRange, setDateRange] = useState(null);
+    const [communicationModalVisible, setCommunicationModalVisible] = useState(false);
+    const [noteModalVisible, setNoteModalVisible] = useState(false);
+    const [convertLeadVisible, setConvertLeadVisible] = useState(false);
+    const [leads, setLeads] = useState([]);
+    const [selectedLead, setSelectedLead] = useState(null);
+    const [convertForm] = Form.useForm();
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [customerModalVisible, setCustomerModalVisible] = useState(false);
+    const [customerModalMode, setCustomerModalMode] = useState('create'); // 'create' or 'edit'
+    const [customerForm] = Form.useForm();
+    const [communicationForm] = Form.useForm();
+    const [noteForm] = Form.useForm();
 
-    // Table columns for valuations list
+
+
+
+    // Fetch leads for the convert lead modal
+    const fetchLeads = async () => {
+        try {
+            const response = await fetchAllLeads();
+            console.log('nice data', response);
+            // Filter out leads that are already converted
+            const availableLeads = response.data.filter(lead => !lead.convertedToCustomer);
+            setLeads(availableLeads);
+        } catch (error) {
+            console.error('Error fetching leads:', error);
+            message.error('Failed to fetch leads');
+        }
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        return moment(dateString).format('DD MMM YYYY');
+    };
+
+    const { data: customersData = [], isLoading: isLoadingCustomers, refetch: refetchCustomers } = useQuery({
+        queryKey: ['customer'], // Adding refreshKey to queryKey
+        queryFn: async () => {
+            try {
+                const response = await fetchAllCustomers();
+                console.log('customers fetched successfully:', response);
+
+                // Process data to use createdAt as dateJoined
+                const processedData = Array.isArray(response.data)
+                    ? response.data.map(customer => ({
+                        ...customer,
+                        dateJoined: formatDate(customer.createdAt) || customer.dateJoined,
+                    }))
+                    : [];
+
+                return processedData;
+            } catch (error) {
+                message.error('Failed to fetch lead');
+                console.error('Error fetching lead:', error);
+                return [];
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false
+    });
+
+    // Handle opening the convert lead modal
+    const handleOpenConvertLeadModal = () => {
+        fetchLeads();
+        setCustomerModalMode('create');
+        customerForm.resetFields();
+        setCustomerModalVisible(true);
+    };
+
+    // Handle lead selection in convert modal
+    const handleLeadSelect = (leadId) => {
+        const lead = leads.find(lead => lead._id === leadId);
+        setSelectedLead(lead);
+
+        // Populate form with lead data
+        if (lead) {
+            customerForm.setFieldsValue({
+                name: lead.name,
+                email: lead.email,
+                phone: lead.phone,
+                customerType: lead.name.includes('Ltd') || lead.name.includes('Limited') ? 'company' : 'individual',
+                county: lead.interestAreas && lead.interestAreas.length > 0 ? lead.interestAreas[0].county : '',
+                company: lead.name.includes('Ltd') || lead.name.includes('Limited') ? lead.name : '',
+            });
+        }
+    };
+
+    // Handle convert lead form submission
+
+
+    const handleCustomerSubmit = async () => {
+        try {
+            const values = await customerForm.validateFields();
+
+            if (customerModalMode === 'create') {
+                // Create mode (convert lead)
+                if (!selectedLead) {
+                    message.error('Please select a lead to convert');
+                    return;
+                }
+
+                // Create a new customer object from the lead and form data
+                const newCustomer = {
+                    lead: selectedLead._id, // Reference to the original lead
+                    name: values.name,
+                    email: values.email,
+                    phone: values.phone,
+                    verifiedPhone: false,
+                    alternatePhone: values.alternatePhone || '',
+                    idNumber: values.idNumber,
+                    idDocument: {
+                        url: values.idDocumentUrl || '',
+                        uploadedAt: new Date().toISOString(),
+                    },
+                    address: {
+                        street: values.streetAddress || '',
+                        city: values.city || '',
+                        county: values.county || (selectedLead.interestAreas && selectedLead.interestAreas.length > 0 ? selectedLead.interestAreas[0].county : ''),
+                        postalCode: values.postalCode || '',
+                        country: 'Kenya',
+                    },
+                    occupation: values.occupation || '',
+                    company: values.company || '',
+                    customerType: values.customerType || 'individual',
+                    preferences: {
+                        propertyTypes: values.propertyTypes || [],
+                        locations: values.locations || [],
+                        budgetRange: {
+                            min: values.budgetRange?.min || 0,
+                            max: values.budgetRange?.max || 0
+                        },
+                        amenities: values.amenities || [],
+                        otherRequirements: values.notes || '',
+                    },
+                    documents: [],
+                    notes: [
+                        {
+                            content: `Converted from lead ${selectedLead._id}. ${values.notes || ''}`,
+                            addedAt: new Date().toISOString(),
+                        }
+                    ],
+                    communications: selectedLead.communications || [],
+                    leadSource: selectedLead._id,
+                };
+
+                // Transfer property interests from lead to customer
+                if (selectedLead.interestAreas && selectedLead.interestAreas.length > 0) {
+                    // Extract property types
+                    selectedLead.interestAreas.forEach(area => {
+                        if (area.propertyType === 'both') {
+                            if (!newCustomer.preferences.propertyTypes.includes('apartment')) {
+                                newCustomer.preferences.propertyTypes.push('apartment');
+                            }
+                            if (!newCustomer.preferences.propertyTypes.includes('land')) {
+                                newCustomer.preferences.propertyTypes.push('land');
+                            }
+                        } else if (!newCustomer.preferences.propertyTypes.includes(area.propertyType)) {
+                            newCustomer.preferences.propertyTypes.push(area.propertyType);
+                        }
+
+                        // Extract locations (counties)
+                        if (area.county && !newCustomer.preferences.locations.includes(area.county)) {
+                            newCustomer.preferences.locations.push(area.county);
+                        }
+
+                        // Set budget range based on the highest values from interest areas
+                        if (area.budget) {
+                            if (area.budget.min < newCustomer.preferences.budgetRange.min || newCustomer.preferences.budgetRange.min === 0) {
+                                newCustomer.preferences.budgetRange.min = area.budget.min;
+                            }
+                            if (area.budget.max > newCustomer.preferences.budgetRange.max) {
+                                newCustomer.preferences.budgetRange.max = area.budget.max;
+                            }
+                        }
+                    });
+                }
+
+                createNewCustomer(newCustomer)
+                    .then(async newCustomer => {
+                        await updateLead(selectedLead._id, {
+                            convertedToCustomer: true,
+                            customer: newCustomer._id,
+                            status: 'converted',
+                        });
+
+                        setTimeout(() => {
+                            setRefreshKey(prevKey => prevKey + 1);
+                            refetchCustomers({ force: true });
+                        }, 500);
+
+                        // Show success message and close modal
+                        message.success(`Lead ${selectedLead.name} successfully converted to customer!`);
+                        setCustomerModalVisible(false);
+                        customerForm.resetFields();
+                        setSelectedLead(null);
+                    })
+                    .catch(error => {
+                        console.error('Error adding customer:', error);
+                        message.error('Failed to add customer. Please try again.');
+                    });
+            } else {
+                // Edit mode
+                // Create updated customer object
+                const updatedCustomer = {
+                    ...selectedCustomer,
+                    name: values.name,
+                    email: values.email,
+                    phone: values.phone,
+                    alternatePhone: values.alternatePhone || '',
+                    idNumber: values.idNumber,
+                    company: values.company || '',
+                    occupation: values.occupation || '',
+                    customerType: values.customerType,
+                    address: {
+                        street: values.streetAddress || '',
+                        city: values.city || '',
+                        county: values.county || '',
+                        postalCode: values.postalCode || '',
+                        country: 'Kenya',
+                    },
+                    preferences: {
+                        propertyTypes: values.propertyTypes || [],
+                        locations: values.locations || [],
+                        amenities: values.amenities || [],
+                        budgetRange: {
+                            min: values.budgetRange?.min || 0,
+                            max: values.budgetRange?.max || 0
+                        },
+                        otherRequirements: values.notes || ''
+                    }
+                };
+
+                // In a real app, you would call an API to update the customer
+                // For example: 
+                await updateCustomer(selectedCustomer._id, updatedCustomer);
+                console.log('Customer updated:', updatedCustomer);
+
+                // Update the local state
+                setRefreshKey(prevKey => prevKey + 1);
+                refetchCustomers({ force: true });
+
+                // Show success message
+                message.success(`Customer ${values.name} updated successfully!`);
+
+                // Close the modal
+                setCustomerModalVisible(false);
+            }
+        } catch (error) {
+            console.error('Error processing customer:', error);
+            message.error(`Failed to ${customerModalMode === 'create' ? 'create' : 'update'} customer`);
+        }
+    };
+
+
+    // Table columns for customers list
     const columns = [
         {
-            title: 'Valuation ID',
-            dataIndex: 'id',
-            key: 'id',
+            title: 'Name',
+            dataIndex: 'name',
+            key: 'name',
             fixed: 'left',
             width: 120,
             render: (text, record) => (
-                <a onClick={() => handleViewValuation(record)}>{text}</a>
+                <a onClick={() => handleViewCustomer(record)}>{text}</a>
             ),
-            sorter: (a, b) => a.id.localeCompare(b.id),
+            sorter: (a, b) => a._id.localeCompare(b._id),
         },
         {
-            title: 'Property',
-            dataIndex: ['property', 'title'],
-            key: 'property',
-            width: 200,
-            sorter: (a, b) => a.property.title.localeCompare(b.property.title),
+            title: 'Contact Information',
+            dataIndex: 'email',
+            key: 'contact',
+            width: 220,
+            render: (email, record) => (
+                <span>
+                    <div>{email}</div>
+                    <div>
+                        {record.phone}{' '}
+                        {record.verifiedPhone && (
+                            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                        )}
+                    </div>
+                </span>
+            ),
         },
         {
             title: 'Type',
-            dataIndex: ['property', 'type'],
-            key: 'type',
-            width: 100,
-            render: (type) => (
-                <Tag color={type === 'Apartment' ? 'blue' : 'green'}>{type}</Tag>
-            ),
-            filters: [
-                { text: 'Apartment', value: 'Apartment' },
-                { text: 'Land', value: 'Land' },
-            ],
-            onFilter: (value, record) => record.property.type === value,
-        },
-        {
-            title: 'Client',
-            dataIndex: ['client', 'name'],
-            key: 'client',
-            width: 150,
-            render: (text, record) => (
-                <span>
-                    {text}{' '}
-                    {record.client.type === 'Institution' && (
-                        <CrownOutlined style={{ color: '#faad14' }} />
-                    )}
-                </span>
-            ),
-            sorter: (a, b) => a.client.name.localeCompare(b.client.name),
-        },
-        {
-            title: 'Purpose',
-            dataIndex: 'purpose',
-            key: 'purpose',
+            dataIndex: 'customerType',
+            key: 'customerType',
             width: 120,
-            filters: [
-                { text: 'Sale', value: 'Sale' },
-                { text: 'Mortgage', value: 'Mortgage' },
-                { text: 'Insurance', value: 'Insurance' },
-                { text: 'Tax', value: 'Tax' },
-            ],
-            onFilter: (value, record) => record.purpose === value,
-            render: (purpose) => (
-                <Tag
-                    color={
-                        purpose === 'Sale'
-                            ? 'blue'
-                            : purpose === 'Mortgage'
-                                ? 'green'
-                                : purpose === 'Insurance'
-                                    ? 'purple'
-                                    : 'orange'
-                    }
-                >
-                    {purpose}
+            render: (type) => (
+                <Tag color={type === 'individual' ? 'blue' : 'purple'}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
                 </Tag>
             ),
+            filters: [
+                { text: 'Individual', value: 'individual' },
+                { text: 'Company', value: 'company' },
+            ],
+            onFilter: (value, record) => record.customerType === value,
         },
         {
-            title: 'Request Date',
-            dataIndex: 'requestDate',
-            key: 'requestDate',
+            title: 'Location',
+            dataIndex: ['address', 'city'],
+            key: 'city',
             width: 120,
-            sorter: (a, b) => new Date(a.requestDate) - new Date(b.requestDate),
+            render: (city, record) => (
+                <span>{city}, {record.address.county}</span>
+            ),
         },
         {
-            title: 'Completion Date',
-            dataIndex: 'completionDate',
-            key: 'completionDate',
-            width: 140,
-            render: (date) => (date ? date : <Text type="secondary">Pending</Text>),
-            sorter: (a, b) => {
-                if (!a.completionDate) return 1;
-                if (!b.completionDate) return -1;
-                return new Date(a.completionDate) - new Date(b.completionDate);
-            },
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
+            title: 'Property Interests',
+            dataIndex: ['preferences', 'propertyTypes'],
+            key: 'propertyTypes',
             width: 150,
-            render: (status) => {
-                let color = 'default';
-                if (status === 'Pending Inspection') color = 'orange';
-                if (status === 'In Progress') color = 'blue';
-                if (status === 'Completed') color = 'green';
-                if (status === 'Canceled') color = 'red';
-
-                return <Tag color={color}>{status}</Tag>;
-            },
+            render: (types) => (
+                <span>
+                    {types.map(type => (
+                        <Tag key={type} color={type === 'apartment' ? 'green' : 'orange'}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Tag>
+                    ))}
+                </span>
+            ),
             filters: [
-                { text: 'Pending Inspection', value: 'Pending Inspection' },
-                { text: 'In Progress', value: 'In Progress' },
-                { text: 'Completed', value: 'Completed' },
-                { text: 'Canceled', value: 'Canceled' },
+                { text: 'Apartment', value: 'apartment' },
+                { text: 'Land', value: 'land' },
             ],
-            onFilter: (value, record) => record.status === value,
+            onFilter: (value, record) => record.preferences.propertyTypes.includes(value),
         },
         {
-            title: 'Valuer',
-            dataIndex: 'valuer',
-            key: 'valuer',
-            width: 130,
-            filters: [
-                { text: 'Daniel Omondi', value: 'Daniel Omondi' },
-                { text: 'Faith Muthoni', value: 'Faith Muthoni' },
-            ],
-            onFilter: (value, record) => record.valuer === value,
+            title: 'Budget Range (KES)',
+            dataIndex: ['preferences', 'budgetRange'],
+            key: 'budgetRange',
+            width: 180,
+            render: (budget) => (
+                <span>
+                    {budget.min.toLocaleString()} - {budget.max.toLocaleString()}
+                </span>
+            ),
+            sorter: (a, b) => a.preferences.budgetRange.max - b.preferences.budgetRange.max,
         },
         {
-            title: 'Market Value (KES)',
-            dataIndex: 'marketValue',
-            key: 'marketValue',
-            width: 160,
-            render: (value) =>
-                value ? value.toLocaleString() : <Text type="secondary">Pending</Text>,
-            sorter: (a, b) => {
-                if (!a.marketValue) return 1;
-                if (!b.marketValue) return -1;
-                return a.marketValue - b.marketValue;
-            },
-        },
-        {
-            title: 'Fee (KES)',
-            dataIndex: 'valuationFee',
-            key: 'valuationFee',
+            title: 'Created',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
             width: 120,
-            render: (fee) => fee.toLocaleString(),
-            sorter: (a, b) => a.valuationFee - b.valuationFee,
+            sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+        },
+        {
+            title: 'Last Contact',
+            key: 'lastContact',
+            width: 120,
+            render: (_, record) => {
+                if (record.communications && record.communications.length > 0) {
+                    const sortedComms = [...record.communications].sort(
+                        (a, b) => new Date(b.date) - new Date(a.date)
+                    );
+                    return sortedComms[0].date;
+                }
+                return <Text type="secondary">No contact</Text>;
+            },
+            sorter: (a, b) => {
+                const aDate = a.communications && a.communications.length > 0
+                    ? new Date(a.communications.sort((x, y) => new Date(y.date) - new Date(x.date))[0].date)
+                    : new Date(0);
+                const bDate = b.communications && b.communications.length > 0
+                    ? new Date(b.communications.sort((x, y) => new Date(y.date) - new Date(x.date))[0].date)
+                    : new Date(0);
+                return bDate - aDate;
+            },
+        },
+        {
+            title: 'Purchases',
+            dataIndex: 'purchases',
+            key: 'purchases',
+            width: 100,
+            render: (count) => (
+                <Badge count={count} showZero style={{ backgroundColor: count > 0 ? '#52c41a' : '#d9d9d9' }} />
+            ),
+            sorter: (a, b) => a.purchases - b.purchases,
         },
         {
             title: 'Actions',
             key: 'actions',
             fixed: 'right',
-            width: 120,
+            width: 130,
             render: (_, record) => (
                 <Space>
                     <Tooltip title="View Details">
                         <Button
                             icon={<FileSearchOutlined />}
                             size="small"
-                            onClick={() => handleViewValuation(record)}
+                            onClick={() => handleViewCustomer(record)}
                         />
+                    </Tooltip>
+                    <Tooltip title="Quick Contact">
+                        <Dropdown
+                            overlay={
+                                <Menu>
+                                    <Menu.Item
+                                        key="1"
+                                        icon={<PhoneOutlined />}
+                                        onClick={() => window.open(`tel:${record.phone}`)}
+                                    >
+                                        Call
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        key="2"
+                                        icon={<MailOutlined />}
+                                        onClick={() => window.open(`mailto:${record.email}`)}
+                                    >
+                                        Email
+                                    </Menu.Item>
+                                    <Menu.Item
+                                        key="3"
+                                        icon={<MessageOutlined />}
+                                        onClick={() => handleAddCommunication(record)}
+                                    >
+                                        Log Communication
+                                    </Menu.Item>
+                                </Menu>
+                            }
+                            trigger={['click']}
+                        >
+                            <Button
+                                icon={<MessageOutlined />}
+                                size="small"
+                            />
+                        </Dropdown>
                     </Tooltip>
                     <Tooltip title="Edit">
                         <Button
                             icon={<EditOutlined />}
                             size="small"
-                            onClick={() => handleEditValuation(record)}
-                            disabled={record.status === 'Completed'}
+                            onClick={() => handleEditCustomer(record)}
                         />
                     </Tooltip>
                     <Tooltip title="Delete">
@@ -604,7 +532,6 @@ const ValuationManagement = () => {
                             size="small"
                             danger
                             onClick={() => showDeleteConfirm(record)}
-                            disabled={record.status === 'Completed'}
                         />
                     </Tooltip>
                 </Space>
@@ -612,30 +539,167 @@ const ValuationManagement = () => {
         },
     ];
 
-    // Handle view valuation
-    const handleViewValuation = (valuation) => {
-        setSelectedValuation(valuation);
+    // Handle view customer
+    const handleViewCustomer = (customer) => {
+        setSelectedCustomer(customer);
         setDrawerVisible(true);
     };
 
-    // Handle edit valuation
-    const handleEditValuation = (valuation) => {
-        // In a real app, this would open a form to edit the valuation
-        console.log('Edit valuation:', valuation);
+    const handleEditCustomer = (customer) => {
+        setSelectedCustomer(customer);
+        setCustomerModalMode('edit');
+
+        // Populate the form with the customer data
+        customerForm.setFieldsValue({
+            // For create mode (leadId)
+            leadId: null,
+
+            // Personal information
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            alternatePhone: customer.alternatePhone || '',
+            idNumber: customer.idNumber,
+            company: customer.company || '',
+            occupation: customer.occupation || '',
+            customerType: customer.customerType,
+
+            // Address information
+            streetAddress: customer.address.street || '',
+            city: customer.address.city || '',
+            county: customer.address.county || '',
+            postalCode: customer.address.postalCode || '',
+
+            // Preferences
+            propertyTypes: customer.preferences.propertyTypes || [],
+            locations: customer.preferences.locations || [],
+            amenities: customer.preferences.amenities || [],
+            budgetRange: {
+                min: customer.preferences.budgetRange.min,
+                max: customer.preferences.budgetRange.max
+            },
+            notes: customer.preferences.otherRequirements || ''
+        });
+
+        // Show the modal
+        setCustomerModalVisible(true);
     };
 
+
+    // Handle add communication
+    const handleAddCommunication = (customer) => {
+        setSelectedCustomer(customer);
+        setCommunicationModalVisible(true);
+    };
+
+    // Handle add note
+    const handleAddNote = (customer) => {
+        setSelectedCustomer(customer);
+        setNoteModalVisible(true);
+    };
+
+
+    const handleSaveCommunication = async () => {
+        try {
+            const values = await communicationForm.validateFields();
+            console.log('nice values', values);
+            // Create the new communication entry
+            const newCommunication = {
+                type: values.type,
+                date: values.date.format('YYYY-MM-DD HH:mm:ss'),
+                summary: values.summary,
+                outcome: values.outcome || '',
+                nextAction: values.nextAction || '',
+                addedAt: new Date().toISOString()
+            };
+
+            // Create updated customer with new communication added
+            const updatedCustomer = {
+                ...selectedCustomer,
+                communications: [
+                    newCommunication,
+                    ...(selectedCustomer.communications || [])
+                ]
+            };
+
+
+            await updateCustomer(selectedCustomer._id, updatedCustomer);
+
+            // Update the local state
+            setRefreshKey(prevKey => prevKey + 1);
+            refetchCustomers({ force: true });
+
+            // If the customer details drawer is open, update the selected customer
+            if (drawerVisible) {
+                setSelectedCustomer(updatedCustomer);
+            }
+
+            // Show success message
+            message.success('Communication logged successfully!');
+
+            // Close the modal
+            setCommunicationModalVisible(false);
+        } catch (error) {
+            console.error('Error adding communication:', error);
+            message.error('Failed to log communication');
+        }
+    };
+
+    // New function to save note
+    const handleSaveNote = async () => {
+        try {
+            const values = await noteForm.validateFields();
+
+            // Create the new note entry
+            const newNote = {
+                content: values.content,
+                addedAt: new Date().toISOString()
+            };
+
+            // Create updated customer with new note added
+            const updatedCustomer = {
+                ...selectedCustomer,
+                notes: [
+                    newNote,
+                    ...(selectedCustomer.notes || [])
+                ]
+            };
+
+            await updateCustomer(selectedCustomer._id, updatedCustomer);
+
+            // Update the local state
+            setRefreshKey(prevKey => prevKey + 1);
+            refetchCustomers({ force: true });
+
+            // If the customer details drawer is open, update the selected customer
+            if (drawerVisible) {
+                setSelectedCustomer(updatedCustomer);
+            }
+
+            // Show success message
+            message.success('Note added successfully!');
+
+            // Close the modal
+            setNoteModalVisible(false);
+        } catch (error) {
+            console.error('Error adding note:', error);
+            message.error('Failed to add note');
+        }
+    }
+
+
     // Show delete confirmation modal
-    const showDeleteConfirm = (valuation) => {
-        setValuationToDelete(valuation);
+    const showDeleteConfirm = (customer) => {
+        setCustomerToDelete(customer);
         setDeleteModalVisible(true);
     };
 
-    // Handle delete valuation
-    const handleDeleteValuation = () => {
-        // In a real app, this would call an API to delete the valuation
-        console.log('Delete valuation:', valuationToDelete);
+    // Handle delete customer
+    const handleDeleteCustomer = () => {
+        // In a real app, this would call an API to delete the customer
+        console.log('Delete customer:', customerToDelete);
         setDeleteModalVisible(false);
-        setValuationToDelete(null);
+        setCustomerToDelete(null);
     };
 
     // Handle search
@@ -648,114 +712,404 @@ const ValuationManagement = () => {
         setDateRange(dates);
     };
 
-    // Calculate valuation totals
-    const getTotalValuationFee = () => {
-        return valuationsData.reduce(
-            (total, valuation) => total + valuation.valuationFee,
-            0,
+    // Calculate customer statistics
+    const getTotalCustomers = () => {
+        return customersData.length;
+    };
+
+    const getIndividualCustomersCount = () => {
+        return customersData.filter(
+            (customer) => customer.customerType === 'individual'
+        ).length;
+    };
+
+    const getCompanyCustomersCount = () => {
+        return customersData.filter(
+            (customer) => customer.customerType === 'company'
+        ).length;
+    };
+
+    const getTotalPurchases = () => {
+        return customersData.reduce(
+            (total, customer) => total + customer.purchases,
+            0
         );
     };
 
-    const getTotalPropertyValue = () => {
-        return valuationsData
-            .filter((valuation) => valuation.marketValue)
-            .reduce((total, valuation) => total + valuation.marketValue, 0);
-    };
-
-    const getCompletedValuationsCount = () => {
-        return valuationsData.filter(
-            (valuation) => valuation.status === 'Completed',
-        ).length;
-    };
-
-    const getPendingValuationsCount = () => {
-        return valuationsData.filter(
-            (valuation) =>
-                valuation.status !== 'Completed' && valuation.status !== 'Canceled',
-        ).length;
-    };
-
-    // Filter valuations based on search text and filters
-    const filteredValuations = valuationsData.filter((valuation) => {
+    // Filter customers based on search text and filters
+    const filteredCustomers = customersData.filter((customer) => {
         const matchesSearch =
-            valuation.id.toLowerCase().includes(searchText.toLowerCase()) ||
-            valuation.property.title
-                .toLowerCase()
-                .includes(searchText.toLowerCase()) ||
-            valuation.client.name.toLowerCase().includes(searchText.toLowerCase()) ||
-            valuation.valuer.toLowerCase().includes(searchText.toLowerCase());
+            customer._id.toLowerCase().includes(searchText.toLowerCase()) ||
+            customer.name.toLowerCase().includes(searchText.toLowerCase()) ||
+            customer.email.toLowerCase().includes(searchText.toLowerCase()) ||
+            customer.phone.includes(searchText);
 
-        const matchesStatus =
-            valuationStatusFilter === 'all' ||
-            valuation.status === valuationStatusFilter;
-        const matchesPurpose =
-            valuationPurposeFilter === 'all' ||
-            valuation.purpose === valuationPurposeFilter;
+        const matchesType =
+            customerTypeFilter === 'all' ||
+            customer.customerType === customerTypeFilter;
 
         let matchesDateRange = true;
         if (dateRange && dateRange[0] && dateRange[1]) {
-            const requestDate = new Date(valuation.requestDate);
+            const createdDate = new Date(customer.createdAt);
             const startDate = new Date(dateRange[0]);
             const endDate = new Date(dateRange[1]);
-            matchesDateRange = requestDate >= startDate && requestDate <= endDate;
+            matchesDateRange = createdDate >= startDate && createdDate <= endDate;
         }
 
-        return matchesSearch && matchesStatus && matchesPurpose && matchesDateRange;
+        return matchesSearch && matchesType && matchesDateRange;
     });
 
     return (
         <>
-            <Space className="mb-4">
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setAddValuationVisible(true)}
-                >
-                    Request Valuation
-                </Button>
+            <Space className="mb-4" size="large">
+                <Space>
+                    <Button
+                        type="primary"
+                        icon={<UserOutlined />}
+                        onClick={() => handleOpenConvertLeadModal()}
+                    >
+                        Create New Customer
+                    </Button>
+                </Space>
             </Space>
-            {/* Valuation Statistics Cards */}
+            {/* Convert Lead to Customer Modal */}
+            <Modal
+                title={customerModalMode === 'create' ? "Convert Lead to Customer" : "Edit Customer"}
+                open={customerModalVisible}
+                onCancel={() => {
+                    setCustomerModalVisible(false);
+                    customerForm.resetFields();
+                    setSelectedLead(null);
+                }}
+                onOk={handleCustomerSubmit}
+                okText={customerModalMode === 'create' ? "Convert Lead" : "Save Changes"}
+                width={1000}
+            >
+                <Form layout="vertical" form={customerForm}>
+                    {customerModalMode === 'create' && (
+                        <Form.Item
+                            label="Select Lead"
+                            name="leadId"
+                            rules={[{ required: true, message: 'Please select a lead to convert' }]}
+                        >
+                            <Select
+                                placeholder="Select a lead to convert"
+                                onChange={handleLeadSelect}
+                                loading={leads.length === 0}
+                                showSearch
+                                optionFilterProp="children"
+                            >
+                                {leads.map(lead => (
+                                    <Option key={lead._id} value={lead._id}>
+                                        {lead.name} - {lead.phone} - {lead.status}
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    )}
+
+                    {(customerModalMode === 'edit' || selectedLead) && (
+                        <Tabs defaultActiveKey="personalInfo">
+                            <Tabs.TabPane tab="Personal Information" key="personalInfo">
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Customer Type"
+                                            name="customerType"
+                                            initialValue="individual"
+                                            rules={[{ required: true, message: 'Please select customer type' }]}
+                                        >
+                                            <Select>
+                                                <Option value="individual">Individual</Option>
+                                                <Option value="company">Company</Option>
+                                            </Select>
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Full Name"
+                                            name="name"
+                                            rules={[{ required: true, message: 'Please enter customer name' }]}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Email"
+                                            name="email"
+                                            rules={[{
+                                                type: 'email',
+                                                message: 'Please enter a valid email'
+                                            }]}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Phone"
+                                            name="phone"
+                                            rules={[
+                                                { required: true, message: 'Please enter phone number' },
+                                                {
+                                                    pattern: /^\+?[0-9]{10,15}$/,
+                                                    message: 'Please enter a valid phone number'
+                                                }
+                                            ]}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="ID Number"
+                                            name="idNumber"
+                                            rules={[{ required: true, message: 'Please enter ID number' }]}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Alternate Phone"
+                                            name="alternatePhone"
+                                            rules={[{
+                                                pattern: /^\+?[0-9]{10,15}$/,
+                                                message: 'Please enter a valid phone number',
+                                                validateTrigger: 'onChange'
+                                            }]}
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Street Address"
+                                            name="streetAddress"
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="City"
+                                            name="city"
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="County"
+                                            name="county"
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Postal Code"
+                                            name="postalCode"
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Occupation"
+                                            name="occupation"
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Company"
+                                            name="company"
+                                        >
+                                            <Input />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                {customerModalMode === 'create' && (
+                                    <Form.Item
+                                        label="ID Document Upload"
+                                        name="idDocumentUpload"
+                                    >
+                                        <Upload
+                                            name="idDocument"
+                                            listType="picture"
+                                            maxCount={1}
+                                            beforeUpload={() => false} // Prevent automatic upload
+                                        >
+                                            <Button icon={<UploadOutlined />}>Upload ID Document</Button>
+                                        </Upload>
+                                    </Form.Item>
+                                )}
+                            </Tabs.TabPane>
+
+                            <Tabs.TabPane tab="Property Preferences" key="propertyPreferences">
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Property Types"
+                                            name="propertyTypes"
+                                            rules={[{ required: true, message: 'Please select at least one property type' }]}
+                                        >
+                                            <Checkbox.Group>
+                                                <Row>
+                                                    <Col span={12}>
+                                                        <Checkbox value="apartment">Apartment</Checkbox>
+                                                    </Col>
+                                                    <Col span={12}>
+                                                        <Checkbox value="land">Land</Checkbox>
+                                                    </Col>
+                                                </Row>
+                                            </Checkbox.Group>
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Preferred Locations"
+                                            name="locations"
+                                        >
+                                            <Select mode="tags" placeholder="Select or add locations">
+                                                <Option value="kilimani">Kilimani</Option>
+                                                <Option value="kileleshwa">Kileleshwa</Option>
+                                                <Option value="lavington">Lavington</Option>
+                                                <Option value="karen">Karen</Option>
+                                                <Option value="runda">Runda</Option>
+                                                <Option value="westlands">Westlands</Option>
+                                                <Option value="thika_road">Thika Road</Option>
+                                                <Option value="mombasa_road">Mombasa Road</Option>
+                                            </Select>
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item label="Budget Range (KES)" required>
+                                            <Input.Group compact>
+                                                <Form.Item
+                                                    name={['budgetRange', 'min']}
+                                                    noStyle
+                                                    rules={[{ required: true, message: 'Minimum budget is required' }]}
+                                                >
+                                                    <InputNumber
+                                                        style={{ width: '45%' }}
+                                                        placeholder="Minimum"
+                                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                                    />
+                                                </Form.Item>
+                                                <Input
+                                                    style={{ width: '10%', textAlign: 'center' }}
+                                                    placeholder="~"
+                                                    disabled
+                                                />
+                                                <Form.Item
+                                                    name={['budgetRange', 'max']}
+                                                    noStyle
+                                                    rules={[{ required: true, message: 'Maximum budget is required' }]}
+                                                >
+                                                    <InputNumber
+                                                        style={{ width: '45%' }}
+                                                        placeholder="Maximum"
+                                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                                    />
+                                                </Form.Item>
+                                            </Input.Group>
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Preferred Amenities"
+                                            name="amenities"
+                                        >
+                                            <Select mode="tags" placeholder="Select or add amenities">
+                                                <Option value="swimming_pool">Swimming Pool</Option>
+                                                <Option value="gym">Gym</Option>
+                                                <Option value="security">24/7 Security</Option>
+                                                <Option value="parking">Parking</Option>
+                                                <Option value="backup_generator">Backup Generator</Option>
+                                                <Option value="water_supply">Reliable Water Supply</Option>
+                                            </Select>
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+
+                                <Form.Item
+                                    label="Additional Notes"
+                                    name="notes"
+                                >
+                                    <Input.TextArea rows={4} />
+                                </Form.Item>
+                            </Tabs.TabPane>
+                        </Tabs>
+                    )}
+                </Form>
+            </Modal>
+
+            {/* Statistics Cards */}
             <Row gutter={16} style={{ marginBottom: 24 }}>
                 <Col xs={24} sm={12} md={6}>
                     <Card>
                         <Statistic
-                            title="Total Property Value"
-                            value={getTotalPropertyValue()}
+                            title="Total Customers"
+                            value={getTotalCustomers()}
                             valueStyle={{ color: '#1890ff' }}
-                            prefix={<BankOutlined />}
-                            formatter={(value) => `KES ${value.toLocaleString()}`}
+                            prefix={<TeamOutlined />}
                         />
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} md={6}>
                     <Card>
                         <Statistic
-                            title="Completed Valuations"
-                            value={getCompletedValuationsCount()}
+                            title="Individual Customers"
+                            value={getIndividualCustomersCount()}
                             valueStyle={{ color: '#52c41a' }}
-                            prefix={<CheckCircleOutlined />}
-                            suffix={`/ ${valuationsData.length}`}
+                            prefix={<UserOutlined />}
+                            suffix={`/ ${getTotalCustomers()}`}
                         />
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} md={6}>
                     <Card>
                         <Statistic
-                            title="Pending Valuations"
-                            value={getPendingValuationsCount()}
-                            valueStyle={{ color: '#faad14' }}
-                            prefix={<ClockCircleOutlined />}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                    <Card>
-                        <Statistic
-                            title="Total Valuation Fees"
-                            value={getTotalValuationFee()}
+                            title="Corporate Customers"
+                            value={getCompanyCustomersCount()}
                             valueStyle={{ color: '#722ed1' }}
-                            prefix={<DollarOutlined />}
-                            formatter={(value) => `KES ${value.toLocaleString()}`}
+                            prefix={<CrownOutlined />}
+                            suffix={`/ ${getTotalCustomers()}`}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                    <Card>
+                        <Statistic
+                            title="Total Purchases"
+                            value={getTotalPurchases()}
+                            valueStyle={{ color: '#fa8c16' }}
+                            prefix={<ShoppingOutlined />}
                         />
                     </Card>
                 </Col>
@@ -765,7 +1119,7 @@ const ValuationManagement = () => {
             <Row gutter={16} style={{ marginBottom: 16 }}>
                 <Col xs={24} sm={24} md={6}>
                     <Input
-                        placeholder="Search by ID, property, client or valuer..."
+                        placeholder="Search by ID, name, email or phone..."
                         prefix={<SearchOutlined />}
                         value={searchText}
                         onChange={handleSearch}
@@ -775,29 +1129,24 @@ const ValuationManagement = () => {
                 <Col xs={24} sm={8} md={5}>
                     <Select
                         style={{ width: '100%' }}
-                        placeholder="Filter by Status"
+                        placeholder="Filter by Type"
                         defaultValue="all"
-                        onChange={(value) => setValuationStatusFilter(value)}
+                        onChange={(value) => setCustomerTypeFilter(value)}
                     >
-                        <Option value="all">All Statuses</Option>
-                        <Option value="Pending Inspection">Pending Inspection</Option>
-                        <Option value="In Progress">In Progress</Option>
-                        <Option value="Completed">Completed</Option>
-                        <Option value="Canceled">Canceled</Option>
+                        <Option value="all">All Types</Option>
+                        <Option value="individual">Individual</Option>
+                        <Option value="company">Company</Option>
                     </Select>
                 </Col>
                 <Col xs={24} sm={8} md={5}>
                     <Select
                         style={{ width: '100%' }}
-                        placeholder="Filter by Purpose"
+                        placeholder="Filter by Property Interest"
                         defaultValue="all"
-                        onChange={(value) => setValuationPurposeFilter(value)}
                     >
-                        <Option value="all">All Purposes</Option>
-                        <Option value="Sale">Sale</Option>
-                        <Option value="Mortgage">Mortgage</Option>
-                        <Option value="Insurance">Insurance</Option>
-                        <Option value="Tax">Tax</Option>
+                        <Option value="all">All Properties</Option>
+                        <Option value="apartment">Apartment</Option>
+                        <Option value="land">Land</Option>
                     </Select>
                 </Col>
                 <Col xs={24} sm={8} md={6}>
@@ -827,375 +1176,273 @@ const ValuationManagement = () => {
                 </Col>
             </Row>
 
-            {/* Valuations Table */}
+            {/* Customers Table */}
             <Table
                 columns={columns}
-                dataSource={filteredValuations}
-                rowKey="id"
+                dataSource={filteredCustomers}
+                rowKey="_id"
                 pagination={{ pageSize: 10 }}
                 scroll={{ x: 1500 }}
                 expandable={{
                     expandedRowRender: (record) => (
                         <p style={{ margin: 0 }}>
-                            <strong>Notes:</strong> {record.notes}
+                            <strong>Preferred Locations:</strong>{' '}
+                            {record.preferences.locations.join(', ')}
+                            <br />
+                            <strong>Requirements:</strong>{' '}
+                            {record.preferences.otherRequirements || 'None specified'}
                         </p>
                     ),
                 }}
-                summary={(pageData) => {
-                    if (pageData.length === 0) return null;
-
-                    let totalFee = 0;
-                    let totalValue = 0;
-
-                    pageData.forEach(({ valuationFee, marketValue }) => {
-                        totalFee += valuationFee;
-                        totalValue += marketValue || 0;
-                    });
-
-                    return (
-                        <Table.Summary fixed>
-                            <Table.Summary.Row>
-                                <Table.Summary.Cell index={0} colSpan={8}>
-                                    <strong>Page Total</strong>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={8}>
-                                    <Text type="danger">KES {totalValue.toLocaleString()}</Text>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={9}>
-                                    <Text type="danger">KES {totalFee.toLocaleString()}</Text>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={10}></Table.Summary.Cell>
-                            </Table.Summary.Row>
-                        </Table.Summary>
-                    );
-                }}
             />
 
-            {/* Valuation Details Drawer */}
+            {/* Customer Details Drawer */}
             <Drawer
                 title={
-                    selectedValuation
-                        ? `Valuation Details: ${selectedValuation.id}`
-                        : 'Valuation Details'
+                    selectedCustomer
+                        ? `Customer Details: ${selectedCustomer.name}`
+                        : 'Customer Details'
                 }
                 placement="right"
                 onClose={() => setDrawerVisible(false)}
-                visible={drawerVisible}
+                open={drawerVisible}
                 width={700}
                 footer={
                     <div style={{ textAlign: 'right' }}>
-                        {selectedValuation && selectedValuation.status === 'Completed' && (
-                            <Button
-                                type="primary"
-                                icon={<FileTextOutlined />}
-                                style={{ marginRight: 8 }}
-                            >
-                                Download Report
-                            </Button>
-                        )}
+                        <Button
+                            type="primary"
+                            onClick={() => handleAddCommunication(selectedCustomer)}
+                            icon={<MessageOutlined />}
+                            style={{ marginRight: 8 }}
+                        >
+                            Log Communication
+                        </Button>
+                        <Button
+                            onClick={() => handleAddNote(selectedCustomer)}
+                            icon={<CommentOutlined />}
+                            style={{ marginRight: 8 }}
+                        >
+                            Add Note
+                        </Button>
                         <Button onClick={() => setDrawerVisible(false)}>Close</Button>
                     </div>
                 }
             >
-                {selectedValuation && (
+                {selectedCustomer && (
                     <>
                         <div style={{ marginBottom: 24 }}>
                             <Row gutter={16}>
                                 <Col span={16}>
-                                    <Title level={4}>{selectedValuation.property.title}</Title>
+                                    <Title level={4}>{selectedCustomer.name}</Title>
                                     <Space direction="vertical">
                                         <Text>
-                                            <HomeOutlined style={{ marginRight: 8 }} />
-                                            {selectedValuation.property.type} -{' '}
-                                            {selectedValuation.property.size}
+                                            <PhoneOutlined style={{ marginRight: 8 }} />
+                                            {selectedCustomer.phone}{' '}
+                                            {selectedCustomer.verifiedPhone && (
+                                                <Tag color="success">Verified</Tag>
+                                            )}
+                                        </Text>
+                                        <Text>
+                                            <MailOutlined style={{ marginRight: 8 }} />
+                                            {selectedCustomer.email}
+                                        </Text>
+                                        <Text>
+                                            <IdcardOutlined style={{ marginRight: 8 }} />
+                                            ID: {selectedCustomer.idNumber}
                                         </Text>
                                         <Text>
                                             <EnvironmentOutlined style={{ marginRight: 8 }} />
-                                            {selectedValuation.property.location}
-                                        </Text>
-                                        <Text>
-                                            <UserOutlined style={{ marginRight: 8 }} />
-                                            Client: {selectedValuation.client.name}
+                                            {selectedCustomer.address.street}, {selectedCustomer.address.city}, {selectedCustomer.address.county}
                                         </Text>
                                     </Space>
                                 </Col>
                                 <Col span={8} style={{ textAlign: 'right' }}>
                                     <Tag
-                                        color={
-                                            selectedValuation.status === 'Pending Inspection'
-                                                ? 'orange'
-                                                : selectedValuation.status === 'In Progress'
-                                                    ? 'blue'
-                                                    : selectedValuation.status === 'Completed'
-                                                        ? 'green'
-                                                        : 'red'
-                                        }
+                                        color={selectedCustomer.customerType === 'individual' ? 'blue' : 'purple'}
                                         style={{ fontSize: '14px', padding: '4px 8px' }}
                                     >
-                                        {selectedValuation.status}
+                                        {selectedCustomer.customerType === 'individual' ? 'Individual' : 'Company'}
                                     </Tag>
-                                    <div style={{ marginTop: 8 }}>
-                                        <Text strong>Request Date:</Text>{' '}
-                                        {selectedValuation.requestDate}
-                                    </div>
-                                    {selectedValuation.completionDate && (
-                                        <div style={{ marginTop: 4 }}>
-                                            <Text strong>Completion Date:</Text>{' '}
-                                            {selectedValuation.completionDate}
+                                    {selectedCustomer.company && (
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text strong>Company:</Text>{' '}
+                                            {selectedCustomer.company}
                                         </div>
                                     )}
+                                    {selectedCustomer.occupation && (
+                                        <div style={{ marginTop: 8 }}>
+                                            <Text strong>Occupation:</Text>{' '}
+                                            {selectedCustomer.occupation}
+                                        </div>
+                                    )}
+                                    <div style={{ marginTop: 8 }}>
+                                        <Text strong>Customer Since:</Text>{' '}
+                                        {selectedCustomer.createdAt}
+                                    </div>
                                 </Col>
                             </Row>
                         </div>
 
                         <Divider style={{ margin: '16px 0' }} />
 
-                        {/* Valuation Progress Steps */}
-                        <div style={{ marginBottom: 24 }}>
-                            <Steps
-                                size="small"
-                                current={
-                                    selectedValuation.status === 'Pending Inspection'
-                                        ? 0
-                                        : selectedValuation.status === 'In Progress'
-                                            ? 1
-                                            : selectedValuation.status === 'Completed'
-                                                ? 2
-                                                : 0
-                                }
-                            >
-                                <Step title="Inspection" />
-                                <Step title="Valuation" />
-                                <Step title="Report" />
-                            </Steps>
-                        </div>
-
-                        {/* Valuation Overview */}
-                        <Card title="Valuation Overview" style={{ marginBottom: 16 }}>
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Descriptions column={1} size="small">
-                                        <Descriptions.Item label="Valuation Purpose">
-                                            {selectedValuation.purpose}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Valuer">
-                                            {selectedValuation.valuer}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Valuation Fee">
-                                            KES {selectedValuation.valuationFee.toLocaleString()}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Methodology">
-                                            {selectedValuation.methodology.join(', ') ||
-                                                'Not determined yet'}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </Col>
-                                <Col span={12}>
-                                    <Descriptions column={1} size="small">
-                                        <Descriptions.Item label="Market Value">
-                                            {selectedValuation.marketValue
-                                                ? `KES ${selectedValuation.marketValue.toLocaleString()}`
-                                                : 'Pending'}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Forced Sale Value">
-                                            {selectedValuation.forcedSaleValue
-                                                ? `KES ${selectedValuation.forcedSaleValue.toLocaleString()}`
-                                                : 'Pending'}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Report">
-                                            {selectedValuation.report || 'Not available yet'}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Documents">
-                                            {selectedValuation.documents.length} documents
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                </Col>
-                            </Row>
-                        </Card>
+                        {/* Customer Status Overview */}
+                        <Row gutter={16} style={{ marginBottom: 24 }}>
+                            <Col span={8}>
+                                <Card size="small">
+                                    <Statistic
+                                        title="Purchases"
+                                        value={selectedCustomer.purchases}
+                                        prefix={<ShoppingOutlined />}
+                                        valueStyle={{ color: '#1890ff' }}
+                                    />
+                                </Card>
+                            </Col>
+                            <Col span={8}>
+                                <Card size="small">
+                                    <Statistic
+                                        title="Payment Plans"
+                                        value={selectedCustomer.paymentPlans}
+                                        prefix={<CreditCardOutlined />}
+                                        valueStyle={{ color: '#52c41a' }}
+                                    />
+                                </Card>
+                            </Col>
+                            <Col span={8}>
+                                <Card size="small">
+                                    <Statistic
+                                        title="Communications"
+                                        value={selectedCustomer.communications ? selectedCustomer.communications.length : 0}
+                                        prefix={<MessageOutlined />}
+                                        valueStyle={{ color: '#722ed1' }}
+                                    />
+                                </Card>
+                            </Col>
+                        </Row>
 
                         <Tabs defaultActiveKey="1" onChange={setActiveTab}>
-                            <TabPane tab="Property Details" key="1">
-                                <Card title="Property Information" style={{ marginBottom: 16 }}>
-                                    <Descriptions
-                                        bordered
-                                        column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
-                                    >
-                                        <Descriptions.Item label="Property ID">
-                                            {selectedValuation.property.id}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Property Type">
-                                            {selectedValuation.property.type}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Size">
-                                            {selectedValuation.property.size}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Location">
-                                            {selectedValuation.property.location}
-                                        </Descriptions.Item>
-                                    </Descriptions>
+                            <TabPane tab="Preferences" key="1">
+                                <Card title="Property Preferences" style={{ marginBottom: 16 }}>
+                                    <Row gutter={16}>
+                                        <Col span={12}>
+                                            <Descriptions column={1} size="small">
+                                                <Descriptions.Item label="Property Types">
+                                                    {selectedCustomer.preferences.propertyTypes.map(type => (
+                                                        <Tag key={type} color={type === 'apartment' ? 'green' : 'orange'}>
+                                                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                                                        </Tag>
+                                                    ))}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Preferred Locations">
+                                                    {selectedCustomer.preferences.locations.join(', ')}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Budget Range">
+                                                    KES {selectedCustomer.preferences.budgetRange.min.toLocaleString()} - {selectedCustomer.preferences.budgetRange.max.toLocaleString()}
+                                                </Descriptions.Item>
+                                            </Descriptions>
+                                        </Col>
+                                        <Col span={12}>
+                                            <Descriptions column={1} size="small">
+                                                <Descriptions.Item label="Desired Amenities">
+                                                    {selectedCustomer.preferences.amenities.length > 0
+                                                        ? selectedCustomer.preferences.amenities.join(', ')
+                                                        : 'None specified'}
+                                                </Descriptions.Item>
+                                                <Descriptions.Item label="Other Requirements">
+                                                    {selectedCustomer.preferences.otherRequirements || 'None specified'}
+                                                </Descriptions.Item>
+                                            </Descriptions>
+                                        </Col>
+                                    </Row>
                                 </Card>
-
-                                {selectedValuation.status !== 'Pending Inspection' && (
-                                    <Card title="Property Ratings" style={{ marginBottom: 16 }}>
-                                        <Row gutter={16}>
-                                            {Object.entries(selectedValuation.propertyRatings).map(
-                                                ([key, value]) => (
-                                                    <Col span={12} key={key} style={{ marginBottom: 16 }}>
-                                                        <div
-                                                            style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'space-between',
-                                                            }}
-                                                        >
-                                                            <Text style={{ textTransform: 'capitalize' }}>
-                                                                {key}:
-                                                            </Text>
-                                                            <Rate disabled defaultValue={value} />
-                                                        </div>
-                                                    </Col>
-                                                ),
-                                            )}
-                                        </Row>
-                                    </Card>
-                                )}
-
-                                {selectedValuation.comparableProperties.length > 0 && (
-                                    <Card
-                                        title="Comparable Properties"
-                                        style={{ marginBottom: 16 }}
-                                    >
-                                        <Table
-                                            columns={[
-                                                {
-                                                    title: 'ID',
-                                                    dataIndex: 'id',
-                                                    key: 'id',
-                                                },
-                                                {
-                                                    title: 'Address',
-                                                    dataIndex: 'address',
-                                                    key: 'address',
-                                                },
-                                                {
-                                                    title: 'Size',
-                                                    dataIndex: 'size',
-                                                    key: 'size',
-                                                },
-                                                {
-                                                    title: 'Price (KES)',
-                                                    dataIndex: 'price',
-                                                    key: 'price',
-                                                    render: (price) => price.toLocaleString(),
-                                                },
-                                            ]}
-                                            dataSource={selectedValuation.comparableProperties}
-                                            rowKey="id"
-                                            pagination={false}
-                                            size="small"
-                                        />
-                                    </Card>
-                                )}
                             </TabPane>
 
-                            <TabPane tab="Timeline" key="2">
-                                <Timeline mode="left">
-                                    {selectedValuation.timeline.map((item, index) => (
-                                        <Timeline.Item
-                                            key={index}
-                                            label={item.date}
-                                            color={
-                                                item.event === 'Final Report'
-                                                    ? 'green'
-                                                    : item.event === 'Draft Report'
-                                                        ? 'blue'
-                                                        : item.event === 'Site Visit'
+                            <TabPane tab="Communications" key="2">
+                                {selectedCustomer.communications && selectedCustomer.communications.length > 0 ? (
+                                    <Timeline mode="left" style={{ marginTop: 20 }}>
+                                        {[...selectedCustomer.communications]
+                                            .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                            .map((comm, index) => (
+                                                <Timeline.Item
+                                                    key={index}
+                                                    label={comm.date}
+                                                    color={
+                                                        comm.type === 'call'
                                                             ? 'blue'
-                                                            : 'gray'
-                                            }
-                                        >
-                                            <div style={{ fontWeight: 'bold' }}>{item.event}</div>
-                                            <div>{item.description}</div>
-                                        </Timeline.Item>
-                                    ))}
+                                                            : comm.type === 'meeting'
+                                                                ? 'green'
+                                                                : comm.type === 'email'
+                                                                    ? 'purple'
+                                                                    : 'gray'
+                                                    }
+                                                    dot={
+                                                        comm.type === 'call' ? <PhoneOutlined /> :
+                                                            comm.type === 'email' ? <MailOutlined /> :
+                                                                comm.type === 'meeting' ? <TeamOutlined /> :
+                                                                    comm.type === 'sms' ? <MessageOutlined /> :
+                                                                        <MessageOutlined />
+                                                    }
+                                                >
+                                                    <div style={{ fontWeight: 'bold' }}>
+                                                        {comm?.type ? comm.type.charAt(0).toUpperCase() + comm.type.slice(1) : ''}
+                                                    </div>
+                                                    <div><strong>Summary:</strong> {comm?.summary || ''}</div>
+                                                    <div><strong>Summary:</strong> {comm.summary}</div>
+                                                    <div><strong>Outcome:</strong> {comm.outcome}</div>
+                                                    {comm.nextAction && (
+                                                        <div><strong>Next Action:</strong> {comm.nextAction}</div>
+                                                    )}
+                                                </Timeline.Item>
+                                            ))}
+                                    </Timeline>
+                                ) : (
+                                    <Empty description="No communications recorded yet" />
+                                )}
 
-                                    {selectedValuation.status !== 'Completed' &&
-                                        selectedValuation.status !== 'Canceled' && (
-                                            <Timeline.Item
-                                                label="Upcoming"
-                                                color="gray"
-                                                dot={<ClockCircleOutlined />}
-                                            >
-                                                <div style={{ fontWeight: 'bold' }}>
-                                                    {selectedValuation.status === 'Pending Inspection'
-                                                        ? 'Site Inspection'
-                                                        : 'Finalize Report'}
-                                                </div>
-                                                <div>Scheduled activity in the valuation process</div>
-                                            </Timeline.Item>
-                                        )}
-                                </Timeline>
-
-                                {selectedValuation.status !== 'Completed' &&
-                                    selectedValuation.status !== 'Canceled' && (
-                                        <Button
-                                            type="dashed"
-                                            icon={<PlusOutlined />}
-                                            style={{ marginTop: 16 }}
-                                            block
-                                        >
-                                            Add Event
-                                        </Button>
-                                    )}
+                                <Button
+                                    type="dashed"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 16 }}
+                                    onClick={() => handleAddCommunication(selectedCustomer)}
+                                    block
+                                >
+                                    Add Communication
+                                </Button>
                             </TabPane>
 
-                            <TabPane tab="Client Details" key="3">
-                                <Card>
-                                    <Descriptions title="Client Information" bordered column={1}>
-                                        <Descriptions.Item label="Name">
-                                            {selectedValuation.client.name}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Client Type">
-                                            <Tag
-                                                color={
-                                                    selectedValuation.client.type === 'Institution'
-                                                        ? 'gold'
-                                                        : 'blue'
-                                                }
-                                            >
-                                                {selectedValuation.client.type}
-                                            </Tag>
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Contact Number">
-                                            {selectedValuation.client.contactNumber}
-                                        </Descriptions.Item>
-                                        <Descriptions.Item label="Email">
-                                            {selectedValuation.client.email}
-                                        </Descriptions.Item>
-                                    </Descriptions>
-                                    <div
-                                        style={{
-                                            marginTop: 16,
-                                            display: 'flex',
-                                            justifyContent: 'flex-end',
-                                        }}
-                                    >
-                                        <Space>
-                                            <Button icon={<MailOutlined />}>Send Email</Button>
-                                            <Button icon={<PhoneOutlined />}>Call</Button>
-                                            <Button type="primary" icon={<UserOutlined />}>
-                                                View Profile
-                                            </Button>
-                                        </Space>
-                                    </div>
-                                </Card>
+                            <TabPane tab="Notes" key="3">
+                                {selectedCustomer.notes && selectedCustomer.notes.length > 0 ? (
+                                    <List
+                                        itemLayout="horizontal"
+                                        dataSource={[...selectedCustomer.notes].sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt))}
+                                        renderItem={(note, index) => (
+                                            <List.Item>
+                                                <List.Item.Meta
+                                                    title={<span>{new Date(note.addedAt).toLocaleString()}</span>}
+                                                    description={note.content}
+                                                />
+                                            </List.Item>
+                                        )}
+                                    />
+                                ) : (
+                                    <Empty description="No notes added yet" />
+                                )}
+
+                                <Button
+                                    type="dashed"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 16 }}
+                                    onClick={() => handleAddNote(selectedCustomer)}
+                                    block
+                                >
+                                    Add Note
+                                </Button>
                             </TabPane>
 
                             <TabPane tab="Documents" key="4">
                                 <List
                                     itemLayout="horizontal"
-                                    dataSource={selectedValuation.documents}
-                                    renderItem={(item) => (
+                                    dataSource={selectedCustomer.documents || []}
+                                    renderItem={(doc) => (
                                         <List.Item
                                             actions={[
                                                 <Button type="link">View</Button>,
@@ -1204,252 +1451,253 @@ const ValuationManagement = () => {
                                         >
                                             <List.Item.Meta
                                                 avatar={<Avatar icon={<FileTextOutlined />} />}
-                                                title={item}
-                                                description="Document details would appear here"
+                                                title={doc.name}
+                                                description={
+                                                    <>
+                                                        <Tag color="blue">{doc.type}</Tag>
+                                                        <span style={{ marginLeft: 8 }}>
+                                                            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                                                        </span>
+                                                    </>
+                                                }
                                             />
                                         </List.Item>
                                     )}
                                 />
-                                {selectedValuation.status !== 'Completed' && (
-                                    <Button
-                                        type="primary"
-                                        icon={<PlusOutlined />}
-                                        style={{ marginTop: 16 }}
-                                    >
-                                        Upload Document
-                                    </Button>
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    style={{ marginTop: 16 }}
+                                >
+                                    Upload Document
+                                </Button>
+                            </TabPane>
+
+                            <TabPane tab="Purchases" key="5">
+                                {selectedCustomer.purchases > 0 ? (
+                                    <Table
+                                        dataSource={[
+                                            {
+                                                id: 'S001',
+                                                property: 'Garden City 3-Bedroom Apartment',
+                                                date: '2025-02-01',
+                                                amount: 8900000,
+                                                status: 'Completed',
+                                            },
+                                        ]}
+                                        columns={[
+                                            {
+                                                title: 'Sale ID',
+                                                dataIndex: 'id',
+                                                key: 'id',
+                                            },
+                                            {
+                                                title: 'Property',
+                                                dataIndex: 'property',
+                                                key: 'property',
+                                            },
+                                            {
+                                                title: 'Date',
+                                                dataIndex: 'date',
+                                                key: 'date',
+                                            },
+                                            {
+                                                title: 'Amount (KES)',
+                                                dataIndex: 'amount',
+                                                key: 'amount',
+                                                render: (amount) => amount.toLocaleString(),
+                                            },
+                                            {
+                                                title: 'Status',
+                                                dataIndex: 'status',
+                                                key: 'status',
+                                                render: (status) => (
+                                                    <Tag color="green">{status}</Tag>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Actions',
+                                                key: 'actions',
+                                                render: () => (
+                                                    <Button size="small" icon={<FileSearchOutlined />}>
+                                                        View
+                                                    </Button>
+                                                ),
+                                            },
+                                        ]}
+                                        pagination={false}
+                                    />
+                                ) : (
+                                    <Empty description="No purchases yet" />
                                 )}
                             </TabPane>
 
-                            <TabPane tab="Notes" key="5">
-                                <Card>
-                                    <Paragraph>
-                                        {selectedValuation.notes || 'No notes available.'}
-                                    </Paragraph>
-                                    {selectedValuation.status !== 'Completed' && (
-                                        <div style={{ marginTop: 16 }}>
-                                            <Input.TextArea
-                                                rows={4}
-                                                placeholder="Add notes here..."
-                                            />
-                                            <Button type="primary" style={{ marginTop: 8 }}>
-                                                Save Notes
-                                            </Button>
-                                        </div>
-                                    )}
-                                </Card>
+                            <TabPane tab="Payment Plans" key="6">
+                                {selectedCustomer.paymentPlans > 0 ? (
+                                    <Table
+                                        dataSource={[
+                                            {
+                                                id: 'PP001',
+                                                property: 'Garden City 3-Bedroom Apartment',
+                                                startDate: '2025-01-15',
+                                                amount: 8900000,
+                                                paid: 2225000,
+                                                remaining: 6675000,
+                                                status: 'Active',
+                                            },
+                                        ]}
+                                        columns={[
+                                            {
+                                                title: 'Plan ID',
+                                                dataIndex: 'id',
+                                                key: 'id',
+                                            },
+                                            {
+                                                title: 'Property',
+                                                dataIndex: 'property',
+                                                key: 'property',
+                                            },
+                                            {
+                                                title: 'Start Date',
+                                                dataIndex: 'startDate',
+                                                key: 'startDate',
+                                            },
+                                            {
+                                                title: 'Total (KES)',
+                                                dataIndex: 'amount',
+                                                key: 'amount',
+                                                render: (amount) => amount.toLocaleString(),
+                                            },
+                                            {
+                                                title: 'Paid (KES)',
+                                                dataIndex: 'paid',
+                                                key: 'paid',
+                                                render: (paid) => paid.toLocaleString(),
+                                            },
+                                            {
+                                                title: 'Status',
+                                                dataIndex: 'status',
+                                                key: 'status',
+                                                render: (status) => (
+                                                    <Tag color="blue">{status}</Tag>
+                                                ),
+                                            },
+                                            {
+                                                title: 'Actions',
+                                                key: 'actions',
+                                                render: () => (
+                                                    <Button size="small" icon={<FileSearchOutlined />}>
+                                                        View
+                                                    </Button>
+                                                ),
+                                            },
+                                        ]}
+                                        pagination={false}
+                                    />
+                                ) : (
+                                    <Empty description="No payment plans yet" />
+                                )}
                             </TabPane>
                         </Tabs>
                     </>
                 )}
             </Drawer>
 
-            {/* Request Valuation Modal */}
             <Modal
-                title="Request Property Valuation"
-                visible={addValuationVisible}
-                onOk={() => setAddValuationVisible(false)}
-                onCancel={() => setAddValuationVisible(false)}
-                width={800}
-                okText="Submit Request"
+                title="Log Communication"
+                open={communicationModalVisible}
+                onOk={handleSaveCommunication}
+                onCancel={() => setCommunicationModalVisible(false)}
+                okText="Save"
             >
-                <Form layout="vertical">
-                    <Tabs defaultActiveKey="1">
-                        <TabPane tab="Basic Information" key="1">
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Form.Item label="Select Property" required>
-                                        <Select
-                                            showSearch
-                                            style={{ width: '100%' }}
-                                            placeholder="Search for property"
-                                            optionFilterProp="children"
-                                        >
-                                            <Option value="p001">
-                                                P001 - Premium Land Plot in Nairobi
-                                            </Option>
-                                            <Option value="p006">
-                                                P006 - 1-Bedroom Studio in Kilimani
-                                            </Option>
-                                            <Option value="p007">
-                                                P007 - Beachfront Land in Diani
-                                            </Option>
-                                        </Select>
-                                    </Form.Item>
-                                </Col>
-                                <Col span={12}>
-                                    <Form.Item label="Select Client" required>
-                                        <Select
-                                            showSearch
-                                            style={{ width: '100%' }}
-                                            placeholder="Search for client"
-                                            optionFilterProp="children"
-                                        >
-                                            <Option value="c001">
-                                                C001 - John Kamau (Individual)
-                                            </Option>
-                                            <Option value="c003">
-                                                C003 - Robert Kariuki (Individual)
-                                            </Option>
-                                            <Option value="b001">
-                                                B001 - KCB Bank (Institution)
-                                            </Option>
-                                            <Option value="b002">
-                                                B002 - Equity Bank (Institution)
-                                            </Option>
-                                        </Select>
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                <Form form={communicationForm} layout="vertical">
+                    <Form.Item
+                        name="type"
+                        label="Communication Type"
+                        rules={[{ required: true, message: 'Please select a communication type' }]}
+                    >
+                        <Select placeholder="Select type">
+                            <Option value="call">Call</Option>
+                            <Option value="email">Email</Option>
+                            <Option value="meeting">Meeting</Option>
+                            <Option value="sms">SMS</Option>
+                            <Option value="other">Other</Option>
+                        </Select>
+                    </Form.Item>
 
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Form.Item label="Valuation Purpose" required>
-                                        <Select style={{ width: '100%' }}>
-                                            <Option value="Sale">Sale</Option>
-                                            <Option value="Mortgage">Mortgage</Option>
-                                            <Option value="Insurance">Insurance</Option>
-                                            <Option value="Tax">Tax</Option>
-                                        </Select>
-                                    </Form.Item>
-                                </Col>
-                                <Col span={12}>
-                                    <Form.Item label="Assigned Valuer" required>
-                                        <Select style={{ width: '100%' }}>
-                                            <Option value="Daniel Omondi">Daniel Omondi</Option>
-                                            <Option value="Faith Muthoni">Faith Muthoni</Option>
-                                        </Select>
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                    <Form.Item
+                        name="date"
+                        label="Date & Time"
+                        rules={[{ required: true, message: 'Please select date and time' }]}
+                    >
+                        <DatePicker
+                            showTime
+                            style={{ width: '100%' }}
+                            placeholder="Select date and time"
+                        />
+                    </Form.Item>
 
-                            <Row gutter={16}>
-                                <Col span={12}>
-                                    <Form.Item label="Request Date" required>
-                                        <DatePicker style={{ width: '100%' }} />
-                                    </Form.Item>
-                                </Col>
-                                <Col span={12}>
-                                    <Form.Item label="Valuation Fee (KES)" required>
-                                        <InputNumber
-                                            style={{ width: '100%' }}
-                                            formatter={(value) =>
-                                                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                            }
-                                            parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                                            placeholder="Enter fee amount"
-                                        />
-                                    </Form.Item>
-                                </Col>
-                            </Row>
+                    <Form.Item
+                        name="summary"
+                        label="Summary"
+                        rules={[{ required: true, message: 'Please enter a summary' }]}
+                    >
+                        <Input.TextArea
+                            rows={2}
+                            placeholder="Brief summary of the communication"
+                        />
+                    </Form.Item>
 
-                            <Form.Item label="Special Instructions">
-                                <Input.TextArea
-                                    rows={4}
-                                    placeholder="Any special requirements or instructions..."
-                                />
-                            </Form.Item>
-                        </TabPane>
+                    <Form.Item name="outcome" label="Outcome">
+                        <Input.TextArea
+                            rows={2}
+                            placeholder="What was the result of this communication?"
+                        />
+                    </Form.Item>
 
-                        <TabPane tab="Required Documents" key="2">
-                            <Form.Item label="Required Documents">
-                                <Checkbox.Group style={{ width: '100%' }}>
-                                    <Row>
-                                        <Col span={8}>
-                                            <Checkbox value="Property Deed">
-                                                Property Deed/Title
-                                            </Checkbox>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Checkbox value="Floor Plan">Floor Plan</Checkbox>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Checkbox value="Property Photos">
-                                                Property Photos
-                                            </Checkbox>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Checkbox value="Survey Plan">Survey Plan</Checkbox>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Checkbox value="Land Certificate">
-                                                Land Certificate
-                                            </Checkbox>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Checkbox value="Building Approval">
-                                                Building Approval
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                </Checkbox.Group>
-                            </Form.Item>
+                    <Form.Item name="nextAction" label="Next Action">
+                        <Input.TextArea
+                            rows={2}
+                            placeholder="What needs to be done next?"
+                        />
+                    </Form.Item>
+                </Form>
+            </Modal>
 
-                            <Form.Item label="Upload Documents">
-                                <Upload.Dragger multiple listType="picture">
-                                    <p className="ant-upload-drag-icon">
-                                        <FileDoneOutlined />
-                                    </p>
-                                    <p className="ant-upload-text">
-                                        Click or drag documents to this area to upload
-                                    </p>
-                                    <p className="ant-upload-hint">
-                                        Upload any existing documents for the property valuation.
-                                    </p>
-                                </Upload.Dragger>
-                            </Form.Item>
-                        </TabPane>
-
-                        <TabPane tab="Methodology" key="3">
-                            <Form.Item label="Valuation Methodology">
-                                <Checkbox.Group style={{ width: '100%' }}>
-                                    <Row>
-                                        <Col span={12}>
-                                            <Checkbox value="Market Approach">
-                                                Market Approach
-                                            </Checkbox>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Checkbox value="Income Approach">
-                                                Income Approach
-                                            </Checkbox>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Checkbox value="Cost Approach">Cost Approach</Checkbox>
-                                        </Col>
-                                        <Col span={12}>
-                                            <Checkbox value="Residual Method">
-                                                Residual Method
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                </Checkbox.Group>
-                            </Form.Item>
-
-                            <Form.Item label="Additional Notes on Methodology">
-                                <Input.TextArea
-                                    rows={4}
-                                    placeholder="Any specific requirements for the valuation approach..."
-                                />
-                            </Form.Item>
-                        </TabPane>
-                    </Tabs>
+            {/* Add Note Modal */}
+            <Modal
+                title="Add Note"
+                open={noteModalVisible}
+                onOk={handleSaveNote}
+                onCancel={() => setNoteModalVisible(false)}
+                okText="Save"
+            >
+                <Form form={noteForm} layout="vertical">
+                    <Form.Item
+                        name="content"
+                        label="Note"
+                        rules={[{ required: true, message: 'Please enter note content' }]}
+                    >
+                        <Input.TextArea
+                            rows={6}
+                            placeholder="Enter note content"
+                        />
+                    </Form.Item>
                 </Form>
             </Modal>
 
             {/* Delete Confirmation Modal */}
             <Modal
-                title="Confirm Delete"
-                visible={deleteModalVisible}
-                onOk={handleDeleteValuation}
+                title="Delete Confirmation"
+                open={deleteModalVisible}
+                onOk={handleDeleteCustomer}
                 onCancel={() => setDeleteModalVisible(false)}
                 okText="Delete"
                 okButtonProps={{ danger: true }}
             >
                 <p>
-                    Are you sure you want to delete the valuation{' '}
-                    <strong>{valuationToDelete?.id}</strong> for property{' '}
-                    <strong>{valuationToDelete?.property.title}</strong>?
+                    Are you sure you want to delete the customer{' '}
+                    <strong>{customerToDelete?.name}</strong>?
                 </p>
                 <p>This action cannot be undone.</p>
             </Modal>
@@ -1457,4 +1705,6 @@ const ValuationManagement = () => {
     );
 };
 
-export default ValuationManagement;
+
+
+export default CustomerManagement;

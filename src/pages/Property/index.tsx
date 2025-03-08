@@ -930,7 +930,7 @@ const PropertyTable = () => {
         open={addPropertyVisible}
         onOk={handleAddProperty}
         onCancel={handleModalCancel}
-        width={800}
+        width={1000}
         okText={isEditMode ? "Update Property" : "Add Property"}
       >
         <Form layout="vertical" form={form}>

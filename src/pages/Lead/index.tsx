@@ -1360,7 +1360,7 @@ const LeadsManagement = () => {
           setLeadModalVisible(false);
           form.resetFields();
         }}
-        width={700}
+        width={1000}
         okText={modalMode === 'add' ? "Add Lead" : "Update Lead"}
       >
         <Form layout="vertical" form={form}>
