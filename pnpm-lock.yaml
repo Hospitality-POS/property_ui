@@ -1807,7 +1807,7 @@ packages:
     engines: {node: '>=12'}
 
   antd-country-phone-input@4.5.1:
-    resolution: {integrity: sha512-gyw069GYII+A7417RS/2k/C/V67ttRnbMLldTtzR1g2x3ZptS3YncA3at4kNqPQiLr0fNXtdnZtW97rmWsb/Aw==}
+    resolution: {integrity: sha512-gyw069GYII+A7417RS/2k/C/V67ttRnbMLldTtzR1g2x3ZptS3YncA3at4kNqPQiLr0fNXtdnZtW97rmWsb/Aw==, tarball: https://registry.npmjs.org/antd-country-phone-input/-/antd-country-phone-input-4.5.1.tgz}
     engines: {node: '>=10'}
     peerDependencies:
       antd: 4.x
