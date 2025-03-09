@@ -18,7 +18,13 @@ import {
     MenuUnfoldOutlined,
     DashboardOutlined
 } from '@ant-design/icons';
+
 import moment from 'moment';
+import { fetchAllProperties } from '@/services/property';
+import { fetchAllLeads } from '@/services/lead';
+import { fetchAllSales } from '@/services/sales';
+import { useQuery } from '@tanstack/react-query';
+import { ChartsSection } from "../../components/charts/dashboardCharts"
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -152,6 +158,84 @@ const EventCalendar = () => {
 
 // Main Dashboard Component Content
 const DashboardContent = () => {
+
+
+    const { data: salesDataValue = { salesCount: 0, totalSalesValue: 0 } } = useQuery({
+        queryKey: ['sales'],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllSales();
+                const currentMonth = moment().month();
+                const currentYear = moment().year();
+
+                const filteredSales = response.data.filter(sale => {
+                    const saleDate = moment(sale.date); // Ensure `sale.date` exists
+                    return (
+                        saleDate.month() === currentMonth &&
+                        saleDate.year() === currentYear &&
+                        sale.salePrice > 0
+                    );
+                });
+
+                const totalSalesValue = filteredSales.reduce((total, sale) => total + sale.salePrice, 0);
+
+                return {
+                    salesCount: filteredSales.length,
+                    totalSalesValue,
+                };
+            } catch (error) {
+                message.error('Failed to fetch sales');
+                console.error('Error fetching sales:', error);
+                return { salesCount: 0, totalSalesValue: 0 };
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
+    });
+
+    const { salesCount, totalSalesValue } = salesDataValue;
+
+    const { data: leadData = { leadCount: 0 } } = useQuery({
+        queryKey: ['lead'],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllLeads();
+                return {
+                    leadCount: response.data.length,
+                };
+            } catch (error) {
+                message.error('Failed to fetch properties');
+                console.error('Error fetching properties:', error);
+                return { leadCount: 0 };
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
+    });
+
+    const { leadCount } = leadData;
+
+
+    const { data: propertiesData = { propertyCount: 0 } } = useQuery({
+        queryKey: ['property'],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllProperties();
+                return {
+                    propertyCount: response.data.length,
+                };
+            } catch (error) {
+                message.error('Failed to fetch properties');
+                console.error('Error fetching properties:', error);
+                return { propertyCount: 0 };
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
+    });
+
+    const { propertyCount } = propertiesData;
+
     // Sample data - in a real application, this would come from API calls
     const [salesData] = useState([
         { month: 'Jan', sales: 580000 },
@@ -344,7 +428,7 @@ const DashboardContent = () => {
                     <Card>
                         <Statistic
                             title="Total Properties"
-                            value={42}
+                            value={propertyCount}
                             prefix={<HomeOutlined />}
                             suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 15%</span>}
                         />
@@ -354,7 +438,7 @@ const DashboardContent = () => {
                     <Card>
                         <Statistic
                             title="Active Leads"
-                            value={28}
+                            value={leadCount}
                             prefix={<UserOutlined />}
                             suffix={<span style={{ fontSize: '14px', color: '#52c41a' }}><RiseOutlined /> 8%</span>}
                         />
@@ -364,7 +448,7 @@ const DashboardContent = () => {
                     <Card>
                         <Statistic
                             title="Sales This Month"
-                            value={3}
+                            value={salesCount}
                             prefix={<ShopOutlined />}
                             suffix={<span style={{ fontSize: '14px', color: '#ff4d4f' }}><FallOutlined /> 10%</span>}
                         />
@@ -374,7 +458,7 @@ const DashboardContent = () => {
                     <Card>
                         <Statistic
                             title="Revenue (KES)"
-                            value={24500000}
+                            value={totalSalesValue}
                             precision={0}
                             formatter={value => `${value.toLocaleString()}`}
                             prefix={<DollarOutlined />}
@@ -384,31 +468,10 @@ const DashboardContent = () => {
                 </Col>
             </Row>
 
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                {/* Sales Trend Chart */}
-                <Col xs={24} lg={12}>
-                    <Card
-                        title={<><BarChartOutlined /> Sales Trend</>}
-                        extra={<Button type="link">View Reports</Button>}
-                    >
-                        <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Text type="secondary">Sales Trend Chart would render here using Ant Charts or Recharts</Text>
-                        </div>
-                    </Card>
-                </Col>
-
-                {/* Property Distribution Chart */}
-                <Col xs={24} lg={12}>
-                    <Card
-                        title={<><PieChartOutlined /> Property Distribution</>}
-                        extra={<Button type="link">View Details</Button>}
-                    >
-                        <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Text type="secondary">Property Distribution Chart would render here using Ant Charts or Recharts</Text>
-                        </div>
-                    </Card>
-                </Col>
-            </Row>
+            <ChartsSection
+                salesData={salesData}
+                propertyTypeData={propertyTypeData}
+            />
 
             {/* Tabs for different data views */}
             <Card style={{ marginTop: 16 }}>

@@ -71,12 +71,6 @@ export default defineConfig({
       component: './Payments',
     },
     {
-      name: 'Reports',
-      path: '/reports',
-      icon: 'UserOutlined',
-      component: './Vehicles',
-    },
-    {
       name: 'Settings',
       path: '/settings',
       icon: 'SettingOutlined',
