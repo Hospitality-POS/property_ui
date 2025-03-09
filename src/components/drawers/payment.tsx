@@ -121,19 +121,19 @@ const PaymentDetailsDrawer = ({ visible, payment, onClose }) => {
             <Title level={5}>Property & Customer Details</Title>
             <Descriptions bordered size="small" column={1}>
                 <Descriptions.Item label="Property">
-                    {payment.sale.property.title}
+                    {payment.sale.property.name}
                 </Descriptions.Item>
                 <Descriptions.Item label="Property Type">
-                    {payment.sale.property.type}
+                    {payment.sale.property.propertyType}
                 </Descriptions.Item>
                 <Descriptions.Item label="Location">
-                    {payment.sale.property.location}
+                    {payment.sale.property.location.address}
                 </Descriptions.Item>
                 <Descriptions.Item label="Customer Name">
                     {payment.customer.name}
                 </Descriptions.Item>
                 <Descriptions.Item label="Customer Contact">
-                    {payment.customer.contactNumber}
+                    {payment.customer.phone}
                 </Descriptions.Item>
                 <Descriptions.Item label="Customer Email">
                     {payment.customer.email}
@@ -145,15 +145,15 @@ const PaymentDetailsDrawer = ({ visible, payment, onClose }) => {
             {/* Payment Details Section */}
             <Title level={5}>Payment Information</Title>
             <Descriptions bordered size="small" column={1}>
-                <Descriptions.Item label="Payment ID">
-                    {payment.id}
+                {/* <Descriptions.Item label="Payment ID">
+                    {payment._id}
                 </Descriptions.Item>
                 <Descriptions.Item label="Sale ID">
                     {payment.sale.id}
-                </Descriptions.Item>
-                <Descriptions.Item label="Payment Plan ID">
+                </Descriptions.Item> */}
+                {/* <Descriptions.Item label="Payment Plan ID">
                     {payment.paymentPlan.id}
-                </Descriptions.Item>
+                </Descriptions.Item> */}
                 <Descriptions.Item label="Payment Method">
                     {getPaymentMethodDisplay(payment.paymentMethod)}
                 </Descriptions.Item>

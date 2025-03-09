@@ -30,155 +30,13 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import PaymentDetailsDrawer from '../../components/drawers/payment'; // Import the drawer component
+import { fetchAllPayments } from '@/services/payments';
+import moment from 'moment';
+import { useQuery } from '@tanstack/react-query';
 
 const { Text } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
-
-// Sample data - in a real app this would be imported or fetched from an API
-const paymentsData = [
-  {
-    id: 'PMT001',
-    sale: {
-      id: 'SLE001',
-      property: {
-        id: 'PROP001',
-        title: 'Garden City 3-Bedroom Apartment',
-        type: 'Apartment',
-        location: 'Garden City, Thika Road',
-      },
-    },
-    paymentPlan: {
-      id: 'PP001',
-      totalAmount: 8900000,
-      outstandingBalance: 6230000,
-      installmentAmount: 222500,
-      installmentFrequency: 'monthly',
-      startDate: '2025-01-10',
-      endDate: '2027-01-10',
-      status: 'active',
-    },
-    customer: {
-      id: 'C001',
-      name: 'John Kamau',
-      contactNumber: '+254 712 345 678',
-      email: 'john.kamau@example.com',
-      type: 'Individual',
-    },
-    amount: 222500,
-    paymentDate: '2025-02-10',
-    paymentMethod: 'mpesa',
-    transactionReference: 'MPESA239872459',
-    status: 'completed',
-    receiptNumber: 'RCP00123',
-    receiptDocument: {
-      url: 'https://example.com/receipts/RCP00123.pdf',
-      generatedAt: '2025-02-10',
-    },
-    penaltyAmount: 0,
-    includesPenalty: false,
-    notes: 'Regular monthly payment',
-    processedBy: {
-      id: 'USR002',
-      name: 'Alice Wanjiru',
-    },
-    createdAt: '2025-02-10',
-    updatedAt: '2025-02-10',
-  },
-  {
-    id: 'PMT002',
-    sale: {
-      id: 'SLE001',
-      property: {
-        id: 'PROP001',
-        title: 'Garden City 3-Bedroom Apartment',
-        type: 'Apartment',
-        location: 'Garden City, Thika Road',
-      },
-    },
-    paymentPlan: {
-      id: 'PP001',
-      totalAmount: 8900000,
-      outstandingBalance: 6007500,
-      installmentAmount: 222500,
-      installmentFrequency: 'monthly',
-      startDate: '2025-01-10',
-      endDate: '2027-01-10',
-      status: 'active',
-    },
-    customer: {
-      id: 'C001',
-      name: 'John Kamau',
-      contactNumber: '+254 712 345 678',
-      email: 'john.kamau@example.com',
-      type: 'Individual',
-    },
-    amount: 222500,
-    paymentDate: '2025-03-10',
-    paymentMethod: 'bank_transfer',
-    transactionReference: 'TRF847362891',
-    status: 'completed',
-    receiptNumber: 'RCP00145',
-    receiptDocument: {
-      url: 'https://example.com/receipts/RCP00145.pdf',
-      generatedAt: '2025-03-10',
-    },
-    penaltyAmount: 0,
-    includesPenalty: false,
-    notes: 'Regular monthly payment',
-    processedBy: {
-      id: 'USR002',
-      name: 'Alice Wanjiru',
-    },
-    createdAt: '2025-03-10',
-    updatedAt: '2025-03-10',
-  },
-  {
-    id: 'PMT003',
-    sale: {
-      id: 'SLE002',
-      property: {
-        id: 'PROP002',
-        title: 'Westlands Commercial Space',
-        type: 'Commercial',
-        location: 'Westlands, Nairobi',
-      },
-    },
-    paymentPlan: {
-      id: 'PP002',
-      totalAmount: 12500000,
-      outstandingBalance: 9375000,
-      installmentAmount: 312500,
-      installmentFrequency: 'monthly',
-      startDate: '2025-01-15',
-      endDate: '2027-01-15',
-      status: 'active',
-    },
-    customer: {
-      id: 'C002',
-      name: 'ABC Enterprises Ltd',
-      contactNumber: '+254 720 987 654',
-      email: 'finance@abcenterprises.co.ke',
-      type: 'Corporate',
-    },
-    amount: 312500,
-    paymentDate: '2025-02-15',
-    paymentMethod: 'cheque',
-    transactionReference: 'CHQ000471',
-    status: 'pending',
-    receiptNumber: null,
-    receiptDocument: null,
-    penaltyAmount: 0,
-    includesPenalty: false,
-    notes: 'Cheque deposited, awaiting clearance',
-    processedBy: {
-      id: 'USR003',
-      name: 'David Ochieng',
-    },
-    createdAt: '2025-02-15',
-    updatedAt: '2025-02-15',
-  }
-];
 
 const PaymentsList = () => {
   // State definitions
@@ -188,6 +46,42 @@ const PaymentsList = () => {
   const [dateRange, setDateRange] = useState(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+
+  const { data: paymentsData = [], isLoading: isLoadingPayments, refetch: refetchPayments } = useQuery({
+    queryKey: ['sale', refreshKey],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllPayments();
+        console.log('sales fetched successfully:', response);
+
+        // Process data to use createdAt as dateJoined
+        const processedData = Array.isArray(response.data)
+          ? response.data.map(payment => ({
+            ...payment,
+            dateJoined: formatDate(payment.createdAt) || payment.dateJoined,
+          }))
+          : [];
+
+        return processedData;
+      } catch (error) {
+        message.error('Failed to fetch sales');
+        console.error('Error fetching sales:', error);
+        return [];
+      }
+    },
+
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+  console.log('payment vasl', paymentsData);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return moment(dateString).format('DD MMM YYYY');
+  };
 
   // Handler methods
   const handleViewPayment = (payment) => {
@@ -241,10 +135,10 @@ const PaymentsList = () => {
   // Filter data
   const filteredPayments = paymentsData.filter((payment) => {
     const matchesSearch =
-      payment.id.toLowerCase().includes(searchText.toLowerCase()) ||
+      payment._id.toLowerCase().includes(searchText.toLowerCase()) ||
       payment.sale.property.title.toLowerCase().includes(searchText.toLowerCase()) ||
       payment.customer.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      (payment.receiptNumber && payment.receiptNumber.toLowerCase().includes(searchText.toLowerCase()));
+      (payment?.receiptNumber && payment?.receiptNumber.toLowerCase().includes(searchText.toLowerCase()));
 
     const matchesStatus =
       statusFilter === 'all' || payment.status === statusFilter;
@@ -265,22 +159,28 @@ const PaymentsList = () => {
 
   // Table column definitions
   const paymentColumns = [
-    {
-      title: 'Payment ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 120,
-      render: (text, record) => (
-        <a onClick={() => handleViewPayment(record)}>{text}</a>
-      ),
-      sorter: (a, b) => a.id.localeCompare(b.id),
-    },
+    // {
+    //   title: 'Payment ID',
+    //   dataIndex: 'id',
+    //   key: 'id',
+    //   width: 120,
+    //   render: (text, record) => {
+    //     // Check if text exists before using substring
+    //     if (text) {
+    //       return <a onClick={() => handleViewPayment(record)}>{text.substring(text.length - 8)}</a>;
+    //     }
+    //     // Return a fallback for undefined/null id values
+    //     return <span className="text-gray-400">-</span>;
+    //   },
+    //   sorter: (a, b) => (a.id && b.id) ? a.id.localeCompare(b.id) : 0,
+    // },
     {
       title: 'Property',
-      dataIndex: ['sale', 'property', 'title'],
+      dataIndex: ['sale', 'property', 'name'],
       key: 'property',
+      fixed: true,
       width: 200,
-      sorter: (a, b) => a.sale.property.title.localeCompare(b.sale.property.title),
+      sorter: (a, b) => a.sale.property.name.localeCompare(b.sale.property.name),
     },
     {
       title: 'Customer',
@@ -291,9 +191,10 @@ const PaymentsList = () => {
     },
     {
       title: 'Payment Plan',
-      dataIndex: ['paymentPlan', 'id'],
+      dataIndex: ['paymentPlan', 'totalAmount'],
       key: 'paymentPlan',
       width: 130,
+      render: (amount) => `KES ${amount?.toLocaleString() || 0}`,
     },
     {
       title: 'Amount (KES)',
@@ -308,6 +209,7 @@ const PaymentsList = () => {
       dataIndex: 'paymentDate',
       key: 'paymentDate',
       width: 120,
+      render: (date) => new Date(date).toLocaleDateString(),
       sorter: (a, b) => new Date(a.paymentDate) - new Date(b.paymentDate),
     },
     {
@@ -317,7 +219,7 @@ const PaymentsList = () => {
       width: 120,
       render: (method) => {
         let methodText = 'Other';
-        let color = 'default';
+        let color = 'gray';
 
         switch (method) {
           case 'mpesa':
@@ -330,24 +232,15 @@ const PaymentsList = () => {
             break;
           case 'cash':
             methodText = 'Cash';
-            color = 'gold';
+            color = 'yellow';
             break;
           case 'cheque':
             methodText = 'Cheque';
             color = 'purple';
             break;
         }
-
         return <Tag color={color}>{methodText}</Tag>;
       },
-      filters: [
-        { text: 'M-Pesa', value: 'mpesa' },
-        { text: 'Bank Transfer', value: 'bank_transfer' },
-        { text: 'Cash', value: 'cash' },
-        { text: 'Cheque', value: 'cheque' },
-        { text: 'Other', value: 'other' },
-      ],
-      onFilter: (value, record) => record.paymentMethod === value,
     },
     {
       title: 'Status',
@@ -355,7 +248,7 @@ const PaymentsList = () => {
       key: 'status',
       width: 120,
       render: (status) => {
-        let color = 'default';
+        let color = 'gray';
         let text = status.charAt(0).toUpperCase() + status.slice(1);
 
         switch (status) {
@@ -372,49 +265,47 @@ const PaymentsList = () => {
             color = 'purple';
             break;
         }
-
         return <Tag color={color}>{text}</Tag>;
+
       },
-      filters: [
-        { text: 'Pending', value: 'pending' },
-        { text: 'Completed', value: 'completed' },
-        { text: 'Failed', value: 'failed' },
-        { text: 'Refunded', value: 'refunded' },
-      ],
-      onFilter: (value, record) => record.status === value,
     },
     {
       title: 'Receipt #',
       dataIndex: 'receiptNumber',
       key: 'receiptNumber',
       width: 120,
-      render: (text) => text || <Text type="secondary">-</Text>,
+      render: (text) => text || <span className="text-gray-400">-</span>,
     },
     {
       title: 'Actions',
       key: 'actions',
       width: 160,
       render: (_, record) => (
-        <Space>
-          <Button
-            icon={<EyeOutlined />}
-            size="small"
+        <div className="flex space-x-2">
+          <button
+            className="p-1 border border-gray-300 rounded"
             onClick={() => handleViewPayment(record)}
-          />
-          <Button
-            icon={<EditOutlined />}
-            size="small"
+            type="button"
+          >
+            <EyeOutlined />
+          </button>
+          {/* <button
+            type="button"
+            className="p-1 border border-gray-300 rounded"
             onClick={() => handleEditPayment(record)}
             disabled={record.status === 'completed' || record.status === 'refunded'}
-          />
-          <Button
-            icon={<DeleteOutlined />}
-            size="small"
-            danger
+          >
+            <EditOutlined />
+          </button>
+          <button
+            type="button"
+            className="p-1 border border-gray-300 rounded text-red-500"
             onClick={() => handleDeletePayment(record)}
             disabled={record.status === 'completed' || record.status === 'refunded'}
-          />
-        </Space>
+          >
+            <DeleteOutlined />
+          </button> */}
+        </div>
       ),
     },
   ];

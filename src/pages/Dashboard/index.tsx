@@ -160,6 +160,7 @@ const EventCalendar = () => {
 const DashboardContent = () => {
 
 
+
     const { data: salesDataValue = { salesCount: 0, totalSalesValue: 0 } } = useQuery({
         queryKey: ['sales'],
         queryFn: async () => {
