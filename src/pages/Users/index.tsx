@@ -99,6 +99,9 @@ const UserManagement = () => {
           {
             title: 'Full Name',
             dataIndex: 'name',
+            fieldProps: {
+              placeholder: 'Search by name',
+            },
             key: 'name',
             sorter: (a, b) => a.name?.localeCompare(b.name),
           },
@@ -106,6 +109,9 @@ const UserManagement = () => {
             title: 'Email',
             dataIndex: 'email',
             key: 'email',
+            fieldProps: {
+              placeholder: 'Search by email',
+            },
             ellipsis: true,
             copyable: true,
             sorter: (a, b) => a.email?.localeCompare(b.email),
@@ -113,6 +119,9 @@ const UserManagement = () => {
           {
             title: 'Phone',
             dataIndex: 'phone',
+            fieldProps: {
+              placeholder: 'Search by phone',
+            },
             key: 'phone',
             render: (text) => reversePhoneNumber(text)?.phone || text,
           },
