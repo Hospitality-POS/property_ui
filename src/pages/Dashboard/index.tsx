@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout, Card, Row, Col, Statistic, Table, Tabs, Button, Progress, Tag, Avatar, List, Typography, Space, Breadcrumb, Calendar, Badge, Modal, Form, Input, DatePicker, Select } from 'antd';
+import { Layout, Card, Row, Col, Statistic, Table, Tabs, Button, Progress, Tag, Avatar, List, Typography, Space, Breadcrumb, Calendar, Badge, Modal, Form, Input, DatePicker, Select, message } from 'antd';
 import {
     HomeOutlined,
     ShopOutlined,
@@ -23,12 +23,19 @@ import moment from 'moment';
 import { fetchAllProperties } from '@/services/property';
 import { fetchAllLeads } from '@/services/lead';
 import { fetchAllSales } from '@/services/sales';
+import { fetchAllPayments } from '@/services/payments';
 import { useQuery } from '@tanstack/react-query';
 import { ChartsSection } from "../../components/charts/dashboardCharts"
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 const { Header, Content, Footer } = Layout;
+
+// Helper function to format date consistently
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return moment(dateString).format('YYYY-MM-DD');
+};
 
 // Event Calendar Component
 const EventCalendar = () => {
@@ -42,6 +49,9 @@ const EventCalendar = () => {
         setSelectedDate(value);
         setIsModalVisible(true);
     };
+
+
+
 
     // Function to add a new event
     const handleAddEvent = () => {
@@ -158,9 +168,119 @@ const EventCalendar = () => {
 
 // Main Dashboard Component Content
 const DashboardContent = () => {
+    // Refresh key for query invalidation
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // Latest Payments Query
+    const { data: latestPayments = [], isLoading: isLoadingPayments, refetch: refetchPayments } = useQuery({
+        queryKey: ['sale', refreshKey],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllPayments();
+                console.log('sales fetched successfully:', response);
+
+                // Process data to use createdAt as dateJoined
+                const processedData = Array.isArray(response.data)
+                    ? response.data.map(payment => ({
+                        ...payment,
+                        dateJoined: formatDate(payment.createdAt) || payment.dateJoined,
+                    }))
+                    : [];
+
+                // Sort by createdAt in descending order (latest first)
+                const sortedData = [...processedData].sort((a, b) =>
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+
+                // Return only the 5 latest payments
+                return sortedData.slice(0, 5);
+            } catch (error) {
+                message.error('Failed to fetch sales');
+                console.error('Error fetching sales:', error);
+                return [];
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false
+    });
 
 
+    const formatPropertyType = (type) => {
+        const typeMap = {
+            'land': 'Land',
+            'apartment': 'Apartment'
+        };
+        return typeMap[type] || type;
+    };
 
+
+    // Latest Leads Query
+    const { data: latestLeads = [], isLoading: isLoadingLeads, refetch: refetchLeads } = useQuery({
+        queryKey: ['latestLeads', refreshKey],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllLeads();
+                console.log('leads fetched successfully:', response);
+
+                // Process data to ensure consistent format
+                const processedData = Array.isArray(response.data)
+                    ? response.data.map(lead => ({
+                        ...lead,
+                        dateJoined: formatDate(lead.createdAt) || lead.dateJoined,
+                    }))
+                    : [];
+
+                // Sort by createdAt in descending order (latest first)
+                const sortedData = [...processedData].sort((a, b) =>
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+
+                // Return only the 5 latest leads
+                return sortedData.slice(0, 5);
+            } catch (error) {
+                message.error('Failed to fetch leads');
+                console.error('Error fetching leads:', error);
+                return [];
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false
+    });
+
+    // Latest Properties Query
+    const { data: latestProperties = [], isLoading: isLoadingProperties, refetch: refetchProperties } = useQuery({
+        queryKey: ['latestProperties', refreshKey],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllProperties();
+                console.log('properties fetched successfully:', response);
+
+                // Process data to ensure consistent format
+                const processedData = Array.isArray(response.data)
+                    ? response.data.map(property => ({
+                        ...property,
+                        dateJoined: formatDate(property.createdAt) || property.dateJoined,
+                    }))
+                    : [];
+
+                // Sort by createdAt in descending order (latest first)
+                const sortedData = [...processedData].sort((a, b) =>
+                    new Date(b.createdAt) - new Date(a.createdAt)
+                );
+
+                // Return only the 5 latest properties
+                return sortedData.slice(0, 5);
+            } catch (error) {
+                message.error('Failed to fetch properties');
+                console.error('Error fetching properties:', error);
+                return [];
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false
+    });
+
+    // Monthly sales data query
     const { data: salesDataValue = { salesCount: 0, totalSalesValue: 0 } } = useQuery({
         queryKey: ['sales'],
         queryFn: async () => {
@@ -196,27 +316,7 @@ const DashboardContent = () => {
 
     const { salesCount, totalSalesValue } = salesDataValue;
 
-    const { data: leadData = { leadCount: 0 } } = useQuery({
-        queryKey: ['lead'],
-        queryFn: async () => {
-            try {
-                const response = await fetchAllLeads();
-                return {
-                    leadCount: response.data.length,
-                };
-            } catch (error) {
-                message.error('Failed to fetch properties');
-                console.error('Error fetching properties:', error);
-                return { leadCount: 0 };
-            }
-        },
-        staleTime: 1000 * 60 * 5, // 5 minutes
-        refetchOnWindowFocus: false,
-    });
-
-    const { leadCount } = leadData;
-
-
+    // Property counts query
     const { data: propertiesData = { propertyCount: 0 } } = useQuery({
         queryKey: ['property'],
         queryFn: async () => {
@@ -237,7 +337,28 @@ const DashboardContent = () => {
 
     const { propertyCount } = propertiesData;
 
-    // Sample data - in a real application, this would come from API calls
+    // Lead counts query
+    const { data: leadData = { leadCount: 0 } } = useQuery({
+        queryKey: ['lead'],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllLeads();
+                return {
+                    leadCount: response.data.length,
+                };
+            } catch (error) {
+                message.error('Failed to fetch leads');
+                console.error('Error fetching leads:', error);
+                return { leadCount: 0 };
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
+    });
+
+    const { leadCount } = leadData;
+
+    // Sample data - in a real application, this could be replaced with API calls
     const [salesData] = useState([
         { month: 'Jan', sales: 580000 },
         { month: 'Feb', sales: 780000 },
@@ -252,67 +373,47 @@ const DashboardContent = () => {
         { type: 'Apartments', value: 55 },
     ]);
 
-    const [pendingPayments] = useState([
-        { id: '1', customer: 'John Kamau', property: 'Plot #A123, Nairobi', amount: 250000, dueDate: '2025-03-15' },
-        { id: '2', customer: 'Sarah Wanjiku', property: 'Apartment #B5, Garden City', amount: 180000, dueDate: '2025-03-20' },
-        { id: '3', customer: 'David Maina', property: 'Plot #C345, Mombasa Road', amount: 320000, dueDate: '2025-03-25' },
-        { id: '4', customer: 'Elizabeth Owino', property: 'Apartment #D12, Westlands', amount: 280000, dueDate: '2025-04-05' },
-    ]);
-
-    const [recentLeads] = useState([
-        { id: '1', name: 'Michael Ochieng', contact: '+254 712 345 678', interest: 'Apartment', source: 'Website', assignedTo: 'Jane' },
-        { id: '2', name: 'Priscilla Nyambura', contact: '+254 723 456 789', interest: 'Land', source: 'Referral', assignedTo: 'James' },
-        { id: '3', name: 'Robert Kariuki', contact: '+254 734 567 890', interest: 'Apartment', source: 'Exhibition', assignedTo: 'Jane' },
-        { id: '4', name: 'Faith Wangari', contact: '+254 745 678 901', interest: 'Land', source: 'Social Media', assignedTo: 'Peter' },
-    ]);
-
     const [topAgents] = useState([
         { id: '1', name: 'Jane Njeri', sales: 5, commission: 850000 },
         { id: '2', name: 'James Otieno', sales: 4, commission: 720000 },
         { id: '3', name: 'Peter Kipchoge', sales: 3, commission: 650000 },
     ]);
 
-    const [properties] = useState([
-        { id: '1', type: 'Land', location: 'Nairobi', size: '0.5 acres', status: 'Available', price: 5500000 },
-        { id: '2', type: 'Apartment', location: 'Garden City', size: '3BR', status: 'Reserved', price: 8900000 },
-        { id: '3', type: 'Land', location: 'Mombasa Road', size: '0.25 acres', status: 'Available', price: 3200000 },
-        { id: '4', type: 'Apartment', location: 'Westlands', size: '2BR', status: 'Sold', price: 7500000 },
-        { id: '5', type: 'Land', location: 'Thika Road', size: '0.8 acres', status: 'Available', price: 6800000 },
-    ]);
-
     // Table columns
     const paymentColumns = [
         {
             title: 'Customer',
-            dataIndex: 'customer',
+            dataIndex: ['customer', 'name'],
             key: 'customer',
+            sorter: (a, b) => a.customer.name.localeCompare(b.customer.name),
         },
         {
             title: 'Property',
-            dataIndex: 'property',
+            dataIndex: ['sale', 'property', 'name'],
             key: 'property',
+            sorter: (a, b) => a.sale.property.name.localeCompare(b.sale.property.name),
         },
         {
             title: 'Amount (KES)',
             dataIndex: 'amount',
             key: 'amount',
-            render: (amount) => <span>{amount.toLocaleString()}</span>,
+            render: (amount) => <span>{amount?.toLocaleString()}</span>,
         },
         {
-            title: 'Due Date',
-            dataIndex: 'dueDate',
-            key: 'dueDate',
+            title: 'Date',
+            dataIndex: 'dateJoined',
+            key: 'dateJoined',
         },
-        {
-            title: 'Action',
-            key: 'action',
-            render: () => (
-                <Space size="small">
-                    <Button type="primary" size="small">Remind</Button>
-                    <Button size="small">Record Payment</Button>
-                </Space>
-            ),
-        },
+        // {
+        //     title: 'Action',
+        //     key: 'action',
+        //     render: () => (
+        //         <Space size="small">
+        //             <Button type="primary" size="small">View Details</Button>
+        //             <Button size="small">Record Payment</Button>
+        //         </Space>
+        //     ),
+        // },
     ];
 
     const leadColumns = [
@@ -323,18 +424,25 @@ const DashboardContent = () => {
         },
         {
             title: 'Contact',
-            dataIndex: 'contact',
-            key: 'contact',
+            dataIndex: 'phone',
+            key: 'phone',
         },
         {
             title: 'Interest',
-            dataIndex: 'interest',
             key: 'interest',
-            render: (interest) => (
-                <Tag color={interest === 'Apartment' ? 'blue' : 'green'}>
-                    {interest}
+            render: (_, record) => (
+                <Tag color={record.interestAreas[0]?.propertyType === 'apartment' ? 'blue' :
+                    record.interestAreas[0]?.propertyType === 'land' ? 'green' : 'purple'}>
+                    {record.interestAreas[0]?.propertyType === 'apartment' ? 'Apartment' :
+                        record.interestAreas[0]?.propertyType === 'land' ? 'Land' : 'Both'}
                 </Tag>
             ),
+            filters: [
+                { text: 'Apartment', value: 'apartment' },
+                { text: 'Land', value: 'land' },
+                { text: 'Both', value: 'both' },
+            ],
+            onFilter: (value, record) => record.interestAreas[0]?.propertyType === value,
         },
         {
             title: 'Source',
@@ -342,42 +450,59 @@ const DashboardContent = () => {
             key: 'source',
         },
         {
-            title: 'Assigned To',
-            dataIndex: 'assignedTo',
-            key: 'assignedTo',
+            title: 'Date Added',
+            dataIndex: 'dateJoined',
+            key: 'dateJoined',
         },
-        {
-            title: 'Action',
-            key: 'action',
-            render: () => (
-                <Space size="small">
-                    <Button type="primary" size="small">Contact</Button>
-                    <Button size="small">Convert</Button>
-                </Space>
-            ),
-        },
+        // {
+        //     title: 'Action',
+        //     key: 'action',
+        //     render: () => (
+        //         <Space size="small">
+        //             <Button type="primary" size="small">Contact</Button>
+        //             <Button size="small">Convert</Button>
+        //         </Space>
+        //     ),
+        // },
     ];
 
     const propertyColumns = [
         {
             title: 'Type',
-            dataIndex: 'type',
-            key: 'type',
-            render: (type) => (
-                <Tag color={type === 'Apartment' ? 'blue' : 'green'}>
-                    {type}
-                </Tag>
-            ),
+            dataIndex: 'propertyType',
+            key: 'propertyType',
+            width: 120,
+            render: (type) => {
+                let color = type === 'land' ? 'green' : 'blue';
+                return <Tag color={color}>{formatPropertyType(type)}</Tag>;
+            },
+            filters: [
+                { text: 'Land', value: 'land' },
+                { text: 'Apartment', value: 'apartment' },
+            ],
+            onFilter: (value, record) => record.propertyType === value,
         },
         {
             title: 'Location',
-            dataIndex: 'location',
             key: 'location',
+            width: 150,
+            render: (_, record) => (
+                <span>
+                    <EnvironmentOutlined style={{ marginRight: 5 }} /> {record.location.address}
+                </span>
+            ),
         },
         {
             title: 'Size',
-            dataIndex: 'size',
             key: 'size',
+            width: 100,
+            render: (_, record) => {
+                if (record.propertyType === 'land') {
+                    return `${record.landSize} ${record.sizeUnit}`;
+                } else {
+                    return `${record.apartmentSize} sq m`;
+                }
+            },
         },
         {
             title: 'Status',
@@ -398,22 +523,21 @@ const DashboardContent = () => {
             },
         },
         {
-            title: 'Price (KES)',
-            dataIndex: 'price',
-            key: 'price',
-            render: (price) => <span>{price.toLocaleString()}</span>,
+            title: 'Date Added',
+            dataIndex: 'dateJoined',
+            key: 'dateJoined',
         },
-        {
-            title: 'Action',
-            key: 'action',
-            render: (_, record) => (
-                <Space size="small">
-                    <Button type="primary" size="small" disabled={record.status === 'Sold'}>
-                        {record.status === 'Available' ? 'Reserve' : 'View Details'}
-                    </Button>
-                </Space>
-            ),
-        },
+        // {
+        //     title: 'Action',
+        //     key: 'action',
+        //     render: (_, record) => (
+        //         <Space size="small">
+        //             <Button type="primary" size="small" disabled={record.status === 'Sold'}>
+        //                 {record.status === 'Available' ? 'Reserve' : 'View Details'}
+        //             </Button>
+        //         </Space>
+        //     ),
+        // },
     ];
 
     return (
@@ -421,6 +545,7 @@ const DashboardContent = () => {
             <Space className="mb-4">
                 <Button type="primary">Add New Property</Button>
                 <Button>Add New Customer</Button>
+                <Button onClick={() => setRefreshKey(prev => prev + 1)}>Refresh Data</Button>
             </Space>
 
             {/* Summary Statistics */}
@@ -478,36 +603,39 @@ const DashboardContent = () => {
             <Card style={{ marginTop: 16 }}>
                 <Tabs defaultActiveKey="1">
                     <TabPane
-                        tab={<span><BellOutlined /> Pending Payments</span>}
+                        tab={<span><BellOutlined /> Latest Payments</span>}
                         key="1"
                     >
                         <Table
                             columns={paymentColumns}
-                            dataSource={pendingPayments}
+                            dataSource={latestPayments}
                             rowKey="id"
-                            pagination={{ pageSize: 5 }}
+                            loading={isLoadingPayments}
+                            pagination={false}
                         />
                     </TabPane>
                     <TabPane
-                        tab={<span><UserOutlined /> Recent Leads</span>}
+                        tab={<span><UserOutlined /> Latest Leads</span>}
                         key="2"
                     >
                         <Table
                             columns={leadColumns}
-                            dataSource={recentLeads}
+                            dataSource={latestLeads}
                             rowKey="id"
-                            pagination={{ pageSize: 5 }}
+                            loading={isLoadingLeads}
+                            pagination={false}
                         />
                     </TabPane>
                     <TabPane
-                        tab={<span><HomeOutlined /> Properties</span>}
+                        tab={<span><HomeOutlined /> Latest Properties</span>}
                         key="3"
                     >
                         <Table
                             columns={propertyColumns}
-                            dataSource={properties}
+                            dataSource={latestProperties}
                             rowKey="id"
-                            pagination={{ pageSize: 5 }}
+                            loading={isLoadingProperties}
+                            pagination={false}
                         />
                     </TabPane>
                 </Tabs>
