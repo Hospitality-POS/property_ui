@@ -16,7 +16,17 @@ import {
   ProFormTextArea,
 } from '@ant-design/pro-components';
 import { useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Col, Divider, Form, Row, Space, Tabs } from 'antd';
+import {
+  Alert,
+  Button,
+  Col,
+  Divider,
+  Form,
+  message,
+  Row,
+  Space,
+  Tabs,
+} from 'antd';
 import { useEffect, useRef, useState } from 'react';
 
 const { TabPane } = Tabs;
@@ -29,6 +39,20 @@ interface AddEditUserModalProps {
   userId?: string;
   editText?: string;
 }
+
+/**
+ * Modal for adding or editing a user
+ * @param {Object} props - Props for the modal
+ * @param {Object} props.actionRef - Ref for the action button
+ * @param {boolean} props.edit - Whether to edit the user or add a new one
+ * @param {Object} props.data - Data for the user to be edited
+ * @param {boolean} props.isProfile - Whether the user is a profile or a user
+ * @param {string} props.userId - ID of the user to be edited
+ * @param {string} props.editText - Text to be displayed in the edit button
+ * @returns {JSX.Element} The modal for adding or editing a user
+ * @example
+ * <AddEditUserModal actionRef={actionRef} edit={edit} data={data} isProfile={isProfile} userId={userId} editText={editText} />
+ */
 
 export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
   actionRef,
@@ -62,26 +86,34 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
   };
 
   const handleFinish = async (values: any) => {
-    const phoneNumber = getPhoneNumber(values?.phoneNumber);
-    const value = { ...values, phone: phoneNumber };
-    const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${edit ? 'update this' : 'add new'} ${
-        isProfile ? 'profile' : 'user'
-      }?`,
-      position: true,
-    });
-    if (confirmed) {
-      if (edit) {
-        await updateUser(data._id, value);
-        // Invalidate the query to update the user details
-        if (isProfile) {
-          await queryClient.invalidateQueries(['user', userId]);
+    try {
+      const phoneNumber = getPhoneNumber(values?.phoneNumber);
+      const value = { ...values, phone: phoneNumber };
+      const confirmed = await ShowConfirm({
+        title: `Are you sure you want to ${edit ? 'update this' : 'add new'} ${
+          isProfile ? 'profile' : 'user'
+        }?`,
+        position: true,
+      });
+      if (confirmed) {
+        if (edit) {
+          await updateUser(data._id, value);
+          // Invalidate the query to update the user details
+          if (isProfile) {
+            await queryClient.invalidateQueries(['user', userId]);
+          }
+          message.success('User updated successfully');
+        } else {
+          await registerUser(value);
+
+          message.success('User created successfully');
         }
-      } else {
-        await registerUser(value);
+        actionRef.current?.reload();
+        return true;
       }
-      actionRef.current?.reload();
-      return true;
+    } catch (error) {
+      console.log('Error:', error);
+      return false;
     }
   };
 
