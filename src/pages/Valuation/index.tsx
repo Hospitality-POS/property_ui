@@ -354,33 +354,33 @@ const ValuationManagement = () => {
       render: (price) => price?.toLocaleString(),
       sorter: (a, b) => (a.property?.price || 0) - (b.property?.price || 0),
     },
-    {
-      title: 'Documents',
-      key: 'documents',
-      width: 120,
-      render: (_, record) => (
-        <Space>
-          {record.reportDocument && (
-            <Tooltip title="Report">
-              <Button
-                icon={<FileTextOutlined />}
-                size="small"
-                onClick={() => handleViewDocument(record.reportDocument)}
-              />
-            </Tooltip>
-          )}
-          {record.certificateDocument && (
-            <Tooltip title="Certificate">
-              <Button
-                icon={<FilePdfOutlined />}
-                size="small"
-                onClick={() => handleViewDocument(record.certificateDocument)}
-              />
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
+    // {
+    //   title: 'Documents',
+    //   key: 'documents',
+    //   width: 120,
+    //   render: (_, record) => (
+    //     <Space>
+    //       {record.reportDocument && (
+    //         <Tooltip title="Report">
+    //           <Button
+    //             icon={<FileTextOutlined />}
+    //             size="small"
+    //             onClick={() => handleViewDocument(record.reportDocument)}
+    //           />
+    //         </Tooltip>
+    //       )}
+    //       {record.certificateDocument && (
+    //         <Tooltip title="Certificate">
+    //           <Button
+    //             icon={<FilePdfOutlined />}
+    //             size="small"
+    //             onClick={() => handleViewDocument(record.certificateDocument)}
+    //           />
+    //         </Tooltip>
+    //       )}
+    //     </Space>
+    //   ),
+    // },
     {
       title: 'Actions',
       key: 'actions',
@@ -753,7 +753,7 @@ const ValuationManagement = () => {
       <Drawer
         title={
           selectedValuation
-            ? `Valuation Details: ${selectedValuation.id}`
+            ? `Valuation Details`
             : 'Valuation Details'
         }
         placement="right"
@@ -883,9 +883,9 @@ const ValuationManagement = () => {
                     <Descriptions.Item label="Report">
                       {selectedValuation?.report || 'Not available yet'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Documents">
+                    {/* <Descriptions.Item label="Documents">
                       {selectedValuation?.documents ? selectedValuation?.documents.length : 0} documents
-                    </Descriptions.Item>
+                    </Descriptions.Item> */}
                   </Descriptions>
                 </Col>
               </Row>
@@ -898,9 +898,9 @@ const ValuationManagement = () => {
                     bordered
                     column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
                   >
-                    <Descriptions.Item label="Property ID">
+                    {/* <Descriptions.Item label="Property ID">
                       {selectedValuation.property.id}
-                    </Descriptions.Item>
+                    </Descriptions.Item> */}
                     <Descriptions.Item label="Property Type">
                       {selectedValuation.property.type}
                     </Descriptions.Item>
@@ -1068,7 +1068,7 @@ const ValuationManagement = () => {
                 </Card>
               </TabPane>
 
-              <TabPane tab="Documents" key="4">
+              {/* <TabPane tab="Documents" key="4">
                 <List
                   itemLayout="horizontal"
                   dataSource={selectedValuation.documents}
@@ -1096,7 +1096,7 @@ const ValuationManagement = () => {
                     Upload Document
                   </Button>
                 )}
-              </TabPane>
+              </TabPane> */}
 
               <TabPane tab="Notes" key="5">
                 <Card>
@@ -1149,7 +1149,7 @@ const ValuationManagement = () => {
       >
         <p>
           Are you sure you want to delete the valuation{' '}
-          <strong>{valuationToDelete?.id}</strong> for property{' '}
+          {/* <strong>{valuationToDelete?.id}</strong> for property{' '} */}
           <strong>{valuationToDelete?.property.title}</strong>?
         </p>
         <p>This action cannot be undone.</p>

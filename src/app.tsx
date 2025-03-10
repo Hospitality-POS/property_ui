@@ -157,7 +157,7 @@ export const layout: RunTimeLayoutConfig = ({
       },
     },
     onPageChange: () => {
-      console.log('my initial state', initialState);
+
 
       return true;
     },

@@ -1,107 +1,81 @@
-import React from 'react';
-import { Row, Col, Card, Button, Progress, Typography } from 'antd';
-import {
-    BarChartOutlined,
-    PieChartOutlined
-} from '@ant-design/icons';
+import React, { useMemo } from 'react';
+import { Row, Col, Card, Button, Typography } from 'antd';
+import { BarChartOutlined, PieChartOutlined } from '@ant-design/icons';
+import { Bar, Pie } from '@ant-design/charts';
 
 const { Text } = Typography;
 
-// Sales Trend Chart Component
 const SalesTrendChart = ({ salesData }) => {
-    // Find the max sales value to calculate percentages
-    const maxSales = Math.max(...salesData.map(item => item.sales));
 
+
+    const config = {
+        data: salesData,
+        xField: 'sales',
+        yField: 'month',
+        seriesField: 'month',
+        legend: { position: 'top-left' },
+        color: '#1890ff',
+    };
 
     return (
         <Card
             title={<><BarChartOutlined /> Sales Trend</>}
             extra={<Button type="link">View Reports</Button>}
         >
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-                height: 320,
-                padding: '0 20px'
-            }}>
-                {salesData.map((monthData, index) => (
-                    <div
-                        key={index}
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            width: '10%'
-                        }}
-                    >
-                        <Progress
-                            type="vertical"
-                            percent={(monthData.sales / maxSales) * 100}
-                            strokeColor="#1890ff"
-                            trailColor="#e6f7ff"
-                            style={{ marginBottom: 8 }}
-                        />
-                        <Text style={{ fontSize: 10 }}>{monthData.month}</Text>
-                        <Text style={{ fontSize: 10 }}>
-                            {(monthData.sales / 1000).toFixed(0)}K
-                        </Text>
-                    </div>
-                ))}
-            </div>
+            <Bar {...config} />
         </Card>
     );
 };
 
-// Property Distribution Chart Component
-const PropertyDistributionChart = ({ propertyTypeData }) => {
+const PropertyDistributionChart = ({ latestProperties }) => {
+    const propertyTypeData = useMemo(() => {
+        const counts = latestProperties.reduce((acc, prop) => {
+            acc[prop.propertyType] = (acc[prop.propertyType] || 0) + 1;
+            return acc;
+        }, {});
+
+        const total = latestProperties.length;
+        return Object.entries(counts).map(([type, count]) => ({
+            type,
+            value: (count / total) * 100,
+        }));
+    }, [latestProperties]);
+
+    const config = {
+        data: propertyTypeData,
+        angleField: 'value',
+        colorField: 'type',
+        radius: 1,
+        label: {
+            type: 'outer',
+            content: ({ type, value }) => `${type} (${value.toFixed(2)}%)`,
+        },
+        tooltip: {
+            formatter: (datum) => ({
+                name: datum.type,
+                value: `${datum.value.toFixed(2)}%`,
+            }),
+        },
+    };
+
     return (
         <Card
             title={<><PieChartOutlined /> Property Distribution</>}
             extra={<Button type="link">View Details</Button>}
         >
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-around',
-                alignItems: 'center',
-                height: 320,
-                padding: '0 20px'
-            }}>
-                {propertyTypeData.map((typeData, index) => (
-                    <div
-                        key={index}
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            width: '40%'
-                        }}
-                    >
-                        <Progress
-                            type="circle"
-                            percent={typeData.value}
-                            format={(percent) => `${typeData.type}`}
-                            strokeColor={index === 0 ? '#1890ff' : '#52c41a'}
-                        />
-                        <Text style={{ marginTop: 8 }}>
-                            {typeData.value}% ({typeData.type})
-                        </Text>
-                    </div>
-                ))}
-            </div>
+            <Pie {...config} />
         </Card>
     );
 };
 
-// Charts Section for Dashboard
-export const ChartsSection = ({ salesData, propertyTypeData }) => {
+export const ChartsSection = ({ salesData, latestProperties }) => {
     return (
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col xs={24} lg={12}>
                 <SalesTrendChart salesData={salesData} />
             </Col>
             <Col xs={24} lg={12}>
-                <PropertyDistributionChart propertyTypeData={propertyTypeData} />
+                <PropertyDistributionChart latestProperties={latestProperties} />
             </Col>
         </Row>
     );

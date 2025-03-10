@@ -283,7 +283,7 @@ export const CustomerDetailsDrawer = ({
                     </Button>
                 </TabPane>
 
-                <TabPane tab="Documents" key="4">
+                {/* <TabPane tab="Documents" key="4">
                     <List
                         itemLayout="horizontal"
                         dataSource={customer.documents || []}
@@ -316,7 +316,7 @@ export const CustomerDetailsDrawer = ({
                     >
                         Upload Document
                     </Button>
-                </TabPane>
+                </TabPane> */}
 
                 <TabPane tab="Purchases" key="5">
                     {customer.purchases > 0 ? (
