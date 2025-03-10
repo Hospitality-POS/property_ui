@@ -24,6 +24,7 @@ import {
     PlusOutlined,
     UserOutlined
 } from '@ant-design/icons';
+import { useNavigate } from '@umijs/max';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -55,6 +56,10 @@ export const LeadDetailsDrawer = ({
         return null;
     }
 
+    const navigate = useNavigate();
+
+
+
     return (
         <Drawer
             title={`Lead Details: ${lead.name}`}
@@ -85,7 +90,9 @@ export const LeadDetailsDrawer = ({
                             </Text>
                             <Text>
                                 <EnvironmentOutlined style={{ marginRight: 8 }} />
-                                {lead.interestAreas[0]?.county || 'Location not specified'}
+                                {lead?.interestedProperties?.length
+                                    ? lead.interestedProperties[0]?.location?.county || 'Location not specified'
+                                    : 'Location not specified'}
                             </Text>
                         </Space>
                     </Col>
@@ -138,7 +145,10 @@ export const LeadDetailsDrawer = ({
 
             <Row gutter={16} style={{ marginBottom: 24 }}>
                 <Col span={8}>
-                    <Statistic title="Source" value={capitalize(lead.source.replace('_', ' '))} />
+                    <Statistic
+                        title="Source"
+                        value={lead?.source ? capitalize(lead.source.replace('_', ' ')) : 'Unknown'}
+                    />
                 </Col>
                 <Col span={8}>
                     <Statistic title="Date Added" value={formatDate(lead.createdAt)} />
@@ -159,15 +169,16 @@ export const LeadDetailsDrawer = ({
                             <Descriptions.Item label="Property Interest">
                                 <Tag
                                     color={
-                                        lead.interestAreas[0]?.propertyType === 'apartment'
+                                        lead.interestAreas?.[0]?.propertyType === 'apartment'
                                             ? 'blue'
-                                            : lead.interestAreas[0]?.propertyType === 'land'
+                                            : lead.interestAreas?.[0]?.propertyType === 'land'
                                                 ? 'green'
-                                                : 'purple'
+                                                : 'default'
                                     }
                                 >
-                                    {capitalize(lead.interestAreas[0]?.propertyType || 'both')}
+                                    {capitalize(lead.interestAreas?.[0]?.propertyType || 'both')}
                                 </Tag>
+
                             </Descriptions.Item>
                             <Descriptions.Item label="Budget">
                                 {lead.interestAreas[0]?.budget ?
@@ -258,37 +269,25 @@ export const LeadDetailsDrawer = ({
                         ))}
                     </Timeline>
                 </TabPane>
-
                 <TabPane tab="Interested Properties" key="3">
                     {lead.interestedProperties && lead.interestedProperties.length > 0 ? (
                         <List
                             itemLayout="horizontal"
                             dataSource={lead.interestedProperties}
-                            renderItem={(propertyId) => {
-                                // Find the property details (in a real app, this would come from an API)
-                                const property = propertiesData.find(p => p._id === propertyId) ||
-                                    { name: `Property ID: ${propertyId}`, location: 'Unknown location', price: 0 };
-
-                                return (
-                                    <List.Item
-                                        actions={[
-                                            <Button type="link">View Details</Button>,
-                                        ]}
-                                    >
-                                        <List.Item.Meta
-                                            avatar={<Avatar icon={<EnvironmentOutlined />} />}
-                                            title={property.name}
-                                            description={
-                                                <>
-                                                    <div>{property.location}</div>
-                                                    {property.price > 0 &&
-                                                        <div>Price: {property.price.toLocaleString()} KES</div>}
-                                                </>
-                                            }
-                                        />
-                                    </List.Item>
-                                );
-                            }}
+                            renderItem={(property) => (
+                                <List.Item actions={[<Button type="link" onClick={() => navigate("/property")}>View Details</Button>]}>
+                                    <List.Item.Meta
+                                        avatar={<Avatar icon={<EnvironmentOutlined />} />}
+                                        title={property.name}
+                                        description={
+                                            <>
+                                                <div>{property.location?.county || 'Unknown location'}</div>
+                                                {property.price > 0 && <div>Price: {property.price.toLocaleString()} KES</div>}
+                                            </>
+                                        }
+                                    />
+                                </List.Item>
+                            )}
                         />
                     ) : (
                         <EmptyComponent description="No interested properties recorded" />
@@ -303,7 +302,6 @@ export const LeadDetailsDrawer = ({
                         Add Property Interest
                     </Button>
                 </TabPane>
-
                 <TabPane tab="Follow-ups" key="4">
                     <Card>
                         {lead.followUpDate ? (

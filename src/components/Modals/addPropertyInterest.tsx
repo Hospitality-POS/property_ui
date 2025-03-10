@@ -33,7 +33,7 @@ export const AddPropertyInterestModal = ({
                     <Select placeholder="Choose a property">
                         {propertiesData.map(property => (
                             <Option key={property._id} value={property._id}>
-                                {property.name} - {property.location} - {property.price.toLocaleString()} KES
+                                {property?.name} - {property.location?.address} - {property.price.toLocaleString()} KES
                             </Option>
                         ))}
                     </Select>

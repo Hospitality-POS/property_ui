@@ -20,7 +20,7 @@ import { DeleteLeadModal } from '../../components/Modals/deleteLead';
 import { ConvertLeadModal } from '../../components/Modals/convertLead';
 import { AddNoteModal } from '../../components/Modals/addLeadNote';
 import { AddPropertyInterestModal } from '../../components/Modals/addPropertyInterest';
-
+import { fetchAllProperties } from '@/services/property';
 const { Option } = Select;
 
 const LeadsManagement = () => {
@@ -87,6 +87,7 @@ const LeadsManagement = () => {
     nextAction: '',
   });
 
+
   // Fetch leads data
   const { data: leadsData = [], isLoading: isLoadingLeads, refetch: refetchLeads } = useQuery({
     queryKey: ['lead', refreshKey],
@@ -141,14 +142,39 @@ const LeadsManagement = () => {
     refetchOnWindowFocus: false
   });
 
-  // Sample properties data (in a real app, this would come from an API)
-  const propertiesData = [
-    { _id: 'prop001', name: 'Sunset Heights Apartment 3B', type: 'apartment', location: 'Westlands, Nairobi', price: 8500000 },
-    { _id: 'prop002', name: 'Greenview Estate Plot 42', type: 'land', location: 'Kiambu Road', price: 5200000 },
-    { _id: 'prop003', name: 'Riverside Apartment 7A', type: 'apartment', location: 'Riverside, Nairobi', price: 12000000 },
-    { _id: 'prop004', name: 'Mountain View Land 2 Acres', type: 'land', location: 'Thika', price: 4000000 },
-    { _id: 'prop005', name: 'Ocean Breeze Apartment 12C', type: 'apartment', location: 'Nyali, Mombasa', price: 9500000 },
-  ];
+
+  const { data: propertiesData = [] } = useQuery({
+    queryKey: ['latestProperties', refreshKey],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllProperties();
+        console.log('properties fetched successfully:', response);
+
+        // Process data to ensure consistent format
+        const processedData = Array.isArray(response.data)
+          ? response.data.map(property => ({
+            ...property,
+            dateJoined: formatDate(property.createdAt) || property.dateJoined,
+          }))
+          : [];
+
+        // Sort by createdAt in descending order (latest first)
+        const sortedData = [...processedData].sort((a, b) =>
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
+        // Return only the 5 latest properties
+        return sortedData;
+      } catch (error) {
+        message.error('Failed to fetch properties');
+        console.error('Error fetching properties:', error);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
 
   // Helper function to capitalize first letter
   const capitalize = (str) => {
@@ -488,7 +514,6 @@ const LeadsManagement = () => {
     propertyForm.resetFields();
   };
 
-  // Handle add property interest
   const handleAddPropertyInterest = () => {
     propertyForm.validateFields()
       .then(values => {
@@ -497,8 +522,8 @@ const LeadsManagement = () => {
 
         console.log('Add property interest to lead:', selectedLead._id, selectedProperty);
 
-        // Create a simulated updated lead for immediate UI feedback
-        const updatedLead = {
+        // Create a formatted lead update
+        const formattedLead = {
           ...selectedLead,
           interestedProperties: [
             ...(selectedLead.interestedProperties || []),
@@ -506,20 +531,34 @@ const LeadsManagement = () => {
           ]
         };
 
-        // Update the selected lead
-        setSelectedLead(updatedLead);
+        // Call updateLead service
+        updateLead(selectedLead._id, formattedLead)
+          .then(updatedLead => {
+            // Show success message
+            message.success('Lead updated successfully!');
 
-        // Show success message
-        message.success('Property interest added successfully');
+            setTimeout(() => {
+              setRefreshKey(prevKey => prevKey + 1);
+              refetchLeads({ force: true });
+            }, 500);
 
-        // Close the modal and reset form
-        setAddPropertyInterestVisible(false);
-        propertyForm.resetFields();
+            // Update the selected lead in state
+            setSelectedLead(updatedLead);
+
+            // Close modal and reset form
+            setAddPropertyInterestVisible(false);
+            propertyForm.resetFields();
+          })
+          .catch(error => {
+            console.error('Error updating lead:', error);
+            message.error('Failed to update lead. Please try again.');
+          });
       })
       .catch(errorInfo => {
         console.log('Validation failed:', errorInfo);
       });
   };
+
 
   // Handle search
   const handleSearch = (e) => {

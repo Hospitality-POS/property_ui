@@ -2,7 +2,8 @@ import { Table, Space, Button, Tooltip, Tag, Typography } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
-    DeleteOutlined
+    DeleteOutlined,
+    FileSearchOutlined
 } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -154,6 +155,13 @@ export const LeadsTable = ({
             key: 'actions',
             render: (_, record) => (
                 <Space>
+                    <Tooltip title="View Details">
+                        <Button
+                            icon={<FileSearchOutlined />}
+                            size="small"
+                            onClick={() => onView(record)}
+                        />
+                    </Tooltip>
                     <Tooltip title="Add Activity">
                         <Button
                             icon={<PlusOutlined />}
