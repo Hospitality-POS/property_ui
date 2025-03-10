@@ -1,7 +1,7 @@
 import UserDetailsDrawer from '@/components/drawers/userDetail';
 import AddEditUserModal from '@/components/Modals/new/AddUserModal';
 import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
-import { fetchAllUsers } from '@/services/auth.api';
+import { deleteUser, fetchAllUsers } from '@/services/auth.api';
 import {
   DeleteOutlined,
   DownOutlined,
@@ -11,8 +11,18 @@ import {
   PrinterOutlined,
 } from '@ant-design/icons';
 import { ActionType, ProTable } from '@ant-design/pro-components';
-import { Button, Dropdown, Popconfirm, Space, Tag, Tooltip } from 'antd';
+import { useMutation } from '@tanstack/react-query';
+import {
+  Button,
+  Dropdown,
+  message,
+  Popconfirm,
+  Space,
+  Tag,
+  Tooltip,
+} from 'antd';
 import { useRef, useState } from 'react';
+import UserExpandedDetails from './components/UserExpandedDetails';
 
 const UserManagement = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -26,10 +36,19 @@ const UserManagement = () => {
     setDrawerVisible(true);
   };
 
-  const onDelete = (record) => {
-    // Implement delete logic here
-    console.log('Delete user:', record);
-  };
+  const DeleteMutation = useMutation({
+    mutationKey: ['delete-user'],
+    mutationFn: async (id) => {
+      await deleteUser(id);
+    },
+    onSuccess: () => {
+      message.success('User deleted successfully');
+      actionRef.current?.reload();
+    },
+    onError: () => {
+      message.error('Error deleting user');
+    },
+  });
 
   // Added missing formatDate function
   const formatDate = (dateString) => {
@@ -54,11 +73,6 @@ const UserManagement = () => {
           />
         </Tooltip>
         <Tooltip title="Edit">
-          {/* <Button
-            icon={<EditOutlined />}
-            size="small"
-            onClick={() => onEdit(record)}
-          /> */}
           <AddEditUserModal
             actionRef={actionRef}
             data={record}
@@ -68,7 +82,7 @@ const UserManagement = () => {
         </Tooltip>
         <Popconfirm
           title="Are you sure delete this user?"
-          onConfirm={() => onDelete(record)}
+          onConfirm={() => DeleteMutation.mutate(record.id)}
           okText="Yes"
           cancelText="No"
         >
@@ -204,15 +218,9 @@ const UserManagement = () => {
         }}
         expandable={{
           expandedRowRender: (record) => (
-            <p style={{ margin: 0 }}>
-              <strong>Address:</strong> {record.address || 'N/A'}
-              <br />
-              <strong>Department:</strong> {record.department || 'N/A'}
-              <br />
-              <strong>Last Login:</strong>{' '}
-              {new Date(record.lastLogin).toLocaleString() || 'Never'}
-            </p>
+            <UserExpandedDetails record={record} />
           ),
+          rowExpandable: (record) => !!record.id,
         }}
         pagination={{
           pageSize: 10,
