@@ -83,7 +83,7 @@ const PaymentDetailsDrawer = ({ visible, payment, onClose }) => {
                                 Download Receipt
                             </Button>
                             <Button icon={<PrinterOutlined />}>Print Receipt</Button>
-                            <Button icon={<MailOutlined />}>Email Receipt</Button>
+                            {/* <Button icon={<MailOutlined />}>Email Receipt</Button> */}
                         </>
                     )}
                     <Button onClick={onClose}>Close</Button>

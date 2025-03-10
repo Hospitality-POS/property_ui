@@ -23,9 +23,11 @@ import moment from 'moment';
 import { fetchAllProperties } from '@/services/property';
 import { fetchAllLeads } from '@/services/lead';
 import { fetchAllSales } from '@/services/sales';
+import { fetchAllUsers } from '@/services/auth.api';
 import { fetchAllPayments } from '@/services/payments';
 import { useQuery } from '@tanstack/react-query';
 import { ChartsSection } from "../../components/charts/dashboardCharts"
+import { useNavigate } from '@umijs/max';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -171,6 +173,8 @@ const DashboardContent = () => {
     // Refresh key for query invalidation
     const [refreshKey, setRefreshKey] = useState(0);
 
+    const navigate = useNavigate();
+
     // Latest Payments Query
     const { data: latestPayments = [], isLoading: isLoadingPayments, refetch: refetchPayments } = useQuery({
         queryKey: ['sale', refreshKey],
@@ -280,8 +284,42 @@ const DashboardContent = () => {
         refetchOnWindowFocus: false
     });
 
-    // Monthly sales data query
-    const { data: salesDataValue = { salesCount: 0, totalSalesValue: 0 } } = useQuery({
+    const { data: agentsData = [], isLoading: isLoadingAgents } = useQuery({
+        queryKey: ['users'],
+        queryFn: async () => {
+            try {
+                const response = await fetchAllUsers();
+                console.log('Users fetched successfully:', response);
+
+                // Process data to use createdAt as dateJoined
+                const processedData = Array.isArray(response.data)
+                    ? response.data.map(user => ({
+                        ...user,
+                        dateJoined: formatDate(user.createdAt) || user.dateJoined,
+                    })).filter(user => user.role === 'sales_agent')
+                    : [];
+
+                return processedData;
+            } catch (error) {
+                message.error('Failed to fetch users');
+                console.error('Error fetching users:', error);
+                return [];
+            }
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false
+    });
+
+
+
+
+    const { data: salesDataValue = {
+        salesCount: 0,
+        totalSalesValue: 0,
+        topSalesAgents: [],
+        salesActivities: [],
+        top5SalesActivities: []
+    } } = useQuery({
         queryKey: ['sales'],
         queryFn: async () => {
             try {
@@ -290,31 +328,79 @@ const DashboardContent = () => {
                 const currentYear = moment().year();
 
                 const filteredSales = response.data.filter(sale => {
-                    const saleDate = moment(sale.date); // Ensure `sale.date` exists
+                    const saleDate = moment(sale.saleDate);
                     return (
                         saleDate.month() === currentMonth &&
                         saleDate.year() === currentYear &&
-                        sale.salePrice > 0
+                        sale.salePrice > 0 &&
+                        sale.salesAgent?._id
                     );
                 });
 
-                const totalSalesValue = filteredSales.reduce((total, sale) => total + sale.salePrice, 0);
+                // Aggregate sales by agent
+                const salesByAgent = filteredSales.reduce((acc, sale) => {
+                    const agentId = sale.salesAgent._id;
+
+                    if (!acc[agentId]) {
+                        acc[agentId] = {
+                            agentId,
+                            agentName: sale.salesAgent.name, // Include agent name
+                            salesCount: 0,
+                            totalSales: 0,
+                            totalCommission: 0
+                        };
+                    }
+                    acc[agentId].salesCount += 1;
+                    acc[agentId].totalSales += sale.salePrice;
+                    acc[agentId].totalCommission += (sale.salePrice * (sale.commission?.percentage || 5)) / 100;
+                    return acc;
+                }, {});
+
+                // Sort and pick top 5 agents
+                const topSalesAgents = Object.values(salesByAgent)
+                    .sort((a, b) => b.totalSales - a.totalSales)
+                    .slice(0, 5);
+
+                // Extract all sales activities
+                const salesActivities = response.data.flatMap(sale =>
+                    sale.activities.map(activity => ({
+                        saleId: sale._id,
+                        activityType: activity.activityType,
+                        date: activity.date,
+                        description: activity.description,
+                        by: activity.by, // Assuming `by` contains a user reference
+                    }))
+                );
+
+                // Sort and pick top 5 activities based on most recent date
+                const top5SalesActivities = [...salesActivities]
+                    .sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf())
+                    .slice(0, 5);
 
                 return {
                     salesCount: filteredSales.length,
-                    totalSalesValue,
+                    totalSalesValue: filteredSales.reduce((total, sale) => total + sale.salePrice, 0),
+                    topSalesAgents,
+                    salesActivities,
+                    top5SalesActivities,
                 };
             } catch (error) {
                 message.error('Failed to fetch sales');
                 console.error('Error fetching sales:', error);
-                return { salesCount: 0, totalSalesValue: 0 };
+                return { salesCount: 0, totalSalesValue: 0, topSalesAgents: [], salesActivities: [], top5SalesActivities: [] };
             }
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 1000 * 60 * 5,
         refetchOnWindowFocus: false,
     });
 
-    const { salesCount, totalSalesValue } = salesDataValue;
+    const { salesCount, totalSalesValue, topSalesAgents, salesActivities, top5SalesActivities } = salesDataValue;
+
+
+
+
+
+
 
     // Property counts query
     const { data: propertiesData = { propertyCount: 0 } } = useQuery({
@@ -367,6 +453,8 @@ const DashboardContent = () => {
         { month: 'May', sales: 720000 },
         { month: 'Jun', sales: 950000 },
     ]);
+
+
 
     const [propertyTypeData] = useState([
         { type: 'Land', value: 45 },
@@ -543,8 +631,8 @@ const DashboardContent = () => {
     return (
         <>
             <Space className="mb-4">
-                <Button type="primary">Add New Property</Button>
-                <Button>Add New Customer</Button>
+                <Button type="primary" onClick={() => navigate("/property")}>Add New Property</Button>
+                <Button onClick={() => navigate("/customer")}>Add New Customer</Button>
                 <Button onClick={() => setRefreshKey(prev => prev + 1)}>Refresh Data</Button>
             </Space>
 
@@ -596,7 +684,7 @@ const DashboardContent = () => {
 
             <ChartsSection
                 salesData={salesData}
-                propertyTypeData={propertyTypeData}
+                latestProperties={latestProperties}
             />
 
             {/* Tabs for different data views */}
@@ -647,16 +735,16 @@ const DashboardContent = () => {
                     <Card title={<><TeamOutlined /> Top Performing Agents</>}>
                         <List
                             itemLayout="horizontal"
-                            dataSource={topAgents}
+                            dataSource={topSalesAgents}
                             renderItem={item => (
                                 <List.Item>
                                     <List.Item.Meta
                                         avatar={<Avatar icon={<UserOutlined />} />}
-                                        title={item.name}
-                                        description={`${item.sales} sales | KES ${item.commission.toLocaleString()} commission`}
+                                        title={item.agentName}
+                                        description={`${item.salesCount} sales | KES ${item.totalCommission.toLocaleString()} commission`}
                                     />
                                     <Progress
-                                        percent={Math.round((item.sales / 10) * 100)}
+                                        percent={Math.round((item.totalSales / 10) * 100)}
                                         size="small"
                                         status="active"
                                         style={{ width: 120 }}
@@ -670,12 +758,12 @@ const DashboardContent = () => {
                     <Card title={<><CalendarOutlined /> Upcoming Tasks</>}>
                         <List
                             itemLayout="horizontal"
-                            dataSource={[
-                                { id: 1, title: 'Property viewing with Sarah Wanjiku', time: 'Today, 2:00 PM', priority: 'High' },
-                                { id: 2, title: 'Follow up with Michael Ochieng', time: 'Tomorrow, 10:00 AM', priority: 'Medium' },
-                                { id: 3, title: 'Property valuation at Thika Road', time: 'Mar 10, 9:00 AM', priority: 'Medium' },
-                                { id: 4, title: 'Meet with James about commission structure', time: 'Mar 12, 11:00 AM', priority: 'Low' },
-                            ]}
+                            dataSource={salesActivities.map((activity, index) => ({
+                                id: index + 1,
+                                title: activity.description || 'No Description',
+                                time: moment(activity.date).calendar(),
+                                priority: index === 0 ? 'High' : index < 3 ? 'Medium' : 'Low'
+                            }))}
                             renderItem={item => (
                                 <List.Item
                                     actions={[
@@ -692,6 +780,7 @@ const DashboardContent = () => {
                             )}
                         />
                     </Card>
+
                 </Col>
             </Row>
 
@@ -699,30 +788,38 @@ const DashboardContent = () => {
             <Card style={{ marginTop: 16 }}>
                 <Row gutter={16}>
                     <Col xs={24} sm={8} md={4}>
-                        <Button type="default" block icon={<HomeOutlined />}>
+                        <Button
+                            type="default"
+                            block
+                            icon={<HomeOutlined />}
+                            onClick={() => navigate("/property")}
+                        >
                             Add Property
                         </Button>
                     </Col>
                     <Col xs={24} sm={8} md={4}>
-                        <Button type="default" block icon={<UserOutlined />}>
+                        <Button type="default" block icon={<UserOutlined />}
+                            onClick={() => navigate("/customer")}
+                        >
                             Add Customer
                         </Button>
                     </Col>
                     <Col xs={24} sm={8} md={4}>
-                        <Button type="default" block icon={<DollarOutlined />}>
+                        <Button type="default" block icon={<DollarOutlined />}
+                            onClick={() => navigate("/sales")}>
                             Record Payment
                         </Button>
                     </Col>
-                    <Col xs={24} sm={8} md={4}>
+                    {/* <Col xs={24} sm={8} md={4}>
                         <Button type="default" block icon={<FileTextOutlined />}>
                             Generate Report
                         </Button>
-                    </Col>
-                    <Col xs={24} sm={8} md={4}>
+                    </Col> */}
+                    {/* <Col xs={24} sm={8} md={4}>
                         <Button type="default" block icon={<EnvironmentOutlined />}>
                             View Map
                         </Button>
-                    </Col>
+                    </Col> */}
                     <Col xs={24} sm={8} md={4}>
                         <Button type="default" block icon={<TeamOutlined />}>
                             Manage Agents

@@ -336,7 +336,7 @@ export const AddPropertyModal = ({
                         </Form.Item>
                     </TabPane>
 
-                    <TabPane tab="Documents & Images" key="3">
+                    {/* <TabPane tab="Documents & Images" key="3">
                         <Form.Item label="Property Images">
                             <Upload.Dragger listType="picture-card" multiple>
                                 <p className="ant-upload-drag-icon">
@@ -356,7 +356,7 @@ export const AddPropertyModal = ({
                                 <p className="ant-upload-hint">Upload relevant property documents (PDF, DOCX)</p>
                             </Upload.Dragger>
                         </Form.Item>
-                    </TabPane>
+                    </TabPane> */}
                 </Tabs>
             </Form>
         </Modal>

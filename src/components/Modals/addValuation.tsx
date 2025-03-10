@@ -184,7 +184,7 @@ const AddValuationModal = ({
                         </Form.Item>
                     </TabPane>
 
-                    <TabPane tab="Required Documents" key="2">
+                    {/* <TabPane tab="Required Documents" key="2">
                         <Form.Item label="Required Documents" name="documents">
                             <Checkbox.Group>
                                 <Row>
@@ -207,7 +207,7 @@ const AddValuationModal = ({
                                 <p className="ant-upload-hint">Upload any existing documents for the property valuation.</p>
                             </Upload.Dragger>
                         </Form.Item>
-                    </TabPane>
+                    </TabPane> */}
 
                     <TabPane tab="Methodology" key="3">
                         <Form.Item label="Valuation Methodology" name="methodology">

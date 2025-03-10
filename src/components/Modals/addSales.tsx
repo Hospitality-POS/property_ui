@@ -382,7 +382,7 @@ export const AddSaleModal = ({
                         </Form.Item>
                     </TabPane>
 
-                    <TabPane tab="Documents" key="3">
+                    {/* <TabPane tab="Documents" key="3">
                         <Form.Item name="documents" label="Required Documents">
                             <Checkbox.Group style={{ width: '100%' }}>
                                 <Row>
@@ -417,7 +417,7 @@ export const AddSaleModal = ({
                                 </p>
                             </Upload.Dragger>
                         </Form.Item>
-                    </TabPane>
+                    </TabPane> */}
                 </Tabs>
             </Form>
         </Modal>

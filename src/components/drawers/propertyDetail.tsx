@@ -130,7 +130,7 @@ export const PropertyDetailsDrawer = ({
             </div>
 
             {/* Property Image Carousel */}
-            <Card style={{ marginBottom: 16 }}>
+            {/* <Card style={{ marginBottom: 16 }}>
                 <Carousel autoplay>
                     {property.images.map((image, index) => (
                         <div key={index}>
@@ -152,7 +152,7 @@ export const PropertyDetailsDrawer = ({
                         </div>
                     ))}
                 </Carousel>
-            </Card>
+            </Card> */}
 
             <Tabs defaultActiveKey="1" activeKey={activeTab} onChange={onTabChange}>
                 <TabPane tab="Overview" key="1">
@@ -191,9 +191,9 @@ export const PropertyDetailsDrawer = ({
                                     <Descriptions.Item label="Property Manager">
                                         {property.propertyManager.name}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Documents">
+                                    {/* <Descriptions.Item label="Documents">
                                         {property.documents.length} documents
-                                    </Descriptions.Item>
+                                    </Descriptions.Item> */}
                                     <Descriptions.Item label="Date Added">
                                         {property.createdAt}
                                     </Descriptions.Item>
@@ -264,7 +264,7 @@ export const PropertyDetailsDrawer = ({
                     )}
                 </TabPane>
 
-                <TabPane tab="Documents" key="2">
+                {/* <TabPane tab="Documents" key="2">
                     <List
                         itemLayout="horizontal"
                         dataSource={property.documents}
@@ -290,11 +290,11 @@ export const PropertyDetailsDrawer = ({
                     >
                         Upload Document
                     </Button>
-                </TabPane>
+                </TabPane> */}
 
                 <TabPane tab="Location" key="3">
                     <Card>
-                        <div
+                        {/* <div
                             style={{
                                 height: '300px',
                                 background: '#f0f0f0',
@@ -308,7 +308,7 @@ export const PropertyDetailsDrawer = ({
                                 Map would be displayed here showing the property location
                                 at coordinates: {property.location.coordinates.coordinates.join(', ')}
                             </Text>
-                        </div>
+                        </div> */}
                         <Descriptions title="Location Details" bordered>
                             <Descriptions.Item label="Address" span={3}>
                                 {property.location.address}

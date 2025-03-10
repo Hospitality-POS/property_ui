@@ -196,11 +196,11 @@ export const SaleDetailsDrawer = ({
                                 </>
                             )}
                             <Descriptions.Item label="Reservation Fee">{formatCurrency(sale.reservationFee)}</Descriptions.Item>
-                            <Descriptions.Item label="Documents">
+                            {/* <Descriptions.Item label="Documents">
                                 {sale.documents && Array.isArray(sale.documents) && sale.documents.length > 0
                                     ? sale.documents.join(', ')
                                     : 'None'}
-                            </Descriptions.Item>
+                            </Descriptions.Item> */}
                             <Descriptions.Item label="Sale Date">
                                 {formatDate(sale.saleDate)}
                             </Descriptions.Item>
@@ -409,7 +409,7 @@ export const SaleDetailsDrawer = ({
                     </Card>
                 </TabPane>
 
-                <TabPane tab="Documents" key="4">
+                {/* <TabPane tab="Documents" key="4">
                     <List
                         itemLayout="horizontal"
                         dataSource={sale.documents || []}
@@ -435,7 +435,7 @@ export const SaleDetailsDrawer = ({
                     >
                         Upload Document
                     </Button>
-                </TabPane>
+                </TabPane> */}
 
                 <TabPane tab="Notes" key="5">
                     <Card>
