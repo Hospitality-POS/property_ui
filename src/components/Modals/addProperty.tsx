@@ -15,7 +15,8 @@ export const AddPropertyModal = ({
     isEditMode,
     form,
     onOk,
-    onCancel
+    onCancel,
+    propertyManagersData
 }) => {
     return (
         <Modal
@@ -172,11 +173,12 @@ export const AddPropertyModal = ({
                                     name="propertyManager"
                                     rules={[{ required: true, message: 'Please select a property manager' }]}
                                 >
-                                    <Select placeholder="Select property manager">
-                                        <Option value="U001">John Kimani</Option>
-                                        <Option value="U002">Sarah Wanjiku</Option>
-                                        <Option value="U003">David Maina</Option>
+                                    <Select placeholder="Select an agent">
+                                        {propertyManagersData.map(user => (
+                                            <Option key={user._id} value={user._id}>{user.name}</Option>
+                                        ))}
                                     </Select>
+
                                 </Form.Item>
                             </Col>
                         </Row>

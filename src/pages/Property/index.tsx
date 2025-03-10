@@ -15,7 +15,7 @@ import { PropertyDetailsDrawer } from '../../components/drawers/propertyDetail';
 import { AddPropertyModal } from '../../components/Modals/addProperty';
 import { DeletePropertyModal } from '../../components/Modals/deleteProperty';
 import { fetchAllProperties, createNewProperty, updateProperty, deleteProperty } from '@/services/property';
-
+import { fetchAllUsers } from '@/services/auth.api';
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
@@ -41,6 +41,32 @@ const PropertyManager = () => {
     return moment(dateString).format('DD MMM YYYY');
   };
 
+  // Fetch property managers
+  const { data: propertyManagersData = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllUsers();
+        console.log('Users fetched successfully:', response);
+
+        // Process data to use createdAt as dateJoined
+        const processedData = Array.isArray(response.data)
+          ? response.data.map(user => ({
+            ...user,
+            dateJoined: formatDate(user.createdAt) || user.dateJoined,
+          })).filter(user => user.role === 'property_manager')
+          : [];
+
+        return processedData;
+      } catch (error) {
+        message.error('Failed to fetch users');
+        console.error('Error fetching users:', error);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
   // Data fetching
   const {
     data: propertiesData = [],
@@ -386,6 +412,7 @@ const PropertyManager = () => {
         form={form}
         onOk={handleAddProperty}
         onCancel={handleModalCancel}
+        propertyManagersData={propertyManagersData}
       />
 
       {/* Delete Confirmation Modal */}
