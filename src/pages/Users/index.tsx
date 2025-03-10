@@ -1,470 +1,262 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import UserDetailsDrawer from '@/components/drawers/userDetail';
+import AddEditUserModal from '@/components/Modals/new/AddUserModal';
+import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
+import { fetchAllUsers } from '@/services/auth.api';
 import {
-    Button, Space, Row, Col, Input, Select, DatePicker, Dropdown,
-    Menu, Form, message
-} from 'antd';
-import {
-    PlusOutlined, SearchOutlined, ExportOutlined, PrinterOutlined,
-    FileExcelOutlined, DownOutlined, ReloadOutlined
+  DeleteOutlined,
+  DownOutlined,
+  ExportOutlined,
+  FileExcelOutlined,
+  FileSearchOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons';
-import { registerUser, fetchAllUsers, updateUser, deleteUser, getUserInfo } from '@/services/auth.api';
-
-import { UsersTable } from '../../components/Tables/usersTable';
-import { UserDetailsDrawer } from '../../components/drawers/userDetail';
-import { AddEditUserModal } from '../../components/Modals/addUser';
-import { DeleteUserModal } from '../../components/Modals/deleteUser';
-
-const { Option } = Select;
-const { RangePicker } = DatePicker;
+import { ActionType, ProTable } from '@ant-design/pro-components';
+import { Button, Dropdown, Popconfirm, Space, Tag, Tooltip } from 'antd';
+import { useRef, useState } from 'react';
 
 const UserManagement = () => {
-    // Form instance
-    const [form] = Form.useForm();
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
-    // Search and filter states
-    const [searchText, setSearchText] = useState('');
-    const [userRoleFilter, setUserRoleFilter] = useState('all');
-    const [userStatusFilter, setUserStatusFilter] = useState('all');
-    const [dateRange, setDateRange] = useState(null);
+  const actionRef = useRef<ActionType>();
 
-    // Selected user and drawer state
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [drawerVisible, setDrawerVisible] = useState(false);
-    const [activeTab, setActiveTab] = useState('1');
+  // Added missing function definitions
+  const onView = (record) => {
+    setSelectedRecord(record);
+    setDrawerVisible(true);
+  };
 
-    // Modal states
-    const [addUserVisible, setAddUserVisible] = useState(false);
-    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-    const [userToDelete, setUserToDelete] = useState(null);
+  const onDelete = (record) => {
+    // Implement delete logic here
+    console.log('Delete user:', record);
+  };
 
-    // Loading and refresh states
-    const [isLoading, setIsLoading] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);
+  // Added missing formatDate function
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
 
-    // Current user state
-    const [currentUser, setCurrentUser] = useState(null);
+  const actionColumn = {
+    title: 'Actions',
+    dataIndex: 'actions',
+    key: 'actions',
+    align: 'center' as const,
+    hideInSearch: true,
+    render: (_, record: any) => (
+      <Space>
+        <Tooltip title="View Details">
+          <Button
+            icon={<FileSearchOutlined />}
+            size="small"
+            onClick={() => onView(record)}
+          />
+        </Tooltip>
+        <Tooltip title="Edit">
+          {/* <Button
+            icon={<EditOutlined />}
+            size="small"
+            onClick={() => onEdit(record)}
+          /> */}
+          <AddEditUserModal
+            actionRef={actionRef}
+            data={record}
+            edit
+            key={'edit-user'}
+          />
+        </Tooltip>
+        <Popconfirm
+          title="Are you sure delete this user?"
+          onConfirm={() => onDelete(record)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button icon={<DeleteOutlined />} size="small" danger />
+        </Popconfirm>
+      </Space>
+    ),
+  };
 
-    // Format date helper function
-    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date instanceof Date && !isNaN(date)
-            ? date.toISOString().split('T')[0]
-            : '';
-    };
+  return (
+    <>
+      <ProTable
+        columns={[
+          {
+            title: 'Full Name',
+            dataIndex: 'name',
+            key: 'name',
+            sorter: (a, b) => a.name?.localeCompare(b.name),
+          },
+          {
+            title: 'Email',
+            dataIndex: 'email',
+            key: 'email',
+            ellipsis: true,
+            copyable: true,
+            sorter: (a, b) => a.email?.localeCompare(b.email),
+          },
+          {
+            title: 'Phone',
+            dataIndex: 'phone',
+            key: 'phone',
+            render: (text) => reversePhoneNumber(text)?.phone || text,
+          },
+          {
+            title: 'Role',
+            dataIndex: 'role',
+            search: false,
+            align: 'center',
+            key: 'role',
+            render: (role) => {
+              let color = 'blue';
+              let displayText = role;
+              switch (role) {
+                case 'admin':
+                  color = 'red';
+                  displayText = 'Admin';
+                  break;
+                case 'property_manager':
+                  color = 'green';
+                  displayText = 'Property Manager';
+                  break;
+                case 'sales_agent':
+                  color = 'blue';
+                  displayText = 'Sales Agent';
+                  break;
+                case 'finance_officer':
+                  color = 'purple';
+                  displayText = 'Finance Officer';
+                  break;
+                case 'customer':
+                  color = 'orange';
+                  displayText = 'Customer';
+                  break;
+                case 'valuer':
+                  color = 'yellow';
+                  displayText = 'Valuation Officer';
+                  break;
+              }
+              return <Tag color={color}>{displayText}</Tag>;
+            },
+            filters: [
+              { text: 'Admin', value: 'admin' },
+              { text: 'Property Manager', value: 'property_manager' },
+              { text: 'Sales Agent', value: 'sales_agent' },
+              { text: 'Finance Officer', value: 'finance_officer' },
+              { text: 'Customer', value: 'customer' },
+              { text: 'Valuation Officer', value: 'valuer' },
+            ],
+            onFilter: (value, record) => record.role === value,
+          },
+          {
+            title: 'Status',
+            dataIndex: 'status',
+            search: false,
+            align: 'center',
+            key: 'status',
+            render: (status) => {
+              let color = status === 'Active' ? 'green' : 'red';
+              return <Tag color={color}>{status}</Tag>;
+            },
+            filters: [
+              { text: 'Active', value: 'Active' },
+              { text: 'Inactive', value: 'Inactive' },
+            ],
+            onFilter: (value, record) => record.status === value,
+          },
+          {
+            title: 'Date Joined',
+            dataIndex: 'dateJoined',
+            align: 'center',
+            search: false,
+            key: 'dateJoined',
+            render: (text, record) => formatDate(record.createdAt) || text,
+            sorter: (a, b) => {
+              const dateA = a.createdAt
+                ? new Date(a.createdAt)
+                : new Date(a.dateJoined || 0);
+              const dateB = b.createdAt
+                ? new Date(b.createdAt)
+                : new Date(b.dateJoined || 0);
+              return dateA - dateB;
+            },
+          },
+          actionColumn,
+        ]}
+        actionRef={actionRef}
+        rowKey="id"
+        dateFormatter="string"
+        request={async () => {
+          const data = await fetchAllUsers();
 
-    // Fetch current user on component mount
-    useEffect(() => {
-        const fetchCurrentUser = async () => {
-            try {
-                const userData = await getUserInfo();
-                setCurrentUser(userData.data);
-            } catch (error) {
-                console.error('Error fetching current user:', error);
-            }
-        };
+          return {
+            data: data,
+            success: true,
+            total: data.length,
+          };
+        }}
+        search={{
+          searchText: 'Search User',
+          resetText: 'Reset',
+          labelWidth: 'auto',
+          layout: 'vertical',
+        }}
+        expandable={{
+          expandedRowRender: (record) => (
+            <p style={{ margin: 0 }}>
+              <strong>Address:</strong> {record.address || 'N/A'}
+              <br />
+              <strong>Department:</strong> {record.department || 'N/A'}
+              <br />
+              <strong>Last Login:</strong>{' '}
+              {new Date(record.lastLogin).toLocaleString() || 'Never'}
+            </p>
+          ),
+        }}
+        pagination={{
+          pageSize: 10,
+          showQuickJumper: true,
+          showSizeChanger: true,
+          showTotal: (total, range) => (
+            <div>{`Showing ${range[0]}-${range[1]} of ${total} total users`}</div>
+          ),
+        }}
+        headerTitle="Users"
+        toolBarRender={() => [
+          <AddEditUserModal actionRef={actionRef} key={'add-user-modal'} />,
+          <Dropdown
+            key={'export'}
+            menu={{
+              items: [
+                {
+                  key: '1',
+                  icon: <FileExcelOutlined />,
+                  label: 'Export to Excel',
+                },
+                {
+                  key: '2',
+                  icon: <PrinterOutlined />,
+                  label: 'Export to PDF',
+                },
+              ],
+            }}
+          >
+            <Button style={{ width: '100%' }}>
+              <ExportOutlined /> Export <DownOutlined />
+            </Button>
+          </Dropdown>,
+        ]}
+      />
 
-        fetchCurrentUser();
-    }, []);
-
-    // Fetch all users
-    const { data: usersData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-        queryKey: ['users', refreshKey],
-        queryFn: async () => {
-            try {
-                const response = await fetchAllUsers();
-                console.log('Users fetched successfully:', response);
-
-                // Process data to use createdAt as dateJoined
-                const processedData = Array.isArray(response.data)
-                    ? response.data.map(user => ({
-                        ...user,
-                        dateJoined: formatDate(user.createdAt) || user.dateJoined,
-                    }))
-                    : [];
-
-                return processedData;
-            } catch (error) {
-                message.error('Failed to fetch users');
-                console.error('Error fetching users:', error);
-                return [];
-            }
-        },
-        staleTime: 1000 * 60 * 5, // 5 minutes
-        refetchOnWindowFocus: false
-    });
-
-    // Auto fetch on component mount
-    useEffect(() => {
-        refetchUsers();
-    }, []);
-
-    // Register user mutation
-    const registerMutation = useMutation({
-        mutationFn: async (values) => await registerUser(values),
-        onSuccess: () => {
-            message.success('User created successfully');
-            // Force immediate refresh with a slight delay to ensure backend has processed
-            setTimeout(() => {
-                setRefreshKey(prevKey => prevKey + 1);
-                refetchUsers({ force: true });
-            }, 500);
-        },
-        onError: (error) => {
-            message.error('Registration failed. Please try again later.');
-            console.error('Registration error:', error);
-        },
-    });
-
-    // Update user mutation
-    const updateMutation = useMutation({
-        mutationFn: async ({ userId, userData }) => await updateUser(userId, userData),
-        onSuccess: () => {
-            message.success('User updated successfully');
-            // Force immediate refresh
-            setTimeout(() => {
-                setRefreshKey(prevKey => prevKey + 1);
-                refetchUsers({ force: true });
-            }, 500);
-        },
-        onError: (error) => {
-            message.error('Update failed. Please try again later.');
-            console.error('Update error:', error);
-        },
-    });
-
-    // Handle view user
-    const handleViewUser = (user) => {
-        setSelectedUser(user);
-        setDrawerVisible(true);
-    };
-
-    // Handle edit user
-    const handleEditUser = (user) => {
-        form.setFieldsValue({
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            idNumber: user.idNumber,
-            status: user.status,
-            address: user.address,
-            gender: user.gender,
-        });
-        setSelectedUser(user);
-        setAddUserVisible(true);
-    };
-
-    // Show delete confirmation modal
-    const showDeleteConfirm = (user) => {
-        // Check if user is trying to delete themselves
-        if (currentUser && user.id === currentUser.id) {
-            message.error('You cannot delete your own account');
-            return;
-        }
-
-        // Check if current user has admin role
-        if (currentUser && currentUser.role !== 'admin') {
-            message.error('Only administrators can delete users');
-            return;
-        }
-
-        // If validation passes, show the delete modal
-        setUserToDelete(user);
-        setDeleteModalVisible(true);
-    };
-
-    // Handle delete user
-    const handleDeleteUser = async () => {
-        if (!userToDelete || !userToDelete.id) {
-            message.error('Invalid user to delete');
-            setDeleteModalVisible(false);
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            await deleteUser(userToDelete.id);
-
-            message.success(`User ${userToDelete.name} has been deleted successfully`);
-
-            // Close modal and reset state
-            setDeleteModalVisible(false);
-            setUserToDelete(null);
-
-            // Refresh user list
-            setTimeout(() => {
-                setRefreshKey(prevKey => prevKey + 1);
-                refetchUsers({ force: true });
-            }, 500);
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            message.error('Failed to delete user. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Handle search
-    const handleSearch = (e) => {
-        setSearchText(e.target.value);
-    };
-
-    // Handle date range change
-    const handleDateRangeChange = (dates) => {
-        setDateRange(dates);
-    };
-
-    // Handle form submission
-    const handleFormSubmit = () => {
-        form.validateFields()
-            .then(async values => {
-                setIsLoading(true);
-
-                // Process form data
-                const formData = {
-                    ...values,
-                    // No longer set dateJoined manually - backend will handle with createdAt
-                    lastLogin: '',
-                    permissions: getDefaultPermissions(values.role)
-                };
-
-                // Remove temporary fields
-                delete formData.confirmPassword;
-
-                try {
-                    if (selectedUser) {
-                        // Update existing user
-                        await updateMutation.mutateAsync({
-                            userId: selectedUser.id,
-                            userData: formData
-                        });
-                    } else {
-                        // Add new user
-                        await registerMutation.mutateAsync(formData);
-                    }
-
-                    setAddUserVisible(false);
-                    form.resetFields();
-                    setSelectedUser(null);
-                } catch (error) {
-                    console.error('Error saving user:', error);
-                } finally {
-                    setIsLoading(false);
-                }
-            })
-            .catch(info => {
-                console.log('Validate Failed:', info);
-            });
-    };
-
-    // Get default permissions based on role
-    const getDefaultPermissions = (role) => {
-        switch (role) {
-            case 'admin':
-                return ['users', 'properties', 'clients', 'reports', 'system_settings'];
-            case 'property_manager':
-                return ['properties', 'clients'];
-            case 'sales_agent':
-                return ['properties', 'clients'];
-            case 'finance_officer':
-                return ['reports', 'invoices'];
-            case 'customer':
-                return ['view_properties'];
-            default:
-                return [];
-        }
-    };
-
-    // Filter users based on search text and filters
-    const filteredUsers = Array.isArray(usersData) ? usersData.filter((user) => {
-        const matchesSearch =
-            String(user.id || '').toLowerCase().includes(searchText.toLowerCase()) ||
-            String(user.name || '').toLowerCase().includes(searchText.toLowerCase()) ||
-            String(user.email || '').toLowerCase().includes(searchText.toLowerCase()) ||
-            String(user.phone || '').includes(searchText);
-
-        const matchesRole =
-            userRoleFilter === 'all' ||
-            user.role === userRoleFilter;
-
-        const matchesStatus =
-            userStatusFilter === 'all' ||
-            user.status === userStatusFilter;
-
-        let matchesDateRange = true;
-        if (dateRange && dateRange[0] && dateRange[1]) {
-            // Use createdAt if available, otherwise fall back to dateJoined
-            const joinDate = user.createdAt
-                ? new Date(user.createdAt)
-                : new Date(user.dateJoined || 0);
-
-            const startDate = new Date(dateRange[0]);
-            const endDate = new Date(dateRange[1]);
-            matchesDateRange = joinDate >= startDate && joinDate <= endDate;
-        }
-
-        return matchesSearch && matchesRole && matchesStatus && matchesDateRange;
-    }) : [];
-
-    // Handle modal open - reset form if adding new user
-    const handleAddUser = () => {
-        form.resetFields();
-        setSelectedUser(null);
-        setAddUserVisible(true);
-    };
-
-    // Refresh user data - improved function
-    const handleRefresh = () => {
-        // Increment refresh key to force a new query
-        setRefreshKey(prevKey => prevKey + 1);
-        message.loading({ content: 'Refreshing user data...', key: 'refreshMessage' });
-
-        // Explicitly call refetch and handle results
-        refetchUsers({ force: true }).then(() => {
-            message.success({ content: 'User data refreshed successfully!', key: 'refreshMessage', duration: 2 });
-        }).catch(error => {
-            message.error({ content: 'Failed to refresh user data', key: 'refreshMessage', duration: 2 });
-            console.error('Error refreshing:', error);
-        });
-    };
-
-    return (
-        <>
-            <Space className="mb-4">
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddUser}
-                >
-                    New User
-                </Button>
-                <Button
-                    icon={<ReloadOutlined />}
-                    onClick={handleRefresh}
-                    loading={isLoadingUsers}
-                >
-                    Refresh
-                </Button>
-            </Space>
-
-            {/* Search and Filters */}
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col xs={24} sm={24} md={6}>
-                    <Input
-                        placeholder="Search by ID, name, email or phone..."
-                        prefix={<SearchOutlined />}
-                        value={searchText}
-                        onChange={handleSearch}
-                        allowClear
-                    />
-                </Col>
-                <Col xs={24} sm={8} md={5}>
-                    <Select
-                        style={{ width: '100%' }}
-                        placeholder="Filter by Role"
-                        defaultValue="all"
-                        onChange={(value) => setUserRoleFilter(value)}
-                    >
-                        <Option value="all">All Roles</Option>
-                        <Option value="admin">Admin</Option>
-                        <Option value="property_manager">Property Manager</Option>
-                        <Option value="sales_agent">Sales Agent</Option>
-                        <Option value="finance_officer">Finance Officer</Option>
-                        <Option value="customer">Customer</Option>
-                        <Option value="valuer">Valuation Officer</Option>
-                    </Select>
-                </Col>
-                <Col xs={24} sm={8} md={5}>
-                    <Select
-                        style={{ width: '100%' }}
-                        placeholder="Filter by Status"
-                        defaultValue="all"
-                        onChange={(value) => setUserStatusFilter(value)}
-                    >
-                        <Option value="all">All Statuses</Option>
-                        <Option value="Active">Active</Option>
-                        <Option value="Inactive">Inactive</Option>
-                    </Select>
-                </Col>
-                <Col xs={24} sm={8} md={6}>
-                    <RangePicker
-                        style={{ width: '100%' }}
-                        placeholder={['Join Date From', 'Join Date To']}
-                        onChange={handleDateRangeChange}
-                    />
-                </Col>
-                <Col xs={24} sm={24} md={2}>
-                    <Dropdown
-                        overlay={
-                            <Menu>
-                                <Menu.Item key="1" icon={<FileExcelOutlined />}>
-                                    Export to Excel
-                                </Menu.Item>
-                                <Menu.Item key="2" icon={<PrinterOutlined />}>
-                                    Print Report
-                                </Menu.Item>
-                            </Menu>
-                        }
-                    >
-                        <Button style={{ width: '100%' }}>
-                            <ExportOutlined /> Export <DownOutlined />
-                        </Button>
-                    </Dropdown>
-                </Col>
-            </Row>
-
-            {/* Users Table */}
-            <UsersTable
-                users={filteredUsers}
-                currentUser={currentUser}
-                formatDate={formatDate}
-                onView={handleViewUser}
-                onEdit={handleEditUser}
-                onDelete={showDeleteConfirm}
-                loading={isLoadingUsers}
-            />
-
-            {/* User Details Drawer */}
-            <UserDetailsDrawer
-                visible={drawerVisible}
-                user={selectedUser}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                onClose={() => setDrawerVisible(false)}
-                onEdit={() => {
-                    setDrawerVisible(false);
-                    handleEditUser(selectedUser);
-                }}
-                formatDate={formatDate}
-            />
-
-            {/* Add/Edit User Modal */}
-            <AddEditUserModal
-                visible={addUserVisible}
-                user={selectedUser}
-                form={form}
-                isLoading={isLoading || registerMutation.isPending || updateMutation.isPending}
-                onOk={handleFormSubmit}
-                onCancel={() => {
-                    setAddUserVisible(false);
-                    form.resetFields();
-                    setSelectedUser(null);
-                }}
-            />
-
-            {/* Delete Confirmation Modal */}
-            <DeleteUserModal
-                visible={deleteModalVisible}
-                user={userToDelete}
-                isLoading={isLoading}
-                onDelete={handleDeleteUser}
-                onCancel={() => setDeleteModalVisible(false)}
-            />
-        </>
-    );
+      <UserDetailsDrawer
+        record={selectedRecord}
+        visible={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+        actionRef={actionRef}
+      />
+    </>
+  );
 };
 
 export default UserManagement;
