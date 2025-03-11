@@ -1,9 +1,10 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
+import axiosInstance from './request';
 
 export const fetchAllPayments = async (token?: ParamsType) => {
     try {
-        const response = await axios.get(`${BASE_URL}/payments`, {
+        const response = await axiosInstance.get(`${BASE_URL}/payments`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,

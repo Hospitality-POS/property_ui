@@ -1,9 +1,10 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
+import axiosInstance from './request';
 
 export const createNewLead = async (leadData) => {
     try {
-        const response = await axios.post(`${BASE_URL}/leads`, leadData,
+        const response = await axiosInstance.post(`${BASE_URL}/leads`, leadData,
             {
                 headers: {
                     Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
@@ -19,7 +20,7 @@ export const createNewLead = async (leadData) => {
 };
 export const fetchAllLeads = async (token?: ParamsType) => {
     try {
-        const response = await axios.get(`${BASE_URL}/leads`, {
+        const response = await axiosInstance.get(`${BASE_URL}/leads`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -38,7 +39,7 @@ export const updateLead = async (
     token?: ParamsType,
 ) => {
     try {
-        const response = await axios.put(`${BASE_URL}/leads/${leadId}`, leadData, {
+        const response = await axiosInstance.put(`${BASE_URL}/leads/${leadId}`, leadData, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -53,7 +54,7 @@ export const updateLead = async (
 
 export const deleteLead = async (leadId: string, token?: ParamsType) => {
     try {
-        const response = await axios.delete(`${BASE_URL}/leads/${leadId}`, {
+        const response = await axiosInstance.delete(`${BASE_URL}/leads/${leadId}`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,

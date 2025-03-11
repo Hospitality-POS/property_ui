@@ -70,6 +70,12 @@ export default defineConfig({
       icon: 'CreditCardOutlined',
       component: './Payments',
     },
+    {
+      name: 'Profile',
+      path: '/profile',
+      icon: 'CreditCardOutlined',
+      component: './Profile',
+    },
     // {
     //   name: 'Settings',
     //   path: '/settings',

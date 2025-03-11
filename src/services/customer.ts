@@ -1,9 +1,10 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
+import axiosInstance from './request';
 
 export const createNewCustomer = async (customer) => {
     try {
-        const response = await axios.post(`${BASE_URL}/customers`, customer,
+        const response = await axiosInstance.post(`${BASE_URL}/customers`, customer,
             {
                 headers: {
                     Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
@@ -19,7 +20,7 @@ export const createNewCustomer = async (customer) => {
 };
 export const fetchAllCustomers = async (token?: ParamsType) => {
     try {
-        const response = await axios.get(`${BASE_URL}/customers`, {
+        const response = await axiosInstance.get(`${BASE_URL}/customers`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -38,7 +39,7 @@ export const updateCustomer = async (
     token?: ParamsType,
 ) => {
     try {
-        const response = await axios.put(`${BASE_URL}/customers/${customerId}`, customerData, {
+        const response = await axiosInstance.put(`${BASE_URL}/customers/${customerId}`, customerData, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -52,7 +53,7 @@ export const updateCustomer = async (
 };
 export const deleteProperty = async (propertyId: string, token?: ParamsType) => {
     try {
-        const response = await axios.delete(`${BASE_URL}/properties/${propertyId}`, {
+        const response = await axiosInstance.delete(`${BASE_URL}/properties/${propertyId}`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,

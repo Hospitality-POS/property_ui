@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { history, RunTimeLayoutConfig } from '@umijs/max';
+import { history, RunTimeLayoutConfig, useNavigate } from '@umijs/max';
 import {
   Avatar,
   Breadcrumb,
@@ -23,12 +23,15 @@ import logo from '/public/assets/images/icon.png';
 const checkIfUserIsValid = async () => {
   try {
     const userData = await getUserInfo();
+    console.log('oooh dang', userData);
     return userData;
   } catch (e) {
     localStorage.removeItem('property_token');
     return null;
   }
 };
+
+
 
 const handleLogout = () => {
   // Clear the token from localStorage
@@ -118,13 +121,16 @@ export const layout: RunTimeLayoutConfig = ({
       shape: 'circle',
       icon: <UserOutlined />,
       render: () => {
-        // const navigate = useNavigate();
+
         const items: MenuProps['items'] = [
           {
             key: '1',
             label: 'My Profile',
             icon: <UserOutlined />,
-            onClick: () => '',
+            onClick: () => {
+              history.push('/profile');
+              setInitialState(null);
+            },
           },
           {
             type: 'divider',

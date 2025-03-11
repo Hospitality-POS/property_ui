@@ -1,9 +1,10 @@
 import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
+import axiosInstance from './request';
 
 export const createNewValuation = async (valuation) => {
     try {
-        const response = await axios.post(`${BASE_URL}/valuations`, valuation,
+        const response = await axiosInstance.post(`${BASE_URL}/valuations`, valuation,
             {
                 headers: {
                     Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
@@ -19,7 +20,7 @@ export const createNewValuation = async (valuation) => {
 };
 export const fetchAllValuations = async (token?: ParamsType) => {
     try {
-        const response = await axios.get(`${BASE_URL}/valuations`, {
+        const response = await axiosInstance.get(`${BASE_URL}/valuations`, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
@@ -37,7 +38,7 @@ export const updateValuation = async (
     token?: ParamsType,
 ) => {
     try {
-        const response = await axios.put(`${BASE_URL}/valuations/${valuationId}`, valuationData, {
+        const response = await axiosInstance.put(`${BASE_URL}/valuations/${valuationId}`, valuationData, {
             headers: {
                 Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
                     }`,
