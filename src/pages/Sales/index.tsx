@@ -239,7 +239,7 @@ const SalesManagement = () => {
         refetchOnWindowFocus: false
     });
 
-    console.log('my properties', propertiesData);
+
 
     // Handle adding an installment
     const handleAddInstallment = () => {
