@@ -49,6 +49,16 @@ export const AddSaleModal = ({
     formatCurrency,
     formatDate
 }) => {
+    // Handle property selection to auto-populate list price
+    const handlePropertyChange = (value) => {
+        const selectedProperty = propertiesData.find((property) => (property._id || property.id) === value);
+        if (selectedProperty) {
+            form.setFieldsValue({
+                listPrice: selectedProperty.price
+            });
+        }
+    };
+
     return (
         <Modal
             title={isEditMode ? `Edit Sale: ${saleToEdit?._id || 'Sale'}` : "Create New Sale"}
@@ -67,21 +77,27 @@ export const AddSaleModal = ({
                                 <Form.Item
                                     label="Select Property"
                                     name="property"
-                                    rules={[{ required: true, message: 'Please select a property' }]}
+                                    rules={[{ required: true, message: "Please select a property" }]}
                                 >
                                     <Select
                                         showSearch
-                                        style={{ width: '100%' }}
+                                        style={{ width: "100%" }}
                                         placeholder="Search for property"
                                         optionFilterProp="children"
                                         loading={isLoadingProperties}
+                                        onChange={handlePropertyChange}
                                     >
-                                        {propertiesData && propertiesData.map(property => (
-                                            <Option key={property._id || property.id} value={property._id || property.id}>
-                                                {property.name} - {property.location?.address || 'No location'} - {formatCurrency(property.price)}
-                                            </Option>
-                                        ))}
+                                        {propertiesData &&
+                                            propertiesData
+                                                .filter((property) => property.status === "available") // Only include properties with available subdivisions
+                                                .map((property) => (
+                                                    <Option key={property._id || property.id} value={property._id || property.id}>
+                                                        {property.name} - {property.location?.address || "No location"} -{" "}
+                                                        {formatCurrency(property.price)}
+                                                    </Option>
+                                                ))}
                                     </Select>
+
                                 </Form.Item>
                             </Col>
 
@@ -136,6 +152,7 @@ export const AddSaleModal = ({
                                         parser={value => value.replace(/\$\s?|(,*)/g, '')}
                                         placeholder="Enter list price"
                                         min={0}
+                                        disabled={true}
                                     />
                                 </Form.Item>
                             </Col>

@@ -132,111 +132,176 @@ const CustomerManagement = () => {
             const values = await customerForm.validateFields();
 
             if (customerModalMode === 'create') {
-                // Create mode (convert lead)
-                if (!selectedLead) {
-                    message.error('Please select a lead to convert');
-                    return;
-                }
+                // Get the customer source (new or fromLead)
+                const customerSource = customerForm.getFieldValue('customerSource');
 
-                // Create a new customer object from the lead and form data
-                const newCustomer = {
-                    lead: selectedLead._id, // Reference to the original lead
-                    name: values.name,
-                    email: values.email,
-                    phone: values.phone,
-                    verifiedPhone: false,
-                    alternatePhone: values.alternatePhone || '',
-                    idNumber: values.idNumber,
-                    idDocument: {
-                        url: values.idDocumentUrl || '',
-                        uploadedAt: new Date().toISOString(),
-                    },
-                    address: {
-                        street: values.streetAddress || '',
-                        city: values.city || '',
-                        county: values.county || (selectedLead.interestAreas && selectedLead.interestAreas.length > 0 ? selectedLead.interestAreas[0].county : ''),
-                        postalCode: values.postalCode || '',
-                        country: 'Kenya',
-                    },
-                    occupation: values.occupation || '',
-                    company: values.company || '',
-                    customerType: values.customerType || 'individual',
-                    preferences: {
-                        propertyTypes: values.propertyTypes || [],
-                        locations: values.locations || [],
-                        budgetRange: {
-                            min: values.budgetRange?.min || 0,
-                            max: values.budgetRange?.max || 0
+                if (customerSource === 'fromLead') {
+                    // Convert from Lead mode
+                    if (!selectedLead) {
+                        message.error('Please select a lead to convert');
+                        return;
+                    }
+
+                    // Create a new customer object from the lead and form data
+                    const newCustomer = {
+                        lead: selectedLead._id, // Reference to the original lead
+                        name: values.name,
+                        email: values.email,
+                        phone: values.phone,
+                        verifiedPhone: false,
+                        alternatePhone: values.alternatePhone || '',
+                        idNumber: values.idNumber,
+                        idDocument: {
+                            url: values.idDocumentUrl || '',
+                            uploadedAt: new Date().toISOString(),
                         },
-                        amenities: values.amenities || [],
-                        otherRequirements: values.notes || '',
-                    },
-                    documents: [],
-                    notes: [
-                        {
-                            content: `Converted from lead ${selectedLead._id}. ${values.notes || ''}`,
-                            addedAt: new Date().toISOString(),
-                        }
-                    ],
-                    communications: selectedLead.communications || [],
-                    leadSource: selectedLead._id,
-                };
-
-                // Transfer property interests from lead to customer
-                if (selectedLead.interestAreas && selectedLead.interestAreas.length > 0) {
-                    // Extract property types
-                    selectedLead.interestAreas.forEach(area => {
-                        if (area.propertyType === 'both') {
-                            if (!newCustomer.preferences.propertyTypes.includes('apartment')) {
-                                newCustomer.preferences.propertyTypes.push('apartment');
+                        address: {
+                            street: values.streetAddress || '',
+                            city: values.city || '',
+                            county: values.county || (selectedLead.interestAreas && selectedLead.interestAreas.length > 0 ? selectedLead.interestAreas[0].county : ''),
+                            postalCode: values.postalCode || '',
+                            country: 'Kenya',
+                        },
+                        occupation: values.occupation || '',
+                        company: values.company || '',
+                        customerType: values.customerType || 'individual',
+                        preferences: {
+                            propertyTypes: values.propertyTypes || [],
+                            locations: values.locations || [],
+                            budgetRange: {
+                                min: values.budgetRange?.min || 0,
+                                max: values.budgetRange?.max || 0
+                            },
+                            amenities: values.amenities || [],
+                            otherRequirements: values.notes || '',
+                        },
+                        documents: [],
+                        notes: [
+                            {
+                                content: `Converted from lead ${selectedLead._id}. ${values.notes || ''}`,
+                                addedAt: new Date().toISOString(),
                             }
-                            if (!newCustomer.preferences.propertyTypes.includes('land')) {
-                                newCustomer.preferences.propertyTypes.push('land');
-                            }
-                        } else if (!newCustomer.preferences.propertyTypes.includes(area.propertyType)) {
-                            newCustomer.preferences.propertyTypes.push(area.propertyType);
-                        }
+                        ],
+                        communications: selectedLead.communications || [],
+                        leadSource: selectedLead._id,
+                    };
 
-                        // Extract locations (counties)
-                        if (area.county && !newCustomer.preferences.locations.includes(area.county)) {
-                            newCustomer.preferences.locations.push(area.county);
-                        }
-
-                        // Set budget range based on the highest values from interest areas
-                        if (area.budget) {
-                            if (area.budget.min < newCustomer.preferences.budgetRange.min || newCustomer.preferences.budgetRange.min === 0) {
-                                newCustomer.preferences.budgetRange.min = area.budget.min;
+                    // Transfer property interests from lead to customer
+                    if (selectedLead.interestAreas && selectedLead.interestAreas.length > 0) {
+                        // Extract property types
+                        selectedLead.interestAreas.forEach(area => {
+                            if (area.propertyType === 'both') {
+                                if (!newCustomer.preferences.propertyTypes.includes('apartment')) {
+                                    newCustomer.preferences.propertyTypes.push('apartment');
+                                }
+                                if (!newCustomer.preferences.propertyTypes.includes('land')) {
+                                    newCustomer.preferences.propertyTypes.push('land');
+                                }
+                            } else if (!newCustomer.preferences.propertyTypes.includes(area.propertyType)) {
+                                newCustomer.preferences.propertyTypes.push(area.propertyType);
                             }
-                            if (area.budget.max > newCustomer.preferences.budgetRange.max) {
-                                newCustomer.preferences.budgetRange.max = area.budget.max;
-                            }
-                        }
-                    });
-                }
 
-                createNewCustomer(newCustomer)
-                    .then(async newCustomer => {
-                        await updateLead(selectedLead._id, {
-                            convertedToCustomer: true,
-                            customer: newCustomer._id,
-                            status: 'converted',
+                            // Extract locations (counties)
+                            if (area.county && !newCustomer.preferences.locations.includes(area.county)) {
+                                newCustomer.preferences.locations.push(area.county);
+                            }
+
+                            // Set budget range based on the highest values from interest areas
+                            if (area.budget) {
+                                if (area.budget.min < newCustomer.preferences.budgetRange.min || newCustomer.preferences.budgetRange.min === 0) {
+                                    newCustomer.preferences.budgetRange.min = area.budget.min;
+                                }
+                                if (area.budget.max > newCustomer.preferences.budgetRange.max) {
+                                    newCustomer.preferences.budgetRange.max = area.budget.max;
+                                }
+                            }
                         });
+                    }
 
-                        setTimeout(() => {
-                            setRefreshKey(prevKey => prevKey + 1);
-                            refetchCustomers({ force: true });
-                        }, 500);
+                    createNewCustomer(newCustomer)
+                        .then(async newCustomer => {
+                            await updateLead(selectedLead._id, {
+                                convertedToCustomer: true,
+                                customer: newCustomer._id,
+                                status: 'converted',
+                            });
 
-                        // Show success message and close modal
-                        message.success(`Lead ${selectedLead.name} successfully converted to customer!`);
-                        setCustomerModalVisible(false);
-                        customerForm.resetFields();
-                        setSelectedLead(null);
-                    })
-                    .catch(error => {
-                        console.error('Error adding customer:', error);
-                        message.error('Failed to add customer. Please try again.');
-                    });
+                            setTimeout(() => {
+                                setRefreshKey(prevKey => prevKey + 1);
+                                refetchCustomers({ force: true });
+                            }, 500);
+
+                            // Show success message and close modal
+                            message.success(`Lead ${selectedLead.name} successfully converted to customer!`);
+                            setCustomerModalVisible(false);
+                            customerForm.resetFields();
+                            setSelectedLead(null);
+                        })
+                        .catch(error => {
+                            console.error('Error adding customer:', error);
+                            message.error('Failed to add customer. Please try again.');
+                        });
+                } else {
+                    // New Customer mode - not converting from lead
+                    const newCustomer = {
+                        name: values.name,
+                        email: values.email,
+                        phone: values.phone,
+                        verifiedPhone: false,
+                        alternatePhone: values.alternatePhone || '',
+                        idNumber: values.idNumber,
+                        idDocument: {
+                            url: values.idDocumentUrl || '',
+                            uploadedAt: new Date().toISOString(),
+                        },
+                        address: {
+                            street: values.address?.street || '',
+                            city: values.address?.city || '',
+                            county: values.address?.county || '',
+                            postalCode: values.address?.postalCode || '',
+                            country: 'Kenya',
+                        },
+                        occupation: values.occupation || '',
+                        company: values.company || '',
+                        customerType: values.customerType || 'individual',
+                        preferences: {
+                            propertyTypes: values.preferences?.propertyTypes || [],
+                            locations: values.preferences?.locations || [],
+                            budgetRange: {
+                                min: values.preferences?.budgetRange?.min || 0,
+                                max: values.preferences?.budgetRange?.max || 0
+                            },
+                            amenities: values.preferences?.amenities || [],
+                            otherRequirements: values.preferences?.otherRequirements || values.notes || '',
+                        },
+                        documents: [],
+                        notes: values.notes ? [
+                            {
+                                content: values.notes,
+                                addedAt: new Date().toISOString(),
+                            }
+                        ] : [],
+                        communications: [],
+                        leadSource: values.leadSource || 'direct',
+                    };
+
+                    createNewCustomer(newCustomer)
+                        .then(newCustomer => {
+                            setTimeout(() => {
+                                setRefreshKey(prevKey => prevKey + 1);
+                                refetchCustomers({ force: true });
+                            }, 500);
+
+                            // Show success message and close modal
+                            message.success(`New customer ${newCustomer.name} successfully created!`);
+                            setCustomerModalVisible(false);
+                            customerForm.resetFields();
+                        })
+                        .catch(error => {
+                            console.error('Error adding customer:', error);
+                            message.error('Failed to add customer. Please try again.');
+                        });
+                }
             } else {
                 // Edit mode
                 // Create updated customer object
@@ -251,21 +316,21 @@ const CustomerManagement = () => {
                     occupation: values.occupation || '',
                     customerType: values.customerType,
                     address: {
-                        street: values.streetAddress || '',
-                        city: values.city || '',
-                        county: values.county || '',
-                        postalCode: values.postalCode || '',
+                        street: values.address?.street || '',
+                        city: values.address?.city || '',
+                        county: values.address?.county || '',
+                        postalCode: values.address?.postalCode || '',
                         country: 'Kenya',
                     },
                     preferences: {
-                        propertyTypes: values.propertyTypes || [],
-                        locations: values.locations || [],
-                        amenities: values.amenities || [],
+                        propertyTypes: values.preferences?.propertyTypes || [],
+                        locations: values.preferences?.locations || [],
+                        amenities: values.preferences?.amenities || [],
                         budgetRange: {
-                            min: values.budgetRange?.min || 0,
-                            max: values.budgetRange?.max || 0
+                            min: values.preferences?.budgetRange?.min || 0,
+                            max: values.preferences?.budgetRange?.max || 0
                         },
-                        otherRequirements: values.notes || ''
+                        otherRequirements: values.preferences?.otherRequirements || values.notes || ''
                     }
                 };
 

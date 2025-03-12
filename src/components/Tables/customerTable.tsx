@@ -8,6 +8,7 @@ import {
     MailOutlined,
     CheckCircleOutlined
 } from '@ant-design/icons';
+import moment from 'moment';
 
 const { Text } = Typography;
 
@@ -16,9 +17,28 @@ export const CustomersTable = ({
     onView,
     onContact,
     onEdit,
-    onDelete,
-    formatDate
+    onDelete
 }) => {
+    // Internal date formatting functions
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return moment(dateString).format('DD MMM YYYY'); // e.g. 12 Mar 2025
+    };
+
+    const formatRelativeTime = (dateString) => {
+        if (!dateString) return 'N/A';
+        const date = moment(dateString);
+        const now = moment();
+
+        if (now.diff(date, 'days') < 1) {
+            return date.fromNow(); // e.g. "2 hours ago"
+        } else if (now.diff(date, 'days') < 7) {
+            return `${now.diff(date, 'days')} days ago`;
+        } else {
+            return formatDate(dateString);
+        }
+    };
+
     // Table columns
     const columns = [
         {
@@ -111,6 +131,7 @@ export const CustomersTable = ({
             dataIndex: 'createdAt',
             key: 'createdAt',
             width: 120,
+            render: (date) => formatDate(date),
             sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
         },
         {
@@ -122,7 +143,7 @@ export const CustomersTable = ({
                     const sortedComms = [...record.communications].sort(
                         (a, b) => new Date(b.date) - new Date(a.date)
                     );
-                    return sortedComms[0].date;
+                    return formatRelativeTime(sortedComms[0].date);
                 }
                 return <Text type="secondary">No contact</Text>;
             },

@@ -22,8 +22,8 @@ import logo from '/public/assets/images/icon.png';
 
 const checkIfUserIsValid = async () => {
   try {
+
     const userData = await getUserInfo();
-    console.log('oooh dang', userData);
     return userData;
   } catch (e) {
     localStorage.removeItem('property_token');
@@ -42,14 +42,17 @@ const handleLogout = () => {
 };
 
 export async function getInitialState(): Promise<any> {
-  const userData = await checkIfUserIsValid();
+  let token = localStorage.getItem('property_token');
+  if (token) {
+    const userData = await checkIfUserIsValid();
 
-  if (!userData) {
-    history.push('/login');
-    return { currentUser: null, fetchUserInfo: getUserInfo };
+    if (!userData) {
+      history.push('/login');
+      return { currentUser: null, fetchUserInfo: getUserInfo };
+    }
+
+    return { currentUser: userData, fetchUserInfo: getUserInfo };
   }
-
-  return { currentUser: userData, fetchUserInfo: getUserInfo };
 }
 
 export const layout: RunTimeLayoutConfig = ({

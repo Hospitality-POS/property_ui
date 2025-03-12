@@ -119,7 +119,6 @@ const SalesManagement = () => {
         refetchOnWindowFocus: false
     });
 
-    // Fetch users data (agents and managers)
     const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
         queryKey: ['users'],
         queryFn: async () => {
@@ -127,10 +126,37 @@ const SalesManagement = () => {
                 const response = await fetchAllUsers();
                 console.log('Users fetched successfully:', response);
 
-                // Return all users
-                return Array.isArray(response.data) ? response.data.map(user => ({
-                    ...user
-                })) : [];
+                // Determine the correct data structure
+                let usersArray = [];
+
+                // Handle different possible response structures
+                if (response.data && Array.isArray(response.data)) {
+                    // Standard structure: response.data is the array
+                    usersArray = response.data;
+                } else if (Array.isArray(response)) {
+                    // Alternative structure: response itself is the array
+                    usersArray = response;
+                } else if (response.users && Array.isArray(response.users)) {
+                    // Alternative structure: response.users is the array
+                    usersArray = response.users;
+                } else {
+                    console.error('Unexpected users API response structure:', response);
+                    return [];
+                }
+
+                console.log(`Processing ${usersArray.length} users`);
+
+                // Map the users with a defensive approach
+                const processedUsers = usersArray.map(user => {
+                    // Ensure we have an object with at least an id and role
+                    return {
+                        ...user,
+                        _id: user._id || user.id || `temp-${Date.now()}-${Math.random()}`,
+                        role: user.role || user.userRole || 'unknown'
+                    };
+                });
+
+                return processedUsers;
             } catch (error) {
                 message.error('Failed to fetch users');
                 console.error('Error fetching users:', error);
@@ -141,9 +167,35 @@ const SalesManagement = () => {
         refetchOnWindowFocus: false
     });
 
-    // Filter the fetched data for agents and managers
-    const agentsData = userData.filter(user => user.role === 'sales_agent');
-    const managersData = userData.filter(user => user.role === 'property_manager');
+    // Debug log the fetched data
+    console.log('Fetched users count:', userData.length);
+    console.log('Sample user object:', userData.length > 0 ? userData[0] : 'No users found');
+
+    // Extract roles for debugging
+    if (userData.length > 0) {
+        const roles = [...new Set(userData.map(user => user.role))];
+        console.log('User roles present in data:', roles);
+    }
+
+    // Filter users with more robust checks
+    const agentsData = !isLoadingUsers
+        ? userData.filter(user => user &&
+            (user.role === 'sales_agent' ||
+                user.role === 'agent' ||
+                user.role?.toLowerCase().includes('agent')))
+        : [];
+
+    const managersData = !isLoadingUsers
+        ? userData.filter(user => user &&
+            (user.role === 'property_manager' ||
+                user.role === 'manager' ||
+                user.role?.toLowerCase().includes('manager')))
+        : [];
+
+    // Log the filtered results
+    console.log('Filtered agents count:', agentsData.length);
+    console.log('Filtered managers count:', managersData.length);
+
 
     // Create refetch functions that call the main refetch
     const refetchAgents = refetchUsers;
@@ -186,6 +238,8 @@ const SalesManagement = () => {
         staleTime: 1000 * 60 * 5, // 5 minutes
         refetchOnWindowFocus: false
     });
+
+    console.log('my properties', propertiesData);
 
     // Handle adding an installment
     const handleAddInstallment = () => {
@@ -369,65 +423,46 @@ const SalesManagement = () => {
         setAddSaleVisible(true);
     };
 
-    // Handle sale form submission
     const handleSaleFormSubmit = () => {
-        form.validateFields().then(values => {
-            // Attach installments to values as paymentPlanData
-            const formDataWithInstallments = {
-                ...values,
-                paymentPlanData: installments
-            };
+        form.validateFields()
+            .then(values => {
+                // Attach installments to values as paymentPlanData
+                const formDataWithInstallments = {
+                    ...values,
+                    paymentPlanData: installments
+                };
 
-            console.log('Form values:', formDataWithInstallments);
+                console.log("Form values:", formDataWithInstallments);
 
-            // In a real app, this would call an API to create or update the sale
-            if (isEditMode) {
-                updateSale(saleToEdit._id, formDataWithInstallments)
-                    .then(updatedSale => {
+                const apiCall = isEditMode
+                    ? updateSale(saleToEdit._id, formDataWithInstallments)
+                    : createNewSale(formDataWithInstallments);
+
+                apiCall
+                    .then(() => {
                         // Show success message
-                        message.success('Sale updated successfully!');
+                        message.success(`Sale ${isEditMode ? "updated" : "added"} successfully!`);
+
                         setTimeout(() => {
                             setRefreshKey(prevKey => prevKey + 1);
                             refetchSales({ force: true });
                         }, 500);
 
-                        // Close modal
+                        // Close modal only after successful API request
                         setAddSaleVisible(false);
                         form.resetFields();
+                        setInstallments([]);
+                        setIsEditMode(false);
+                        setSaleToEdit(null);
                     })
                     .catch(error => {
-                        console.error('Error updating sale:', error);
-                        message.error('Failed to update sale. Please try again.');
+                        console.error(`Error ${isEditMode ? "updating" : "adding"} sale:`, error);
+                        message.error(`Failed to ${isEditMode ? "update" : "add"} sale. Please try again.`);
                     });
-            } else {
-                createNewSale(formDataWithInstallments)
-                    .then(newSale => {
-                        // Show success message
-                        message.success('Sale added successfully!');
-                        setTimeout(() => {
-                            setRefreshKey(prevKey => prevKey + 1);
-                            refetchSales({ force: true });
-                        }, 500);
-
-                        // Close modal
-                        setAddSaleVisible(false);
-                        form.resetFields();
-                    })
-                    .catch(error => {
-                        console.error('Error adding sale:', error);
-                        message.error('Failed to add sale. Please try again.');
-                    });
-            }
-
-            // Reset form and states
-            form.resetFields();
-            setInstallments([]);
-            setIsEditMode(false);
-            setSaleToEdit(null);
-            setAddSaleVisible(false);
-        }).catch(errorInfo => {
-            console.log('Validation failed:', errorInfo);
-        });
+            })
+            .catch(errorInfo => {
+                console.log("Validation failed:", errorInfo);
+            });
     };
 
     // Reset form when modal is closed

@@ -25,7 +25,15 @@ export const loginUser = async (username: string, password: string, companyCode:
 
 export const registerUser = async (userData) => {
   try {
-    const response = await axiosInstance.post(`${BASE_URL}/users/register`, userData);
+    console.log('fdsgfjdshfsd', localStorage.getItem('property_token'));
+    const response = await axiosInstance.post(`${BASE_URL}/users/register`, userData,
+      {
+        headers: {
+          Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
+            }`,
+        },
+      }
+    );
     return response.data;
   } catch (error) {
     console.log(error);
@@ -50,6 +58,7 @@ export const getUserInfo = async (token?: ParamsType) => {
 
 export const fetchAllUsers = async (token?: ParamsType) => {
   try {
+
     const response = await axiosInstance.get(`${BASE_URL}/users`, {
       headers: {
         Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')

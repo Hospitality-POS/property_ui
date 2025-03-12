@@ -50,7 +50,7 @@ export const CustomerStatisticsCards = ({
                 <Card>
                     <Statistic
                         title="Total Purchases"
-                        value={totalPurchases}
+                        value={totalPurchases || 0}
                         valueStyle={{ color: '#fa8c16' }}
                         prefix={<ShoppingOutlined />}
                     />

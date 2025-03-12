@@ -30,6 +30,7 @@ import {
     FileTextOutlined,
     PlusOutlined
 } from '@ant-design/icons';
+import moment from 'moment';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -41,12 +42,36 @@ export const CustomerDetailsDrawer = ({
     onTabChange,
     onClose,
     onAddCommunication,
-    onAddNote,
-    formatDate
+    onAddNote
 }) => {
     if (!customer) {
         return null;
     }
+
+    // Internal date formatting functions
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return moment(dateString).format('DD MMM YYYY'); // e.g. 12 Mar 2025
+    };
+
+    const formatDateTime = (dateString) => {
+        if (!dateString) return 'N/A';
+        return moment(dateString).format('DD MMM YYYY, h:mm A'); // e.g. 12 Mar 2025, 2:30 PM
+    };
+
+    const formatRelativeTime = (dateString) => {
+        if (!dateString) return 'N/A';
+        const date = moment(dateString);
+        const now = moment();
+
+        if (now.diff(date, 'days') < 1) {
+            return date.fromNow(); // e.g. "2 hours ago"
+        } else if (now.diff(date, 'days') < 7) {
+            return `${now.diff(date, 'days')} days ago`;
+        } else {
+            return formatDate(dateString);
+        }
+    };
 
     return (
         <Drawer
@@ -123,7 +148,7 @@ export const CustomerDetailsDrawer = ({
                         )}
                         <div style={{ marginTop: 8 }}>
                             <Text strong>Customer Since:</Text>{' '}
-                            {customer.createdAt}
+                            {formatDate(customer.createdAt)}
                         </div>
                     </Col>
                 </Row>
@@ -210,7 +235,7 @@ export const CustomerDetailsDrawer = ({
                                 .map((comm, index) => (
                                     <Timeline.Item
                                         key={index}
-                                        label={comm.date}
+                                        label={formatDateTime(comm.date)}
                                         color={
                                             comm.type === 'call'
                                                 ? 'blue'
@@ -262,7 +287,7 @@ export const CustomerDetailsDrawer = ({
                             renderItem={(note, index) => (
                                 <List.Item>
                                     <List.Item.Meta
-                                        title={<span>{new Date(note.addedAt).toLocaleString()}</span>}
+                                        title={<span>{formatRelativeTime(note.addedAt)}</span>}
                                         description={note.content}
                                     />
                                 </List.Item>
@@ -301,7 +326,7 @@ export const CustomerDetailsDrawer = ({
                                         <>
                                             <Tag color="blue">{doc.type}</Tag>
                                             <span style={{ marginLeft: 8 }}>
-                                                Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                                                Uploaded: {formatDate(doc.uploadedAt)}
                                             </span>
                                         </>
                                     }
@@ -345,6 +370,7 @@ export const CustomerDetailsDrawer = ({
                                     title: 'Date',
                                     dataIndex: 'date',
                                     key: 'date',
+                                    render: (date) => formatDate(date)
                                 },
                                 {
                                     title: 'Amount (KES)',
@@ -406,6 +432,7 @@ export const CustomerDetailsDrawer = ({
                                     title: 'Start Date',
                                     dataIndex: 'startDate',
                                     key: 'startDate',
+                                    render: (date) => formatDate(date)
                                 },
                                 {
                                     title: 'Total (KES)',
