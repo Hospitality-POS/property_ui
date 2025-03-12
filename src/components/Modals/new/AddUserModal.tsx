@@ -245,66 +245,66 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
         </TabPane>
 
         <TabPane tab="Account & Security" key="2">
-          {/* {!user && ( */}
-          <Row gutter={16}>
-            <Col span={12}>
-              <ProFormText.Password
-                name="password"
-                label="Password"
-                placeholder="Enter password"
-                fieldProps={{
-                  prefix: <LockOutlined />,
-                }}
-                rules={[
-                  { required: true, message: 'Please enter password' },
-                  {
-                    min: 8,
-                    message: 'Password must be at least 8 characters',
-                  },
-                ]}
-              />
-            </Col>
-            <Col span={12}>
-              <ProFormText.Password
-                name="confirmPassword"
-                label="Confirm Password"
-                placeholder="Confirm password"
-                fieldProps={{
-                  prefix: <LockOutlined />,
-                }}
-                dependencies={['password']}
-                rules={[
-                  { required: true, message: 'Please confirm password' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('password') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(
-                        new Error('Passwords do not match'),
-                      );
+          {!edit && (
+            <Row gutter={16}>
+              <Col span={12}>
+                <ProFormText.Password
+                  name="password"
+                  label="Password"
+                  placeholder="Enter password"
+                  fieldProps={{
+                    prefix: <LockOutlined />,
+                  }}
+                  rules={[
+                    { required: true, message: 'Please enter password' },
+                    {
+                      min: 8,
+                      message: 'Password must be at least 8 characters',
                     },
-                  }),
-                ]}
-              />
-            </Col>
-          </Row>
-          {/* )} */}
+                  ]}
+                />
+              </Col>
+              <Col span={12}>
+                <ProFormText.Password
+                  name="confirmPassword"
+                  label="Confirm Password"
+                  placeholder="Confirm password"
+                  fieldProps={{
+                    prefix: <LockOutlined />,
+                  }}
+                  dependencies={['password']}
+                  rules={[
+                    { required: true, message: 'Please confirm password' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('password') === value) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(
+                          new Error('Passwords do not match'),
+                        );
+                      },
+                    }),
+                  ]}
+                />
+              </Col>
+            </Row>
+          )}
 
-          {/* {user && ( */}
-          <div>
-            <Alert
-              message="Password Management"
-              description="To change the user's password, use the reset password function. This will send a password reset link to the user's email."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <Button type="primary" icon={<LockOutlined />}>
-              Reset Password
-            </Button>
-          </div>
-          {/*   )} */}
+          {edit && (
+            <div>
+              <Alert
+                message="Password Management"
+                description="To change the user's password, use the reset password function. This will send a password reset link to the user's email."
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <Button type="primary" icon={<LockOutlined />}>
+                Reset Password
+              </Button>
+            </div>
+          )}
 
           <Divider />
 
