@@ -66,7 +66,7 @@ const LoginPage = () => {
                 {/* Company Code Input */}
                 <ProFormText
                   name="companyCode"
-                  initialValue="r0001"
+                  initialValue="RPOS-Q8QALD"
                   fieldProps={{
                     size: 'large',
                     prefix: <BankOutlined className="text-gray-400" />,
