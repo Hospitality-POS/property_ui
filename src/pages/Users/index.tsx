@@ -1,6 +1,6 @@
 import UserDetailsDrawer from '@/components/drawers/userDetail';
-import AddEditUserModal from '@/components/Modals/new/AddUserModal';
 import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
+import AddEditUserModal from '@/pages/Users/components/modal/AddUserModal';
 import { deleteUser, fetchAllUsers } from '@/services/auth.api';
 import {
   DeleteOutlined,
@@ -22,7 +22,7 @@ import {
   Tooltip,
 } from 'antd';
 import { useRef, useState } from 'react';
-import UserExpandedDetails from './components/UserExpandedDetails';
+import UserExpandedDetails from './components/ExpandedDetails/UserExpandedDetails';
 
 const UserManagement = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
