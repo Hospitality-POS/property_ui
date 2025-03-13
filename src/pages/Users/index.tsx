@@ -1,5 +1,5 @@
-import UserDetailsDrawer from '@/components/drawers/userDetail';
 import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
+import UserDetailsDrawer from '@/pages/Users/components/drawer/userDetail';
 import AddEditUserModal from '@/pages/Users/components/modal/AddUserModal';
 import { deleteUser, fetchAllUsers } from '@/services/auth.api';
 import {
