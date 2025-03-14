@@ -28,6 +28,8 @@ import {
   FileExcelOutlined,
   PrinterOutlined,
   SearchOutlined,
+  AreaChartOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import PaymentDetailsDrawer from '../../components/drawers/payment'; // Import the drawer component
 import { fetchAllPayments } from '@/services/payments';
@@ -111,25 +113,45 @@ const PaymentsList = () => {
     setDateRange(dates);
   };
 
-  // Calculate statistics
-  const getCompletedPaymentsCount = () => {
-    return paymentsData.filter(payment => payment.status === 'completed').length;
+  // Calculate updated statistics
+  const getTotalTransactionsCount = () => {
+    return paymentsData.length;
   };
 
   const getTotalPaymentsAmount = () => {
-    return paymentsData
-      .filter(payment => payment.status === 'completed')
-      .reduce((total, payment) => total + payment.amount, 0);
+    return paymentsData.reduce((total, payment) => total + payment.amount, 0);
   };
 
-  const getPendingPaymentsCount = () => {
-    return paymentsData.filter(payment => payment.status === 'pending').length;
+  const getPaymentMethodStats = () => {
+    const methodCounts = {};
+
+    paymentsData.forEach(payment => {
+      const method = payment.paymentMethod || 'other';
+      methodCounts[method] = (methodCounts[method] || 0) + 1;
+    });
+
+    const mostCommonMethod = Object.entries(methodCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([method, count]) => method)[0] || 'N/A';
+
+    return {
+      mostCommonMethod,
+      counts: methodCounts
+    };
   };
 
-  const getPendingPaymentsAmount = () => {
-    return paymentsData
-      .filter(payment => payment.status === 'pending')
-      .reduce((total, payment) => total + payment.amount, 0);
+  const getRecentPaymentsCount = () => {
+    const thirtyDaysAgo = moment().subtract(30, 'days');
+    return paymentsData.filter(payment =>
+      moment(payment.paymentDate).isAfter(thirtyDaysAgo)
+    ).length;
+  };
+
+  // Get average payment amount
+  const getAveragePaymentAmount = () => {
+    if (paymentsData.length === 0) return 0;
+    const total = paymentsData.reduce((sum, payment) => sum + payment.amount, 0);
+    return total / paymentsData.length;
   };
 
   // Filter data
@@ -159,21 +181,6 @@ const PaymentsList = () => {
 
   // Table column definitions
   const paymentColumns = [
-    // {
-    //   title: 'Payment ID',
-    //   dataIndex: 'id',
-    //   key: 'id',
-    //   width: 120,
-    //   render: (text, record) => {
-    //     // Check if text exists before using substring
-    //     if (text) {
-    //       return <a onClick={() => handleViewPayment(record)}>{text.substring(text.length - 8)}</a>;
-    //     }
-    //     // Return a fallback for undefined/null id values
-    //     return <span className="text-gray-400">-</span>;
-    //   },
-    //   sorter: (a, b) => (a.id && b.id) ? a.id.localeCompare(b.id) : 0,
-    // },
     {
       title: 'Property',
       dataIndex: ['sale', 'property', 'name'],
@@ -289,35 +296,33 @@ const PaymentsList = () => {
           >
             <EyeOutlined />
           </button>
-          {/* <button
-            type="button"
-            className="p-1 border border-gray-300 rounded"
-            onClick={() => handleEditPayment(record)}
-            disabled={record.status === 'completed' || record.status === 'refunded'}
-          >
-            <EditOutlined />
-          </button>
-          <button
-            type="button"
-            className="p-1 border border-gray-300 rounded text-red-500"
-            onClick={() => handleDeletePayment(record)}
-            disabled={record.status === 'completed' || record.status === 'refunded'}
-          >
-            <DeleteOutlined />
-          </button> */}
         </div>
       ),
     },
   ];
 
+  // Get the most common payment method
+  const { mostCommonMethod } = getPaymentMethodStats();
+
+  // Get payment method display name for statistics
+  const getMethodDisplayName = (method) => {
+    switch (method) {
+      case 'mpesa': return 'M-Pesa';
+      case 'bank_transfer': return 'Bank Transfer';
+      case 'cash': return 'Cash';
+      case 'cheque': return 'Cheque';
+      default: return 'Other';
+    }
+  };
+
   return (
     <div className="payments-list-container">
-      {/* Payment Statistics Cards */}
+      {/* Updated Payment Statistics Cards */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Total Payments"
+              title="Total Amount Received"
               value={getTotalPaymentsAmount()}
               valueStyle={{ color: '#1890ff' }}
               prefix={<DollarOutlined />}
@@ -328,33 +333,33 @@ const PaymentsList = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Completed Payments"
-              value={getCompletedPaymentsCount()}
+              title="Total Transactions"
+              value={getTotalTransactionsCount()}
               valueStyle={{ color: '#52c41a' }}
               prefix={<CheckCircleOutlined />}
-              suffix={`/ ${paymentsData.length}`}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Pending Payments"
-              value={getPendingPaymentsCount()}
+              title="Recent Payments (30 days)"
+              value={getRecentPaymentsCount()}
               valueStyle={{ color: '#faad14' }}
-              prefix={<ClockCircleOutlined />}
+              prefix={<CalendarOutlined />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Pending Amount"
-              value={getPendingPaymentsAmount()}
-              valueStyle={{ color: '#fa541c' }}
-              prefix={<ExclamationCircleOutlined />}
+              title="Average Payment Amount"
+              value={getAveragePaymentAmount()}
+              valueStyle={{ color: '#722ed1' }}
+              prefix={<AreaChartOutlined />}
               formatter={(value) => `KES ${value.toLocaleString()}`}
             />
+            <Text type="secondary">Most used: {getMethodDisplayName(mostCommonMethod)}</Text>
           </Card>
         </Col>
       </Row>

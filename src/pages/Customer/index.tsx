@@ -86,6 +86,8 @@ const CustomerManagement = () => {
         refetchOnWindowFocus: false
     });
 
+    console.log('gfgfghgh', customersData);
+
     // Fetch leads for the convert lead modal
     const fetchLeads = async () => {
         try {
@@ -542,13 +544,40 @@ const CustomerManagement = () => {
         ).length;
     };
 
+    // Replace your existing getTotalPurchases function with this one
     const getTotalPurchases = () => {
-        return customersData.reduce(
-            (total, customer) => total + customer.purchases,
-            0
+        // Log customer data to debug
+        console.log('Customer data for purchases calculation:',
+            customersData.map(c => ({ id: c._id, name: c.name, purchases: c.purchases }))
         );
-    };
 
+        // Calculate total purchases properly handling undefined/null values
+        return customersData.reduce((total, customer) => {
+            // If purchases property exists but might be null/undefined
+            if (customer.purchases === null || customer.purchases === undefined) {
+                return total + 0;
+            }
+
+            // If purchases is a number, add it directly
+            if (typeof customer.purchases === 'number') {
+                return total + customer.purchases;
+            }
+
+            // If purchases is a string (perhaps from API), try to parse it
+            if (typeof customer.purchases === 'string') {
+                const parsedValue = parseInt(customer.purchases, 10);
+                return total + (isNaN(parsedValue) ? 0 : parsedValue);
+            }
+
+            // If purchases is an array (e.g., list of purchase objects), count them
+            if (Array.isArray(customer.purchases)) {
+                return total + customer.purchases.length;
+            }
+
+            // Fallback for any other data type
+            return total;
+        }, 0);
+    };
     // Filter customers based on search text and filters
     const filteredCustomers = customersData.filter((customer) => {
         const matchesSearch =

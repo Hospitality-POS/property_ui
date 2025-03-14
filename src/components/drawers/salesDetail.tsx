@@ -18,7 +18,8 @@ import {
     Input,
     Descriptions,
     Space,
-    Empty
+    Empty,
+    Alert
 } from 'antd';
 import {
     HomeOutlined,
@@ -27,7 +28,9 @@ import {
     PlusOutlined,
     FileTextOutlined,
     MailOutlined,
-    PhoneOutlined
+    PhoneOutlined,
+    DollarOutlined,
+    CalendarOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -42,6 +45,7 @@ export const SaleDetailsDrawer = ({
     onTabChange,
     onClose,
     onAddPayment,
+    onAddPaymentPlan,
     onAddEvent,
     noteText,
     setNoteText,
@@ -63,11 +67,12 @@ export const SaleDetailsDrawer = ({
             width={700}
             footer={
                 <div style={{ textAlign: 'right' }}>
-                    {sale && (!sale.status || (sale.status !== 'Completed' && sale.status !== 'Canceled')) && (
-                        <Button type="primary" onClick={() => onAddPayment(sale)} style={{ marginRight: 8 }}>
-                            Add Payment
-                        </Button>
-                    )}
+                    {sale && (!sale.status || (sale.status !== 'Completed' && sale.status !== 'Canceled')) &&
+                        sale.paymentPlanType === 'Full Payment' && (
+                            <Button type="primary" onClick={() => onAddPayment(sale)} style={{ marginRight: 8 }}>
+                                Make Payment
+                            </Button>
+                        )}
                     <Button onClick={onClose}>Close</Button>
                 </div>
             }
@@ -79,9 +84,10 @@ export const SaleDetailsDrawer = ({
                         <Space direction="vertical">
                             {sale.property && (
                                 <>
+
                                     <Text>
                                         <HomeOutlined style={{ marginRight: 8 }} />
-                                        {sale.property.propertyType || 'Unknown Type'} - {sale.property.size || 'Unknown Size'}
+                                        {sale.property.propertyType || 'Unknown Type'} - {sale?.property.propertyType === "apartment" ? sale.property.apartmentSize + ' sqm' : sale.property.landSize + " " + sale.property.sizeUnit}
                                     </Text>
                                     <Text>
                                         <EnvironmentOutlined style={{ marginRight: 8 }} />
@@ -118,16 +124,16 @@ export const SaleDetailsDrawer = ({
             <div style={{ marginBottom: 24 }}>
                 <Steps size="small" current={
                     sale.saleStage === 'Reservation' ? 0 :
-                        sale.saleStage === 'Documentation' ? 1 :
-                            sale.saleStage === 'Financing' ? 2 :
-                                sale.saleStage === 'Payment Collection' ? 3 :
-                                    sale.saleStage === 'Completed' ? 4 : 0
+                        // sale.saleStage === 'Documentation' ? 1 :
+                        //     sale.saleStage === 'Financing' ? 2 :
+                        //         sale.saleStage === 'Payment Collection' ? 3 :
+                        sale.saleStage === 'Completed' ? 1 : 0
                 }>
                     <Step
                         title="Reservation"
                         status={sale.status === 'Canceled' ? 'error' : undefined}
                     />
-                    <Step
+                    {/* <Step
                         title="Documentation"
                         status={sale.status === 'Canceled' ? 'error' : undefined}
                     />
@@ -138,7 +144,7 @@ export const SaleDetailsDrawer = ({
                     <Step
                         title="Payment"
                         status={sale.status === 'Canceled' ? 'error' : undefined}
-                    />
+                    /> */}
                     <Step
                         title="Completed"
                         status={sale.status === 'Canceled' ? 'error' : undefined}
@@ -196,11 +202,6 @@ export const SaleDetailsDrawer = ({
                                 </>
                             )}
                             <Descriptions.Item label="Reservation Fee">{formatCurrency(sale.reservationFee)}</Descriptions.Item>
-                            {/* <Descriptions.Item label="Documents">
-                                {sale.documents && Array.isArray(sale.documents) && sale.documents.length > 0
-                                    ? sale.documents.join(', ')
-                                    : 'None'}
-                            </Descriptions.Item> */}
                             <Descriptions.Item label="Sale Date">
                                 {formatDate(sale.saleDate)}
                             </Descriptions.Item>
@@ -209,8 +210,262 @@ export const SaleDetailsDrawer = ({
                 </Row>
             </Card>
 
-            <Tabs defaultActiveKey="1" activeKey={activeTab} onChange={onTabChange}>
-                <TabPane tab="Payments" key="1">
+            <Tabs defaultActiveKey={sale.paymentPlanType === 'Installment' ? "1" : "2"} activeKey={activeTab} onChange={onTabChange}>
+                {sale.paymentPlanType === 'Installment' && (
+                    <TabPane tab="Payment Plans" key="1">
+                        {/* Payment Plans Section */}
+                        {sale && sale.paymentPlans && sale.paymentPlans.length > 0 ? (
+                            <>
+                                <Card style={{ marginBottom: 16 }}>
+                                    {(() => {
+                                        const stats = calculatePaymentStats(sale);
+                                        return (
+                                            <>
+                                                <Row gutter={16}>
+                                                    <Col span={8}>
+                                                        <Statistic
+                                                            title="Total Amount"
+                                                            value={stats.totalAmount}
+                                                            formatter={value => formatCurrency(value)}
+                                                        />
+                                                    </Col>
+                                                    <Col span={8}>
+                                                        <Statistic
+                                                            title="Paid Amount"
+                                                            value={stats.paidAmount}
+                                                            formatter={value => formatCurrency(value)}
+                                                            valueStyle={{ color: '#3f8600' }}
+                                                        />
+                                                    </Col>
+                                                    <Col span={8}>
+                                                        <Statistic
+                                                            title="Remaining Amount"
+                                                            value={stats.remainingAmount + stats.pendingAmount}
+                                                            formatter={value => formatCurrency(value)}
+                                                            valueStyle={{ color: '#cf1322' }}
+                                                        />
+                                                    </Col>
+                                                </Row>
+                                                <div style={{ marginTop: 16 }}>
+                                                    <Progress percent={Math.round(stats.paidPercentage)} status="active" />
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </Card>
+
+                                <Table
+                                    dataSource={sale.paymentPlans}
+                                    rowKey={record => record._id || Math.random().toString()}
+                                    expandable={{
+                                        expandedRowRender: (plan) => {
+                                            return (
+                                                <>
+                                                    <Row gutter={16}>
+                                                        <Col span={12}>
+                                                            <Descriptions column={1} size="small" title="Plan Details">
+                                                                <Descriptions.Item label="Installment Amount">
+                                                                    {formatCurrency(plan.installmentAmount)}
+                                                                </Descriptions.Item>
+                                                                <Descriptions.Item label="Frequency">
+                                                                    {plan.installmentFrequency.charAt(0).toUpperCase() + plan.installmentFrequency.slice(1)}
+                                                                    {plan.installmentFrequency === 'custom' && plan.customFrequencyDays &&
+                                                                        ` (${plan.customFrequencyDays} days)`}
+                                                                </Descriptions.Item>
+                                                                <Descriptions.Item label="Late Penalty">
+                                                                    {plan.latePenaltyPercentage}%
+                                                                </Descriptions.Item>
+                                                            </Descriptions>
+                                                        </Col>
+                                                        <Col span={12}>
+                                                            <Descriptions column={1} size="small" title="Progress">
+                                                                {(() => {
+                                                                    const totalPaid = plan.totalAmount - plan.outstandingBalance;
+                                                                    const paidPercentage = (totalPaid / plan.totalAmount) * 100;
+                                                                    return (
+                                                                        <>
+                                                                            <Descriptions.Item label="Paid Amount">
+                                                                                {formatCurrency(totalPaid)}
+                                                                            </Descriptions.Item>
+                                                                            <Descriptions.Item label="Remaining">
+                                                                                {formatCurrency(plan.outstandingBalance)}
+                                                                            </Descriptions.Item>
+                                                                            <Descriptions.Item label="Completion">
+                                                                                <Progress
+                                                                                    percent={Math.round(paidPercentage)}
+                                                                                    size="small"
+                                                                                    status={paidPercentage === 100 ? "success" : "active"}
+                                                                                />
+                                                                            </Descriptions.Item>
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                            </Descriptions>
+                                                        </Col>
+                                                    </Row>
+
+                                                    {/* Payments Table */}
+                                                    <div style={{ marginTop: 16 }}>
+                                                        <Title level={5}>Payments History</Title>
+                                                        {plan.payments && plan.payments.length > 0 ? (
+                                                            <Table
+                                                                size="small"
+                                                                columns={[
+                                                                    {
+                                                                        title: 'Date',
+                                                                        dataIndex: 'paymentDate',
+                                                                        key: 'date',
+                                                                        render: date => formatDate(date) || 'N/A'
+                                                                    },
+                                                                    {
+                                                                        title: 'Amount',
+                                                                        dataIndex: 'amount',
+                                                                        key: 'amount',
+                                                                        render: amount => formatCurrency(amount)
+                                                                    },
+                                                                    {
+                                                                        title: 'Method',
+                                                                        dataIndex: 'paymentMethod',
+                                                                        key: 'method',
+                                                                        render: method => {
+                                                                            if (!method) return 'N/A';
+                                                                            return method.split('_')
+                                                                                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                                                                .join(' ');
+                                                                        }
+                                                                    },
+                                                                    {
+                                                                        title: 'Status',
+                                                                        dataIndex: 'status',
+                                                                        key: 'status',
+                                                                        render: (status) => (
+                                                                            <Tag color={
+                                                                                status === 'Paid' || status === 'completed' ? 'green' :
+                                                                                    status === 'Pending' || status === 'pending' ? 'orange' :
+                                                                                        status === 'Refunded' || status === 'refunded' ? 'red' : 'default'
+                                                                            }>
+                                                                                {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
+                                                                            </Tag>
+                                                                        ),
+                                                                    },
+                                                                    {
+                                                                        title: 'Actions',
+                                                                        key: 'actions',
+                                                                        render: (text, record) => (
+                                                                            <Space>
+                                                                                {(record.status === 'Pending' || record.status === 'pending') && (
+                                                                                    <Button size="small" type="primary">Confirm</Button>
+                                                                                )}
+                                                                                <Button size="small">Receipt</Button>
+                                                                            </Space>
+                                                                        ),
+                                                                    },
+                                                                ]}
+                                                                dataSource={plan.payments}
+                                                                rowKey={record => record._id || Math.random().toString()}
+                                                                pagination={false}
+                                                            />
+                                                        ) : (
+                                                            <Empty
+                                                                description="No payments recorded yet"
+                                                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </>
+                                            );
+                                        }
+                                    }}
+                                    columns={[
+                                        {
+                                            title: 'Amount',
+                                            dataIndex: 'installmentAmount',
+                                            key: 'installmentAmount',
+                                            render: installmentAmount => formatCurrency(installmentAmount)
+                                        },
+                                        {
+                                            title: 'Frequency',
+                                            dataIndex: 'installmentFrequency',
+                                            key: 'frequency',
+                                            render: frequency => frequency.charAt(0).toUpperCase() + frequency.slice(1)
+                                        },
+                                        {
+                                            title: 'Total Amount',
+                                            dataIndex: 'totalAmount',
+                                            key: 'totalAmount',
+                                            render: amount => formatCurrency(amount)
+                                        },
+                                        {
+                                            title: 'Deposit',
+                                            dataIndex: 'initialDeposit',
+                                            key: 'deposit',
+                                            render: amount => formatCurrency(amount)
+                                        },
+                                        {
+                                            title: 'Remaining',
+                                            dataIndex: 'outstandingBalance',
+                                            key: 'remaining',
+                                            render: amount => formatCurrency(amount)
+                                        },
+                                        {
+                                            title: 'Start Date',
+                                            dataIndex: 'startDate',
+                                            key: 'startDate',
+                                            render: date => formatDate(date)
+                                        },
+                                        {
+                                            title: 'Status',
+                                            dataIndex: 'status',
+                                            key: 'status',
+                                            render: status => (
+                                                <Tag color={
+                                                    status === 'active' ? 'green' :
+                                                        status === 'completed' ? 'blue' :
+                                                            status === 'defaulted' ? 'red' : 'orange'
+                                                }>
+                                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                                </Tag>
+                                            )
+                                        },
+                                        {
+                                            title: 'Actions',
+                                            key: 'actions',
+                                            render: (text, record) => (
+                                                <Space>
+                                                    {record.status === 'active' && sale.status !== 'Completed' && sale.status !== 'Canceled' && (
+                                                        <Button
+                                                            type="primary"
+                                                            onClick={() => onAddPayment(sale, record)}
+                                                            icon={<DollarOutlined />}
+                                                            size="small"
+                                                        >
+                                                            Make Payment
+                                                        </Button>
+                                                    )}
+                                                    <Button size="small" icon={<FileTextOutlined />}>
+                                                        Details
+                                                    </Button>
+                                                </Space>
+                                            )
+                                        }
+                                    ]}
+                                />
+                            </>
+                        ) : (
+                            <Card>
+                                <Alert
+                                    message="No Payment Plans"
+                                    description="This sale doesn't have any payment plans yet."
+                                    type="info"
+                                    showIcon
+                                />
+                            </Card>
+                        )}
+                    </TabPane>
+                )}
+
+                <TabPane tab="Payments" key="2">
+                    {/* Overall Payment Statistics */}
                     {sale && sale.status !== 'Canceled' && (
                         <Card style={{ marginBottom: 16 }}>
                             {(() => {
@@ -251,14 +506,9 @@ export const SaleDetailsDrawer = ({
                         </Card>
                     )}
 
+                    {/* All Payments Table */}
                     <Table
                         columns={[
-                            {
-                                title: 'Payment ID',
-                                dataIndex: '_id',
-                                key: 'id',
-                                render: id => id || 'N/A'
-                            },
                             {
                                 title: 'Date',
                                 dataIndex: 'paymentDate',
@@ -272,12 +522,17 @@ export const SaleDetailsDrawer = ({
                                 render: amount => formatCurrency(amount)
                             },
                             {
+                                title: 'Plan',
+                                dataIndex: 'paymentPlan',
+                                key: 'plan',
+                                render: (plan) => plan ? `Plan #${plan.toString().substr(-6)}` : 'Direct Payment'
+                            },
+                            {
                                 title: 'Method',
                                 dataIndex: 'paymentMethod',
                                 key: 'method',
                                 render: method => {
                                     if (!method) return 'N/A';
-                                    // Convert snake_case to Title Case
                                     return method.split('_')
                                         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                                         .join(' ');
@@ -346,23 +601,12 @@ export const SaleDetailsDrawer = ({
                         rowKey={record => record._id || Math.random().toString()}
                         pagination={false}
                     />
-
-                    {sale.status !== 'Completed' && sale.status !== 'Canceled' && (
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            style={{ marginTop: 16 }}
-                            onClick={() => onAddPayment(sale)}
-                        >
-                            Add Payment
-                        </Button>
-                    )}
                 </TabPane>
 
-                <TabPane tab="Timeline" key="2">
+                <TabPane tab="Timeline" key="3">
                     <Timeline mode="left">
-                        {sale && sale.timeline && sale.timeline.length > 0 ? (
-                            sale.timeline.map((item, index) => (
+                        {sale && sale.activities && sale.activities.length > 0 ? (
+                            sale.activities.map((item, index) => (
                                 <Timeline.Item
                                     key={index}
                                     label={formatDate(item.date)}
@@ -372,12 +616,12 @@ export const SaleDetailsDrawer = ({
                                                 'blue'
                                     }
                                 >
-                                    <div style={{ fontWeight: 'bold' }}>{item.event}</div>
+                                    <div style={{ fontWeight: 'bold' }}>{item.activityType}</div>
                                     <div>{item.description}</div>
                                 </Timeline.Item>
                             ))
                         ) : (
-                            <Timeline.Item>No timeline events available</Timeline.Item>
+                            <Timeline.Item>No timeline activities available</Timeline.Item>
                         )}
                     </Timeline>
 
@@ -388,11 +632,11 @@ export const SaleDetailsDrawer = ({
                         block
                         onClick={onAddEvent}
                     >
-                        Add Event
+                        Add Activity
                     </Button>
                 </TabPane>
 
-                <TabPane tab="Customer Details" key="3">
+                <TabPane tab="Customer Details" key="4">
                     <Card>
                         <Descriptions title="Customer Information" bordered column={1}>
                             <Descriptions.Item label="Name">{sale.customer?.name || 'N/A'}</Descriptions.Item>
@@ -408,34 +652,6 @@ export const SaleDetailsDrawer = ({
                         </div>
                     </Card>
                 </TabPane>
-
-                {/* <TabPane tab="Documents" key="4">
-                    <List
-                        itemLayout="horizontal"
-                        dataSource={sale.documents || []}
-                        renderItem={item => (
-                            <List.Item
-                                actions={[
-                                    <Button type="link">View</Button>,
-                                    <Button type="link">Download</Button>
-                                ]}
-                            >
-                                <List.Item.Meta
-                                    avatar={<Avatar icon={<FileTextOutlined />} />}
-                                    title={item}
-                                    description="Document details would appear here"
-                                />
-                            </List.Item>
-                        )}
-                    />
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        style={{ marginTop: 16 }}
-                    >
-                        Upload Document
-                    </Button>
-                </TabPane> */}
 
                 <TabPane tab="Notes" key="5">
                     <Card>

@@ -67,13 +67,13 @@ export const LeadDetailsDrawer = ({
             onClose={onClose}
             open={visible}
             width={600}
-            extra={
-                lead.status !== 'converted' && lead.status !== 'lost' ? (
-                    <Button type="primary" onClick={() => onConvert(lead)}>
-                        Convert to Customer
-                    </Button>
-                ) : null
-            }
+        // extra={
+        //     lead.status !== 'converted' && lead.status !== 'lost' ? (
+        //         <Button type="primary" onClick={() => onConvert(lead)}>
+        //             Convert to Customer
+        //         </Button>
+        //     ) : null
+        // }
         >
             <div style={{ marginBottom: 24 }}>
                 <Row>
@@ -233,14 +233,14 @@ export const LeadDetailsDrawer = ({
                     </Card>
                 </TabPane>
 
-                <TabPane tab="Activity Timeline" key="2">
+                <TabPane tab="Activity/Follow Ups Timeline" key="2">
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
                         style={{ marginBottom: 16 }}
                         onClick={() => onAddActivity(lead)}
                     >
-                        Add Activity
+                        Add Activity/Follow up
                     </Button>
 
                     <Timeline mode="left">
@@ -302,7 +302,7 @@ export const LeadDetailsDrawer = ({
                         Add Property Interest
                     </Button>
                 </TabPane>
-                <TabPane tab="Follow-ups" key="4">
+                {/* <TabPane tab="Follow-ups" key="4">
                     <Card>
                         {lead.followUpDate ? (
                             <>
@@ -344,7 +344,7 @@ export const LeadDetailsDrawer = ({
                     >
                         Schedule Follow-up
                     </Button>
-                </TabPane>
+                </TabPane> */}
             </Tabs>
         </Drawer>
     );

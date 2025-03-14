@@ -86,6 +86,7 @@ export const updateUser = async (userId: string, userData: any) => {
     throw error;
   }
 };
+
 export const deleteUser = async (userId: string, token?: ParamsType) => {
   try {
     const response = await axiosInstance.delete(`${BASE_URL}/users/${userId}`, {
@@ -97,6 +98,30 @@ export const deleteUser = async (userId: string, token?: ParamsType) => {
     return response.data;
   } catch (error) {
     console.log(error);
+    throw error;
+  }
+};
+
+/**
+ * Initiates a password reset for a user by their email
+ * 
+ * @param {string} email - The email of the user who needs to reset their password
+ * @returns {Promise<any>} Response from the API
+ */
+export const resetPassword = async (email: string) => {
+  try {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/users/reset-password`,
+      { email },
+      {
+        headers: {
+          Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.log('Reset password error:', error);
     throw error;
   }
 };

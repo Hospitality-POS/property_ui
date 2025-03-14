@@ -28,6 +28,7 @@ import { fetchAllPayments } from '@/services/payments';
 import { useQuery } from '@tanstack/react-query';
 import { ChartsSection } from "../../components/charts/dashboardCharts"
 import { useNavigate } from '@umijs/max';
+import EventCalendar from '../Calendar/index'
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -39,134 +40,6 @@ const formatDate = (dateString) => {
     return moment(dateString).format('YYYY-MM-DD');
 };
 
-// Event Calendar Component
-const EventCalendar = () => {
-    const [events, setEvents] = useState([]);
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [form] = Form.useForm();
-
-    // Function to handle date selection
-    const onSelect = (value) => {
-        setSelectedDate(value);
-        setIsModalVisible(true);
-    };
-
-
-
-
-    // Function to add a new event
-    const handleAddEvent = () => {
-        form.validateFields().then(values => {
-            const newEvent = {
-                id: `event_${Date.now()}`,
-                title: values.title,
-                date: values.date,
-                type: values.type,
-                description: values.description
-            };
-
-            setEvents([...events, newEvent]);
-            setIsModalVisible(false);
-            form.resetFields();
-        }).catch(errorInfo => {
-            console.log('Validation Failed:', errorInfo);
-        });
-    };
-
-    // Function to render events for a specific date
-    const dateCellRender = (value) => {
-        const dateEvents = events.filter(event =>
-            event.date && event.date.isSame(value, 'day')
-        );
-
-        return (
-            <ul className="events">
-                {dateEvents.map(event => (
-                    <li key={event.id}>
-                        <Badge
-                            status={
-                                event.type === 'meeting' ? 'success' :
-                                    event.type === 'task' ? 'warning' : 'error'
-                            }
-                            text={event.title}
-                        />
-                    </li>
-                ))}
-            </ul>
-        );
-    };
-
-    return (
-        <div className="calendar-container">
-            <Row gutter={[0, 16]}>
-                <Col span={24}>
-                    <Space style={{ marginBottom: 16 }}>
-                        <Button type="primary" onClick={() => setIsModalVisible(true)}>
-                            Add New Event
-                        </Button>
-                    </Space>
-                </Col>
-                <Col span={24}>
-                    <Card>
-                        <Calendar
-                            onSelect={onSelect}
-                            dateCellRender={dateCellRender}
-                        />
-                    </Card>
-                </Col>
-            </Row>
-
-            <Modal
-                title="Add New Event"
-                visible={isModalVisible}
-                onOk={handleAddEvent}
-                onCancel={() => {
-                    setIsModalVisible(false);
-                    form.resetFields();
-                }}
-            >
-                <Form form={form} layout="vertical">
-                    <Form.Item
-                        name="title"
-                        label="Event Title"
-                        rules={[{ required: true, message: 'Please input event title!' }]}
-                    >
-                        <Input prefix={<CalendarOutlined />} placeholder="Enter event title" />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="date"
-                        label="Date"
-                        initialValue={selectedDate}
-                        rules={[{ required: true, message: 'Please select a date!' }]}
-                    >
-                        <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="type"
-                        label="Event Type"
-                        rules={[{ required: true, message: 'Please select event type!' }]}
-                    >
-                        <Select placeholder="Select event type">
-                            <Select.Option value="meeting">Meeting</Select.Option>
-                            <Select.Option value="task">Task</Select.Option>
-                            <Select.Option value="reminder">Reminder</Select.Option>
-                        </Select>
-                    </Form.Item>
-
-                    <Form.Item
-                        name="description"
-                        label="Description"
-                    >
-                        <Input.TextArea rows={3} placeholder="Optional event description" />
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </div>
-    );
-};
 
 // Main Dashboard Component Content
 const DashboardContent = () => {
@@ -318,87 +191,70 @@ const DashboardContent = () => {
         totalSalesValue: 0,
         topSalesAgents: [],
         salesActivities: [],
-        top5SalesActivities: []
+        top5SalesActivities: [],
+        sales: []
     } } = useQuery({
         queryKey: ['sales'],
         queryFn: async () => {
             try {
                 const response = await fetchAllSales();
-                const currentMonth = moment().month();
                 const currentYear = moment().year();
 
                 const filteredSales = response.data.filter(sale => {
                     const saleDate = moment(sale.saleDate);
                     return (
-                        saleDate.month() === currentMonth &&
                         saleDate.year() === currentYear &&
                         sale.salePrice > 0 &&
                         sale.salesAgent?._id
                     );
                 });
 
-                // Aggregate sales by agent
-                const salesByAgent = filteredSales.reduce((acc, sale) => {
-                    const agentId = sale.salesAgent._id;
-
-                    if (!acc[agentId]) {
-                        acc[agentId] = {
-                            agentId,
-                            agentName: sale.salesAgent.name, // Include agent name
-                            salesCount: 0,
-                            totalSales: 0,
-                            totalCommission: 0
-                        };
-                    }
-                    acc[agentId].salesCount += 1;
-                    acc[agentId].totalSales += sale.salePrice;
-                    acc[agentId].totalCommission += (sale.salePrice * (sale.commission?.percentage || 5)) / 100;
+                // Aggregate sales by month
+                const salesByMonth = filteredSales.reduce((acc, sale) => {
+                    const month = moment(sale.saleDate).format('MMM'); // Get month abbreviation
+                    acc[month] = (acc[month] || 0) + sale.salePrice;
                     return acc;
                 }, {});
 
-                // Sort and pick top 5 agents
-                const topSalesAgents = Object.values(salesByAgent)
-                    .sort((a, b) => b.totalSales - a.totalSales)
-                    .slice(0, 5);
-
-                // Extract all sales activities
-                const salesActivities = response.data.flatMap(sale =>
-                    sale.activities.map(activity => ({
-                        saleId: sale._id,
-                        activityType: activity.activityType,
-                        date: activity.date,
-                        description: activity.description,
-                        by: activity.by, // Assuming `by` contains a user reference
-                    }))
-                );
-
-                // Sort and pick top 5 activities based on most recent date
-                const top5SalesActivities = [...salesActivities]
-                    .sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf())
-                    .slice(0, 5);
+                // Align fetched sales with predefined salesData and update 940000 values
+                const alignedSalesData = [
+                    { month: 'Jan', sales: salesByMonth['Jan'] || 0 },
+                    { month: 'Feb', sales: salesByMonth['Feb'] || 0 },
+                    { month: 'Mar', sales: salesByMonth['Mar'] || 0 },
+                    { month: 'Apr', sales: salesByMonth['Apr'] || 0 },
+                    { month: 'May', sales: salesByMonth['May'] || 0 },
+                    { month: 'Jun', sales: salesByMonth['Jun'] || 0 },
+                    { month: 'Jul', sales: salesByMonth['Jul'] || 0 },
+                    { month: 'Aug', sales: salesByMonth['Aug'] || 0 },
+                    { month: 'Sep', sales: salesByMonth['Sep'] || 0 },
+                    { month: 'Oct', sales: salesByMonth['Oct'] || 0 },
+                    { month: 'Nov', sales: salesByMonth['Nov'] || 0 },
+                    { month: 'Dec', sales: salesByMonth['Dec'] || 0 }
+                ];
 
                 return {
                     salesCount: filteredSales.length,
                     totalSalesValue: filteredSales.reduce((total, sale) => total + sale.salePrice, 0),
-                    topSalesAgents,
-                    salesActivities,
-                    top5SalesActivities,
+                    topSalesAgents: [],
+                    salesActivities: [],
+                    top5SalesActivities: [],
+                    sales: alignedSalesData
                 };
             } catch (error) {
                 message.error('Failed to fetch sales');
                 console.error('Error fetching sales:', error);
-                return { salesCount: 0, totalSalesValue: 0, topSalesAgents: [], salesActivities: [], top5SalesActivities: [] };
+                return { salesCount: 0, totalSalesValue: 0, topSalesAgents: [], salesActivities: [], top5SalesActivities: [], sales: [] };
             }
         },
         staleTime: 1000 * 60 * 5,
         refetchOnWindowFocus: false,
     });
 
-    const { salesCount, totalSalesValue, topSalesAgents, salesActivities, top5SalesActivities } = salesDataValue;
+    const { salesCount, totalSalesValue, topSalesAgents, salesActivities, top5SalesActivities, sales } = salesDataValue;
 
 
 
-
+    console.log('nice one', sales);
 
 
 
@@ -443,16 +299,9 @@ const DashboardContent = () => {
     });
 
     const { leadCount } = leadData;
-
+    console.log('my sales', salesDataValue);
     // Sample data - in a real application, this could be replaced with API calls
-    const [salesData] = useState([
-        { month: 'Jan', sales: 580000 },
-        { month: 'Feb', sales: 780000 },
-        { month: 'Mar', sales: 890000 },
-        { month: 'Apr', sales: 680000 },
-        { month: 'May', sales: 720000 },
-        { month: 'Jun', sales: 950000 },
-    ]);
+
 
 
 
@@ -683,7 +532,7 @@ const DashboardContent = () => {
             </Row>
 
             <ChartsSection
-                salesData={salesData}
+                salesData={sales}
                 latestProperties={latestProperties}
             />
 

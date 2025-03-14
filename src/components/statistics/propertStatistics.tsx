@@ -2,31 +2,44 @@ import { Row, Col, Card, Statistic } from 'antd';
 import {
     BankOutlined,
     CheckCircleOutlined,
-    ClockCircleOutlined,
-    DollarOutlined
+    DollarOutlined,
+    HomeOutlined,
+    AppstoreOutlined
 } from '@ant-design/icons';
 
 export const PropertyStatistics = ({
     totalValue,
-    availableCount,
+    totalCount,
     reservedCount,
     soldCount,
-    totalCount
+    availableCount,
+    totalUnits,
+    availableUnits,
 }) => {
     return (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col xs={24} sm={12} md={6}>
+        <Row gutter={[16, 0]}>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
                 <Card>
                     <Statistic
                         title="Total Portfolio Value"
                         value={totalValue}
                         valueStyle={{ color: '#1890ff' }}
-                        prefix={<BankOutlined />}
+                        prefix={<DollarOutlined />}
                         formatter={(value) => `KES ${value.toLocaleString()}`}
                     />
                 </Card>
             </Col>
-            <Col xs={24} sm={12} md={6}>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
+                <Card>
+                    <Statistic
+                        title="Total Properties"
+                        value={totalCount}
+                        valueStyle={{ color: '#1890ff' }}
+                        prefix={<BankOutlined />}
+                    />
+                </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
                 <Card>
                     <Statistic
                         title="Available Properties"
@@ -37,23 +50,67 @@ export const PropertyStatistics = ({
                     />
                 </Card>
             </Col>
-            <Col xs={24} sm={12} md={6}>
-                <Card>
-                    <Statistic
-                        title="Reserved Properties"
-                        value={reservedCount}
-                        valueStyle={{ color: '#faad14' }}
-                        prefix={<ClockCircleOutlined />}
-                    />
-                </Card>
-            </Col>
-            <Col xs={24} sm={12} md={6}>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
                 <Card>
                     <Statistic
                         title="Sold Properties"
                         value={soldCount}
                         valueStyle={{ color: '#f5222d' }}
                         prefix={<DollarOutlined />}
+                    />
+                </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
+                <Card>
+                    <Statistic
+                        title="Total Units"
+                        value={totalUnits || 0}
+                        valueStyle={{ color: '#1890ff' }}
+                        prefix={<AppstoreOutlined />}
+                    />
+                </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
+                <Card>
+                    <Statistic
+                        title="Available Units"
+                        value={availableUnits || 0}
+                        valueStyle={{ color: '#52c41a' }}
+                        prefix={<CheckCircleOutlined />}
+                        suffix={`/ ${totalUnits || 0}`}
+                    />
+                </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
+                <Card>
+                    <Statistic
+                        title="Reserved Units"
+                        value={reservedCount || 0}
+                        valueStyle={{ color: '#f5222d' }}
+                        prefix={<DollarOutlined />}
+                        suffix={`/ ${totalUnits || 0}`}
+                    />
+                </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
+                <Card>
+                    <Statistic
+                        title="Sold Units"
+                        value={soldCount || 0}
+                        valueStyle={{ color: '#f5222d' }}
+                        prefix={<DollarOutlined />}
+                        suffix={`/ ${totalUnits || 0}`}
+                    />
+                </Card>
+            </Col>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 16 }}>
+                <Card>
+                    <Statistic
+                        title="Occupancy Rate"
+                        value={totalUnits ? Math.round((soldCount / totalUnits) * 100) : 0}
+                        valueStyle={{ color: '#faad14' }}
+                        prefix={<HomeOutlined />}
+                        suffix="%"
                     />
                 </Card>
             </Col>

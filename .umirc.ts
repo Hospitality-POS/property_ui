@@ -61,6 +61,13 @@ export default defineConfig({
       component: './Sales',
     },
     {
+      name: 'Profile',
+      path: '/profile',
+      icon: 'UserOutlined',
+      hideInMenu: true,
+      component: './Profile',
+    },
+    {
       name: 'Valuations',
       path: '/valuation',
       icon: 'CalculatorOutlined',

@@ -1,10 +1,11 @@
 import {
     Modal, Form, Tabs, Row, Col, Input, Select,
-    InputNumber, Upload, DatePicker
+    InputNumber, Button, Table
 } from 'antd';
+import { useState, useEffect } from 'react';
 import {
-    PictureOutlined,
-    FileTextOutlined
+    PlusOutlined,
+    DeleteOutlined
 } from '@ant-design/icons';
 
 const { TabPane } = Tabs;
@@ -18,6 +19,283 @@ export const AddPropertyModal = ({
     onCancel,
     propertyManagersData
 }) => {
+    const [unitDetails, setUnitDetails] = useState({
+        unitType: 'one_bedroom',
+        price: 0,
+        totalUnits: 1,
+        availableUnits: 1
+    });
+
+    // State to track units to be added
+    const [units, setUnits] = useState([]);
+    // Current selected property type
+    const [propertyType, setPropertyType] = useState('apartment');
+
+    // Update property type when form changes
+    useEffect(() => {
+        const type = form.getFieldValue('propertyType');
+        if (type) {
+            setPropertyType(type);
+            // Reset unit details based on property type
+            if (type === 'land') {
+                setUnitDetails({
+                    unitType: 'plot',
+                    price: 0,
+                    totalUnits: 1,
+                    availableUnits: 1,
+                    plotSize: '50/100'
+                });
+            } else {
+                setUnitDetails({
+                    unitType: 'one_bedroom',
+                    price: 0,
+                    totalUnits: 1,
+                    availableUnits: 1
+                });
+            }
+        }
+    }, [form.getFieldValue('propertyType')]);
+
+    // Handle unit form changes
+    const handleUnitChange = (field, value) => {
+        setUnitDetails(prev => {
+            const updated = { ...prev, [field]: value };
+            // Auto-update availableUnits when totalUnits changes
+            if (field === 'totalUnits') {
+                updated.availableUnits = value;
+            }
+            return updated;
+        });
+    };
+
+    // Add a unit type to the list
+    const addUnit = () => {
+        const newUnit = { ...unitDetails, key: Date.now() };
+        setUnits(prev => [...prev, newUnit]);
+        form.setFieldsValue({
+            units: [...units, newUnit]
+        });
+
+        // Reset unit details form for next entry based on property type
+        if (propertyType === 'land') {
+            setUnitDetails({
+                unitType: 'plot',
+                price: 0,
+                totalUnits: 1,
+                availableUnits: 1,
+                plotNumber: '',
+                plotSize: '50/100'
+            });
+        } else {
+            setUnitDetails({
+                unitType: 'one_bedroom',
+                price: 0,
+                totalUnits: 1,
+                availableUnits: 1
+            });
+        }
+    };
+
+    // Remove a unit from the list
+    const removeUnit = (unitKey) => {
+        const updatedUnits = units.filter(unit => unit.key !== unitKey);
+        setUnits(updatedUnits);
+        form.setFieldsValue({
+            units: updatedUnits
+        });
+    };
+
+    // Unit form for apartments
+    const renderApartmentUnitForm = () => (
+        <div style={{ marginBottom: 16, padding: 16, border: '1px dashed #d9d9d9', borderRadius: 8 }}>
+            <h4>Add Apartment Unit</h4>
+            <Row gutter={16}>
+                <Col span={12}>
+                    <Form.Item label="Unit Type">
+                        <Select
+                            value={unitDetails.unitType}
+                            onChange={(value) => handleUnitChange('unitType', value)}
+                        >
+                            <Option value="studio">Studio</Option>
+                            <Option value="one_bedroom">One Bedroom</Option>
+                            <Option value="two_bedroom">Two Bedroom</Option>
+                            <Option value="three_bedroom">Three Bedroom</Option>
+                            <Option value="penthouse">Penthouse</Option>
+                            <Option value="other">Other</Option>
+                        </Select>
+                    </Form.Item>
+                </Col>
+                <Col span={12}>
+                    <Form.Item label="Price per Unit">
+                        <InputNumber
+                            style={{ width: '100%' }}
+                            min={0}
+                            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                            value={unitDetails.price}
+                            onChange={(value) => handleUnitChange('price', value)}
+                        />
+                    </Form.Item>
+                </Col>
+            </Row>
+
+            <Row gutter={16}>
+                <Col span={12}>
+                    <Form.Item label="Total Units Available">
+                        <InputNumber
+                            style={{ width: '100%' }}
+                            min={1}
+                            value={unitDetails.totalUnits}
+                            onChange={(value) => handleUnitChange('totalUnits', value)}
+                        />
+                    </Form.Item>
+                </Col>
+            </Row>
+
+            <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={addUnit}
+            >
+                Add This Unit Type
+            </Button>
+        </div>
+    );
+
+    // Unit form for land plots
+    const renderLandUnitForm = () => (
+        <div style={{ marginBottom: 16, padding: 16, border: '1px dashed #d9d9d9', borderRadius: 8 }}>
+            <h4>Add Land Plot</h4>
+            <Row gutter={16}>
+                <Col span={12}>
+                    <Form.Item label="Plot Size">
+                        <Select
+                            value={unitDetails.plotSize}
+                            onChange={(value) => handleUnitChange('plotSize', value)}
+                        >
+                            <Option value="50/100">50/100</Option>
+                            <Option value="80/100">80/100</Option>
+                            <Option value="100/100">100/100 (Full)</Option>
+                            <Option value="40/100">40/100</Option>
+                            <Option value="60/100">60/100</Option>
+                            <Option value="20/100">20/100</Option>
+                            <Option value="25/100">25/100</Option>
+                            <Option value="75/100">75/100</Option>
+                        </Select>
+                    </Form.Item>
+                </Col>
+                <Col span={12}>
+                    <Form.Item label="Price per Plot">
+                        <InputNumber
+                            style={{ width: '100%' }}
+                            min={0}
+                            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                            value={unitDetails.price}
+                            onChange={(value) => handleUnitChange('price', value)}
+                        />
+                    </Form.Item>
+                </Col>
+            </Row>
+
+            <Row gutter={16}>
+                <Col span={12}>
+                    <Form.Item label="Number of Plots Available">
+                        <InputNumber
+                            style={{ width: '100%' }}
+                            min={1}
+                            value={unitDetails.totalUnits}
+                            onChange={(value) => handleUnitChange('totalUnits', value)}
+                        />
+                    </Form.Item>
+                </Col>
+            </Row>
+
+            <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={addUnit}
+            >
+                Add This Plot Type
+            </Button>
+        </div>
+    );
+
+    // Table columns for apartment units
+    const apartmentUnitsColumns = [
+        {
+            title: 'Unit Type',
+            dataIndex: 'unitType',
+            key: 'unitType',
+            render: (text) => {
+                const types = {
+                    'studio': 'Studio',
+                    'one_bedroom': 'One Bedroom',
+                    'two_bedroom': 'Two Bedroom',
+                    'three_bedroom': 'Three Bedroom',
+                    'penthouse': 'Penthouse',
+                    'other': 'Other'
+                };
+                return types[text] || text;
+            }
+        },
+        {
+            title: 'Price',
+            dataIndex: 'price',
+            key: 'price',
+            render: (price) => `KES ${price.toLocaleString()}`
+        },
+        {
+            title: 'Quantity',
+            dataIndex: 'totalUnits',
+            key: 'totalUnits',
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            render: (_, record) => (
+                <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeUnit(record.key)}
+                />
+            )
+        }
+    ];
+
+    // Table columns for land units
+    const landUnitsColumns = [
+        {
+            title: 'Plot Size',
+            dataIndex: 'plotSize',
+            key: 'plotSize',
+        },
+        {
+            title: 'Price',
+            dataIndex: 'price',
+            key: 'price',
+            render: (price) => `KES ${price.toLocaleString()}`
+        },
+        {
+            title: 'Available Plots',
+            dataIndex: 'totalUnits',
+            key: 'totalUnits',
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            render: (_, record) => (
+                <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeUnit(record.key)}
+                />
+            )
+        }
+    ];
+
     return (
         <Modal
             title={isEditMode ? "Edit Property" : "Add New Property"}
@@ -46,7 +324,10 @@ export const AddPropertyModal = ({
                                     name="propertyType"
                                     rules={[{ required: true, message: 'Please select property type' }]}
                                 >
-                                    <Select placeholder="Select property type">
+                                    <Select
+                                        placeholder="Select property type"
+                                        onChange={(value) => setPropertyType(value)}
+                                    >
                                         <Option value="land">Land</Option>
                                         <Option value="apartment">Apartment</Option>
                                     </Select>
@@ -54,31 +335,8 @@ export const AddPropertyModal = ({
                             </Col>
                         </Row>
 
-                        <Form.Item
-                            label="Description"
-                            name="description"
-                            rules={[{ required: true, message: 'Please enter a description' }]}
-                        >
-                            <Input.TextArea rows={4} placeholder="Detailed description of the property..." />
-                        </Form.Item>
-
                         <Row gutter={16}>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="Price (KES)"
-                                    name="price"
-                                    rules={[{ required: true, message: 'Please enter the price' }]}
-                                >
-                                    <InputNumber
-                                        style={{ width: '100%' }}
-                                        min={0}
-                                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                                        placeholder="Enter property price"
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
+                            <Col span={24}>
                                 <Form.Item label="Status" name="status" initialValue="available">
                                     <Select>
                                         <Option value="available">Available</Option>
@@ -117,53 +375,6 @@ export const AddPropertyModal = ({
                                     <Input placeholder="Constituency name" />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="GPS Coordinates (Longitude, Latitude)"
-                                    name={['location', 'coordinates', 'coordinates']}
-                                    rules={[
-                                        {
-                                            validator: (_, value) => {
-                                                if (!value) return Promise.resolve();
-
-                                                let coords;
-                                                if (typeof value === 'string') {
-                                                    // Parse string coordinates
-                                                    coords = value
-                                                        .split(/[,\s]+/)
-                                                        .filter(coord => coord.trim())
-                                                        .map(coord => parseFloat(coord))
-                                                        .filter(coord => !isNaN(coord));
-
-                                                    if (coords.length !== 2) {
-                                                        return Promise.reject('Please enter two numbers for coordinates');
-                                                    }
-                                                } else if (Array.isArray(value)) {
-                                                    coords = value;
-                                                    if (coords.length !== 2) {
-                                                        return Promise.reject('Please enter two numbers for coordinates');
-                                                    }
-                                                } else {
-                                                    return Promise.reject('Invalid coordinates format');
-                                                }
-
-                                                const [longitude, latitude] = coords;
-                                                if (longitude < -180 || longitude > 180) {
-                                                    return Promise.reject('Longitude must be between -180 and 180');
-                                                }
-                                                if (latitude < -90 || latitude > 90) {
-                                                    return Promise.reject('Latitude must be between -90 and 90');
-                                                }
-
-                                                return Promise.resolve();
-                                            }
-                                        }
-                                    ]}
-                                    help="Enter as longitude,latitude (e.g., 36.8219,-1.2921 for Nairobi)"
-                                >
-                                    <Input placeholder="e.g., 36.8219,-1.2921" />
-                                </Form.Item>
-                            </Col>
                         </Row>
 
                         <Row gutter={16}>
@@ -178,7 +389,6 @@ export const AddPropertyModal = ({
                                             <Option key={user._id} value={user._id}>{user.name}</Option>
                                         ))}
                                     </Select>
-
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -191,175 +401,69 @@ export const AddPropertyModal = ({
                             {({ getFieldValue }) => {
                                 const propertyType = getFieldValue('propertyType');
 
-                                return propertyType === 'land' ? (
-                                    <>
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item
-                                                    label="Plot Number"
-                                                    name="plotNumber"
-                                                    rules={[{ required: true, message: 'Please enter the plot number' }]}
-                                                >
-                                                    <Input placeholder="Plot/LR Number" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item
-                                                    label="Land Size"
-                                                    name="landSize"
-                                                    rules={[{ required: true, message: 'Please enter land size' }]}
-                                                >
-                                                    <InputNumber style={{ width: '100%' }} min={0} step={0.01} placeholder="Size amount" />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                if (propertyType === 'land') {
+                                    return (
+                                        <>
+                                            <h3>Land Plot Units</h3>
+                                            {renderLandUnitForm()}
 
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="Size Unit" name="sizeUnit" initialValue="acres">
-                                                    <Select>
-                                                        <Option value="acres">Acres</Option>
-                                                        <Option value="hectares">Hectares</Option>
-                                                        <Option value="square_meters">Square Meters</Option>
-                                                    </Select>
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item
-                                                    label="Land Rate per Unit"
-                                                    name="landRatePerUnit"
-                                                    rules={[{ required: true, message: 'Please enter land rate per unit' }]}
-                                                >
-                                                    <InputNumber
-                                                        style={{ width: '100%' }}
-                                                        min={0}
-                                                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                                                        placeholder="Rate per unit"
+                                            {/* Table of units added */}
+                                            <Form.Item name="units" hidden>
+                                                <Input />
+                                            </Form.Item>
+
+                                            {units.length > 0 && (
+                                                <>
+                                                    <h4>Added Plots</h4>
+                                                    <Table
+                                                        columns={landUnitsColumns}
+                                                        dataSource={units}
+                                                        pagination={false}
+                                                        size="small"
                                                     />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                } else if (propertyType === 'apartment') {
+                                    return (
+                                        <>
+                                            <h3>Unit Management</h3>
+                                            {renderApartmentUnitForm()}
 
-                                        <Row gutter={16}>
-                                            <Col span={24}>
-                                                <Form.Item
-                                                    label="Title Deed Number"
-                                                    name="titleDeedNumber"
-                                                    rules={[{ required: true, message: 'Please enter title deed number' }]}
-                                                >
-                                                    <Input placeholder="Title deed number" />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
-                                    </>
-                                ) : propertyType === 'apartment' ? (
-                                    <>
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item
-                                                    label="Unit Number"
-                                                    name="unitNumber"
-                                                    rules={[{ required: true, message: 'Please enter unit number' }]}
-                                                >
-                                                    <Input placeholder="Apartment unit number" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item
-                                                    label="Building Name"
-                                                    name="buildingName"
-                                                    rules={[{ required: true, message: 'Please enter building name' }]}
-                                                >
-                                                    <Input placeholder="Name of the building/complex" />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                            {/* Table of units added */}
+                                            <Form.Item name="units" hidden>
+                                                <Input />
+                                            </Form.Item>
 
-                                        <Row gutter={16}>
-                                            <Col span={8}>
-                                                <Form.Item
-                                                    label="Bedrooms"
-                                                    name="bedrooms"
-                                                    rules={[{ required: true, message: 'Please enter number of bedrooms' }]}
-                                                >
-                                                    <InputNumber style={{ width: '100%' }} min={0} placeholder="Number of bedrooms" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item
-                                                    label="Bathrooms"
-                                                    name="bathrooms"
-                                                    rules={[{ required: true, message: 'Please enter number of bathrooms' }]}
-                                                >
-                                                    <InputNumber style={{ width: '100%' }} min={0} placeholder="Number of bathrooms" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Form.Item
-                                                    label="Size (sq m)"
-                                                    name="apartmentSize"
-                                                    rules={[{ required: true, message: 'Please enter apartment size' }]}
-                                                >
-                                                    <InputNumber style={{ width: '100%' }} min={0} placeholder="Size in square meters" />
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
+                                            {units.length > 0 && (
+                                                <>
+                                                    <h4>Added Units</h4>
+                                                    <Table
+                                                        columns={apartmentUnitsColumns}
+                                                        dataSource={units}
+                                                        pagination={false}
+                                                        size="small"
+                                                    />
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                }
 
-                                        <Row gutter={16}>
-                                            <Col span={12}>
-                                                <Form.Item label="Floor" name="floor">
-                                                    <InputNumber style={{ width: '100%' }} min={0} placeholder="Floor number" />
-                                                </Form.Item>
-                                            </Col>
-                                            <Col span={12}>
-                                                <Form.Item label="Construction Status" name="constructionStatus" initialValue="ready">
-                                                    <Select>
-                                                        <Option value="ready">Ready</Option>
-                                                        <Option value="under_construction">Under Construction</Option>
-                                                    </Select>
-                                                </Form.Item>
-                                            </Col>
-                                        </Row>
-
-                                        <Form.Item label="Amenities" name="amenities">
-                                            <Select mode="tags" style={{ width: '100%' }} placeholder="Add apartment amenities">
-                                                <Option value="Balcony">Balcony</Option>
-                                                <Option value="Parking Space">Parking Space</Option>
-                                                <Option value="Swimming Pool">Swimming Pool</Option>
-                                                <Option value="Gym">Gym</Option>
-                                                <Option value="Security">Security</Option>
-                                                <Option value="Rooftop Garden">Rooftop Garden</Option>
-                                            </Select>
-                                        </Form.Item>
-                                    </>
-                                ) : null;
+                                return null;
                             }}
                         </Form.Item>
                     </TabPane>
-
-                    {/* <TabPane tab="Documents & Images" key="3">
-                        <Form.Item label="Property Images">
-                            <Upload.Dragger listType="picture-card" multiple>
-                                <p className="ant-upload-drag-icon">
-                                    <PictureOutlined />
-                                </p>
-                                <p className="ant-upload-text">Click or drag images to upload</p>
-                                <p className="ant-upload-hint">Upload clear images of the property</p>
-                            </Upload.Dragger>
-                        </Form.Item>
-
-                        <Form.Item label="Property Documents">
-                            <Upload.Dragger multiple>
-                                <p className="ant-upload-drag-icon">
-                                    <FileTextOutlined />
-                                </p>
-                                <p className="ant-upload-text">Click or drag documents to upload</p>
-                                <p className="ant-upload-hint">Upload relevant property documents (PDF, DOCX)</p>
-                            </Upload.Dragger>
-                        </Form.Item>
-                    </TabPane> */}
                 </Tabs>
+
+                <Form.Item
+                    label="Description"
+                    name="description"
+                    rules={[{ required: true, message: 'Please enter a description' }]}
+                >
+                    <Input.TextArea rows={4} placeholder="Detailed description of the property..." />
+                </Form.Item>
             </Form>
         </Modal>
     );

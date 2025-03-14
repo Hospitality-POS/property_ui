@@ -20,6 +20,9 @@ import { AddSaleModal } from '../../components/Modals/addSales';
 import { AddPaymentModal } from '../../components/Modals/paymentModal';
 import { CancelSaleModal } from '../../components/Modals/cancelSale';
 import { AddEventModal } from '../../components/Modals/addEvent';
+import { createPayment } from "../../services/payments"
+import React from 'react';
+
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -118,6 +121,7 @@ const SalesManagement = () => {
         staleTime: 1000 * 60 * 5, // 5 minutes
         refetchOnWindowFocus: false
     });
+    console.log('my sales data', salesData);
 
     const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
         queryKey: ['users'],
@@ -270,20 +274,45 @@ const SalesManagement = () => {
         setDrawerVisible(true);
     };
 
+
+    // Custom hook to handle refreshing sale data
+    const useRefreshSaleData = (saleId, salesData) => {
+        return React.useCallback(() => {
+            if (!saleId) return null;
+
+            // Find the updated sale data
+            const updatedSale = salesData.find(s => s._id === saleId);
+            return updatedSale || null;
+        }, [saleId, salesData]);
+    };
+
+    // 2. Use the hook in your component
+    const getSaleWithLatestData = useRefreshSaleData(selectedSale?._id, salesData);
+
     // Handle adding a payment
-    const handleAddPayment = (sale) => {
-        setSelectedSale(sale);
+    const handleAddPayment = (sale, paymentPlan = null) => {
+        // If a payment plan is provided, store it in the selected sale object
+        const saleWithPlan = paymentPlan ? {
+            ...sale,
+            selectedPaymentPlan: paymentPlan
+        } : sale;
+
+        setSelectedSale(saleWithPlan);
         setAddPaymentVisible(true);
     };
 
-    // Handle payment submission
+
+    // Updated handlePaymentSubmit function in SalesManagement.jsx
     const handlePaymentSubmit = (values) => {
         console.log('Adding payment:', values);
 
         // Find the payment plan ID to attach this payment to
         let paymentPlanId = null;
 
-        if (selectedSale.paymentPlans && selectedSale.paymentPlans.length > 0) {
+        // Use the selected payment plan if available, otherwise use the first one
+        if (selectedSale.selectedPaymentPlan) {
+            paymentPlanId = selectedSale.selectedPaymentPlan._id;
+        } else if (selectedSale.paymentPlans && selectedSale.paymentPlans.length > 0) {
             paymentPlanId = selectedSale.paymentPlans[0]._id;
         }
 
@@ -293,21 +322,41 @@ const SalesManagement = () => {
             paymentDate: values.paymentDate.format('YYYY-MM-DD'),
             paymentMethod: values.paymentMethod,
             transactionReference: values.reference,
-            notes: values.notes,
+            notes: values.notes || (selectedSale.selectedPaymentPlan ?
+                `Payment for installment plan #${selectedSale.selectedPaymentPlan._id.toString().substr(-6)}` : ''),
             paymentPlanId: paymentPlanId,
             saleId: selectedSale._id,
+            status: 'completed',
             customerId: selectedSale.customer?._id
         };
 
-        // In a real app, this would call an API to add the payment
-        console.log('Payment data to be sent to API:', paymentData);
+        createPayment(paymentData)
+            .then(newPayment => {
+                // Show success message
+                message.success('Payment added successfully!');
 
-        // Show success message and close modal
-        message.success('Payment added successfully!');
-        setAddPaymentVisible(false);
+                // Close modal
+                setAddPaymentVisible(false);
 
-        // Refresh data in a real app
-        // refetchSales();
+                // Refresh data
+                setTimeout(() => {
+                    // Refresh the sales list
+                    setRefreshKey(prevKey => prevKey + 1);
+                    refetchSales({ force: true })
+                        .then(() => {
+                            // Once sales are refreshed, update the selected sale in the drawer
+                            // by fetching the updated sale data and reopening the drawer with it
+                            const updatedSale = salesData.find(s => s._id === selectedSale._id);
+                            if (updatedSale) {
+                                setSelectedSale(updatedSale);
+                            }
+                        });
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error adding Payment:', error);
+                message.error('Failed to add Payment. Please try again.');
+            });
     };
 
     // Handle adding event
@@ -316,19 +365,46 @@ const SalesManagement = () => {
         setAddEventVisible(true);
     };
 
-    // Handle event submission
+    // Update the handleEventSubmit function in SalesManagement.jsx
     const handleEventSubmit = (values) => {
         console.log('Adding event:', values);
 
-        // In a real app, this would call an API to add the event to the timeline
+        // Ensure activities is an array
+        const activities = Array.isArray(selectedSale.activities) ? selectedSale.activities : [];
+        const newValues = Array.isArray(values) ? values : [values];
 
-        // Show success message and close modal
-        message.success('Event added to timeline successfully!');
-        setAddEventVisible(false);
+        // Create the updated data structure
+        const formattedData = {
+            activities: [...activities, ...newValues],
+        };
 
-        // Refresh data in a real app
-        // refetchSales();
+        console.log('Updating sale with:', formattedData);
+
+        updateSale(selectedSale._id, formattedData)
+            .then((response) => {
+                message.success('Sale activity added successfully!');
+
+                // Close modal first
+                setAddEventVisible(false);
+                eventForm.resetFields();
+
+                // Important: Directly update the selectedSale state with the new activity
+                // This ensures the Timeline shows the new activity immediately
+                setSelectedSale(prevSale => ({
+                    ...prevSale,
+                    activities: [...activities, ...newValues]
+                }));
+
+                // Then trigger a refetch to ensure database consistency
+                //setRefreshKey(prevKey => prevKey + 1);
+                //refetchSales({ force: true });
+            })
+            .catch((error) => {
+                console.error('Error adding sale activity:', error);
+                message.error('Failed to add sale activity. Please try again.');
+            });
     };
+
 
     // Handle adding new sale
     const handleAddSaleClick = () => {
@@ -339,7 +415,6 @@ const SalesManagement = () => {
         setAddSaleVisible(true);
     };
 
-    // Handle editing a sale
     const handleEditSale = (sale) => {
         setSaleToEdit(sale);
         setIsEditMode(true);
@@ -362,36 +437,31 @@ const SalesManagement = () => {
             allPayments = sale.payments;
         }
 
-        // Reset installments - prepare pending payments as installments
-        const saleInstallments = allPayments
-            .filter(payment => payment.status !== 'Paid' && payment.status !== 'completed')
-            .map((payment, index) => ({
-                id: `inst-${index + 1}`,
-                amount: payment.amount,
-                dueDate: payment.paymentDate ? moment(payment.paymentDate) : null,
-                method: payment.paymentMethod || 'Bank Transfer',
-                key: Date.now() + index
-            }));
+        // Reset installments - we'll let the useEffect in AddSaleModal handle this now
+        // Just clear the existing installments so they can be properly set by the modal component
 
-        setInstallments(saleInstallments);
+        setInstallments([]);
 
         // Set form values with safe property access
         const formValues = {
-            property: sale.property?._id || sale.property?.id,
-            customer: sale.customer?._id || sale.customer?.id,
+            property: sale.property?._id || sale.property?.id || sale.property,
+            customer: sale.customer?._id || sale.customer?.id || sale.customer,
             salePrice: parseFloat(sale.salePrice) || 0,
-            propertyManager: sale.propertyManager?._id || sale.propertyManager?.id,
-            listPrice: parseFloat(sale.listPrice) || 0,
+            propertyManager: sale.propertyManager?._id || sale.propertyManager?.id || sale.propertyManager,
+            listPrice: parseFloat(sale.listPrice) || parseFloat(sale.property?.price) || 0,
             saleDate: sale.saleDate ? moment(sale.saleDate) : null,
-            paymentPlan: paymentPlanData ? 'Installment' : 'Full Payment',
-            agent: sale.salesAgent?._id || sale.salesAgent?.id || sale.agent?._id || sale.agent?.id,
-            notes: sale.notes && Array.isArray(sale.notes) && sale.notes.length > 0 ? sale.notes[0].content : ''
+            paymentPlan: sale.paymentPlanType || (paymentPlanData ? 'Installment' : 'Full Payment'),
+            agent: sale.salesAgent?._id || sale.salesAgent?.id || sale.agent?._id || sale.agent?.id || sale.agent,
+            notes: sale.notes && Array.isArray(sale.notes) && sale.notes.length > 0
+                ? sale.notes[0].content || sale.notes[0].text
+                : (typeof sale.notes === 'string' ? sale.notes : '')
         };
 
         // Get initial payment information from the first payment plan
         if (paymentPlanData) {
             formValues.initialPayment = parseFloat(paymentPlanData.initialDeposit) || 0;
-            formValues.paymentDate = paymentPlanData.depositDate ? moment(paymentPlanData.depositDate) : null;
+            formValues.paymentDate = paymentPlanData.depositDate ? moment(paymentPlanData.depositDate) :
+                paymentPlanData.startDate ? moment(paymentPlanData.startDate) : null;
 
             // Find initial payment from payments
             const initialPayment = allPayments.find(p => p.notes && p.notes.includes('Initial deposit'));
@@ -418,8 +488,10 @@ const SalesManagement = () => {
             }
         }
 
+        // Set form values
         form.setFieldsValue(formValues);
 
+        // Show modal after form is set up
         setAddSaleVisible(true);
     };
 
@@ -488,25 +560,51 @@ const SalesManagement = () => {
         setSaleToDelete(null);
     };
 
-    // Handle save notes
+    // Update the handleSaveNotes function in SalesManagement.jsx
     const handleSaveNotes = () => {
         if (!noteText.trim()) {
             message.warning('Please enter a note before saving');
             return;
         }
 
-        console.log('Adding note:', noteText, 'to sale:', selectedSale?._id);
+        // Create a new note object
+        const newNote = {
+            content: noteText,
+            createdAt: new Date().toISOString(),
+            createdBy: 'current-user' // You might want to add the actual user ID here
+        };
 
-        // In a real app, this would call an API to add the note
+        // Prepare data for API call
+        const notesData = {
+            notes: Array.isArray(selectedSale.notes)
+                ? [...selectedSale.notes, newNote]
+                : [newNote]
+        };
 
-        // Show success message
-        message.success('Note added successfully!');
+        // Call API to update the sale with the new note
+        updateSale(selectedSale._id, notesData)
+            .then((response) => {
+                message.success('Note added successfully!');
 
-        // Clear the note text
-        setNoteText('');
+                // Immediately update the local state so the note appears in the UI
+                setSelectedSale(prevSale => ({
+                    ...prevSale,
+                    notes: Array.isArray(prevSale.notes)
+                        ? [...prevSale.notes, newNote]
+                        : [newNote]
+                }));
 
-        // Refresh data in a real app
-        // refetchSales();
+                // Clear the note text input
+                setNoteText('');
+
+                // Also refresh the sales data in the background for consistency
+                //setRefreshKey(prevKey => prevKey + 1);
+                // refetchSales({ force: true });
+            })
+            .catch((error) => {
+                console.error('Error adding note:', error);
+                message.error('Failed to add note. Please try again.');
+            });
     };
 
     // Handle search input change
@@ -521,6 +619,7 @@ const SalesManagement = () => {
 
     // Calculate payment stats for a sale
     const calculatePaymentStats = (sale) => {
+        console.log('my sales payments', sale);
         if (!sale) {
             return {
                 totalAmount: 0,
@@ -533,22 +632,21 @@ const SalesManagement = () => {
 
         const totalAmount = parseFloat(sale.salePrice) || 0;
 
-        // Get payments from the paymentPlans array
+        // Initialize allPayments array
         let allPayments = [];
 
-        // Check if paymentPlans array exists and has items
-        if (sale.paymentPlans && Array.isArray(sale.paymentPlans) && sale.paymentPlans.length > 0) {
+        // First check if payments exist directly in the sale object
+        if (sale.payments && Array.isArray(sale.payments) && sale.payments.length > 0) {
+            allPayments = sale.payments;
+        }
+        // If no direct payments, check paymentPlans
+        else if (sale.paymentPlans && Array.isArray(sale.paymentPlans) && sale.paymentPlans.length > 0) {
             // Collect all payments from all payment plans
             sale.paymentPlans.forEach(plan => {
                 if (plan.payments && Array.isArray(plan.payments)) {
                     allPayments = [...allPayments, ...plan.payments];
                 }
             });
-        }
-
-        // Fallback to sale.payments if it exists
-        if ((!allPayments || allPayments.length === 0) && sale.payments && Array.isArray(sale.payments)) {
-            allPayments = sale.payments;
         }
 
         // Calculate paid amount from completed payments
@@ -746,6 +844,7 @@ const SalesManagement = () => {
                 saleToEdit={saleToEdit}
                 form={form}
                 installments={installments}
+                setInstallments={setInstallments}
                 propertiesData={propertiesData}
                 customersData={customersData}
                 agentsData={agentsData}
@@ -768,7 +867,15 @@ const SalesManagement = () => {
                 visible={addPaymentVisible}
                 sale={selectedSale}
                 onOk={handlePaymentSubmit}
-                onCancel={() => setAddPaymentVisible(false)}
+                onCancel={() => {
+                    setAddPaymentVisible(false);
+
+                    // Refresh the selected sale data when modal is closed
+                    const refreshedSale = getSaleWithLatestData();
+                    if (refreshedSale) {
+                        setSelectedSale(refreshedSale);
+                    }
+                }}
                 formatCurrency={formatCurrency}
                 calculatePaymentStats={calculatePaymentStats}
             />

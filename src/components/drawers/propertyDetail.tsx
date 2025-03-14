@@ -9,19 +9,15 @@ import {
     Divider,
     Steps,
     Card,
-    Carousel,
     Tabs,
     Descriptions,
-    List,
-    Avatar
+    Table
 } from 'antd';
 import {
     FileTextOutlined,
     HomeOutlined,
     EnvironmentOutlined,
-    UserOutlined,
-    CheckCircleOutlined,
-    PlusOutlined
+    UserOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -35,15 +31,100 @@ export const PropertyDetailsDrawer = ({
     onTabChange,
     onClose,
     formatPropertyType,
-    formatStatus
+    formatStatus,
+    formatDate
 }) => {
     if (!property) {
         return null;
     }
 
+    // Calculate total units and value
+    const calculateTotalUnits = () => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => total + (unit.totalUnits || 0), 0);
+    };
+
+    const calculateAvailableUnits = () => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => total + (unit.availableUnits || 0), 0);
+    };
+
+    const calculateTotalValue = () => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => {
+            return total + ((unit.price || 0) * (unit.totalUnits || 0));
+        }, 0);
+    };
+
+    // Unit table columns
+    const unitColumns = [
+        {
+            title: 'Type',
+            dataIndex: 'unitType',
+            key: 'unitType',
+            render: (text) => {
+                const typeMap = {
+                    'studio': 'Studio',
+                    'one_bedroom': 'One Bedroom',
+                    'two_bedroom': 'Two Bedroom',
+                    'three_bedroom': 'Three Bedroom',
+                    'penthouse': 'Penthouse',
+                    'plot': 'Plot',
+                    'parcel': 'Parcel',
+                    'other': 'Other'
+                };
+                return typeMap[text] || text;
+            }
+        },
+        {
+            title: 'Price (KES)',
+            dataIndex: 'price',
+            key: 'price',
+            render: (price) => price?.toLocaleString() || 'N/A'
+        },
+        {
+            title: 'Total Units',
+            dataIndex: 'totalUnits',
+            key: 'totalUnits'
+        },
+        {
+            title: 'Available',
+            dataIndex: 'availableUnits',
+            key: 'availableUnits'
+        },
+        {
+            title: 'Sold',
+            key: 'sold',
+            render: (_, record) => (record.totalUnits || 0) - (record.availableUnits || 0)
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status) => {
+                let color = 'green';
+                if (status === 'reserved') color = 'orange';
+                if (status === 'sold') color = 'red';
+                if (status === 'under_construction') color = 'blue';
+                return <Tag color={color}>{formatStatus(status)}</Tag>;
+            }
+        }
+    ];
+
+    // Additional columns for land plots
+    const landUnitColumns = [
+        ...unitColumns.slice(0, 1),
+        {
+            title: 'Plot Size',
+            dataIndex: 'plotSize',
+            key: 'plotSize'
+        },
+        ...unitColumns.slice(1)
+    ];
+
     return (
         <Drawer
-            title={`Property Details: ${property._id}`}
+            title={`Property Details`}
             placement="right"
             onClose={onClose}
             open={visible}
@@ -64,19 +145,15 @@ export const PropertyDetailsDrawer = ({
                         <Space direction="vertical">
                             <Text>
                                 <HomeOutlined style={{ marginRight: 8 }} />
-                                {formatPropertyType(property.propertyType)} - {
-                                    property.propertyType === 'land'
-                                        ? `${property.landSize} ${property.sizeUnit}`
-                                        : `${property.apartmentSize} sq m`
-                                }
+                                {formatPropertyType(property.propertyType)} - {calculateTotalUnits()} units
                             </Text>
                             <Text>
                                 <EnvironmentOutlined style={{ marginRight: 8 }} />
-                                {property.location.address}, {property.location.county}
+                                {property.location?.address}, {property.location?.county}
                             </Text>
                             <Text>
                                 <UserOutlined style={{ marginRight: 8 }} />
-                                Manager: {property.propertyManager.name}
+                                Manager: {property.propertyManager?.name}
                             </Text>
                         </Space>
                     </Col>
@@ -96,10 +173,10 @@ export const PropertyDetailsDrawer = ({
                             {formatStatus(property.status)}
                         </Tag>
                         <div style={{ marginTop: 8 }}>
-                            <Text>Added:</Text> {property.createdAt}
+                            <Text>Added:</Text> {formatDate(property.createdAt)}
                         </div>
                         <div style={{ marginTop: 4 }}>
-                            <Text>Updated:</Text> {property.updatedAt}
+                            <Text>Updated:</Text> {formatDate(property.updatedAt)}
                         </div>
                     </Col>
                 </Row>
@@ -129,31 +206,6 @@ export const PropertyDetailsDrawer = ({
                 </Steps>
             </div>
 
-            {/* Property Image Carousel */}
-            {/* <Card style={{ marginBottom: 16 }}>
-                <Carousel autoplay>
-                    {property.images.map((image, index) => (
-                        <div key={index}>
-                            <div
-                                style={{
-                                    height: '300px',
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    background: '#f0f0f0',
-                                }}
-                            >
-                                <img
-                                    src={image}
-                                    alt={`Property ${index + 1}`}
-                                    style={{ maxWidth: '100%', maxHeight: '300px' }}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </Carousel>
-            </Card> */}
-
             <Tabs defaultActiveKey="1" activeKey={activeTab} onChange={onTabChange}>
                 <TabPane tab="Overview" key="1">
                     <Card title="Property Overview" style={{ marginBottom: 16 }}>
@@ -163,37 +215,34 @@ export const PropertyDetailsDrawer = ({
                                     <Descriptions.Item label="Property Type">
                                         {formatPropertyType(property.propertyType)}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Size">
-                                        {property.propertyType === 'land'
-                                            ? `${property.landSize} ${property.sizeUnit}`
-                                            : `${property.apartmentSize} sq m`
-                                        }
+                                    <Descriptions.Item label="Total Units">
+                                        {calculateTotalUnits()}
+                                    </Descriptions.Item>
+                                    <Descriptions.Item label="Available Units">
+                                        {calculateAvailableUnits()}
                                     </Descriptions.Item>
                                     <Descriptions.Item label="Location">
-                                        {property.location.address}
+                                        {property.location?.address}
                                     </Descriptions.Item>
                                     <Descriptions.Item label="County">
-                                        {property.location.county}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Constituency">
-                                        {property.location.constituency}
+                                        {property.location?.county}
                                     </Descriptions.Item>
                                 </Descriptions>
                             </Col>
                             <Col span={12}>
                                 <Descriptions column={1} size="small">
-                                    <Descriptions.Item label="Price">
-                                        KES {property.price.toLocaleString()}
+                                    <Descriptions.Item label="Total Value">
+                                        KES {calculateTotalValue().toLocaleString()}
                                     </Descriptions.Item>
                                     <Descriptions.Item label="Status">
                                         {formatStatus(property.status)}
                                     </Descriptions.Item>
                                     <Descriptions.Item label="Property Manager">
-                                        {property.propertyManager.name}
+                                        {property.propertyManager?.name}
                                     </Descriptions.Item>
-                                    {/* <Descriptions.Item label="Documents">
-                                        {property.documents.length} documents
-                                    </Descriptions.Item> */}
+                                    <Descriptions.Item label="Constituency">
+                                        {property.location?.constituency || 'N/A'}
+                                    </Descriptions.Item>
                                     <Descriptions.Item label="Date Added">
                                         {property.createdAt}
                                     </Descriptions.Item>
@@ -206,122 +255,34 @@ export const PropertyDetailsDrawer = ({
                         <Paragraph>{property.description}</Paragraph>
                     </Card>
 
-                    {property.propertyType === 'land' && (
-                        <Card title="Land Details" style={{ marginBottom: 16 }}>
-                            <Descriptions column={2} bordered>
-                                <Descriptions.Item label="Plot Number">
-                                    {property.plotNumber}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Land Size">
-                                    {property.landSize} {property.sizeUnit}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Land Rate per Unit">
-                                    KES {property.landRatePerUnit.toLocaleString()}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Title Deed Number">
-                                    {property.titleDeedNumber}
-                                </Descriptions.Item>
-                            </Descriptions>
-                        </Card>
-                    )}
-
-                    {property.propertyType === 'apartment' && (
-                        <Card title="Apartment Details" style={{ marginBottom: 16 }}>
-                            <Descriptions column={2} bordered>
-                                <Descriptions.Item label="Unit Number">
-                                    {property.unitNumber}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Building Name">
-                                    {property.buildingName}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Bedrooms">
-                                    {property.bedrooms}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Bathrooms">
-                                    {property.bathrooms}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Floor">
-                                    {property.floor || 'N/A'}
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Construction Status">
-                                    {property.constructionStatus === 'ready' ? 'Ready' : 'Under Construction'}
-                                </Descriptions.Item>
-                            </Descriptions>
-
-                            {property.amenities && property.amenities.length > 0 && (
-                                <>
-                                    <Divider orientation="left">Amenities</Divider>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                        {property.amenities.map((amenity, idx) => (
-                                            <Tag key={idx} color="blue">
-                                                <CheckCircleOutlined /> {amenity}
-                                            </Tag>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </Card>
-                    )}
+                    <Card title={`${formatPropertyType(property.propertyType)} Units`} style={{ marginBottom: 16 }}>
+                        <Table
+                            dataSource={property.units || []}
+                            columns={property.propertyType === 'land' ? landUnitColumns : unitColumns}
+                            rowKey={(record) => record._id}
+                            pagination={false}
+                            size="small"
+                        />
+                    </Card>
                 </TabPane>
-
-                {/* <TabPane tab="Documents" key="2">
-                    <List
-                        itemLayout="horizontal"
-                        dataSource={property.documents}
-                        renderItem={(item) => (
-                            <List.Item
-                                actions={[
-                                    <Button type="link">View</Button>,
-                                    <Button type="link">Download</Button>,
-                                ]}
-                            >
-                                <List.Item.Meta
-                                    avatar={<Avatar icon={<FileTextOutlined />} />}
-                                    title={item.name}
-                                    description={`Type: ${item.type} | Uploaded: ${item.uploadedAt}`}
-                                />
-                            </List.Item>
-                        )}
-                    />
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        style={{ marginTop: 16 }}
-                    >
-                        Upload Document
-                    </Button>
-                </TabPane> */}
 
                 <TabPane tab="Location" key="3">
                     <Card>
-                        {/* <div
-                            style={{
-                                height: '300px',
-                                background: '#f0f0f0',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                marginBottom: 16,
-                            }}
-                        >
-                            <Text type="secondary">
-                                Map would be displayed here showing the property location
-                                at coordinates: {property.location.coordinates.coordinates.join(', ')}
-                            </Text>
-                        </div> */}
                         <Descriptions title="Location Details" bordered>
                             <Descriptions.Item label="Address" span={3}>
-                                {property.location.address}
+                                {property.location?.address}
                             </Descriptions.Item>
                             <Descriptions.Item label="County">
-                                {property.location.county}
+                                {property.location?.county}
                             </Descriptions.Item>
                             <Descriptions.Item label="Constituency">
-                                {property.location.constituency || 'N/A'}
+                                {property.location?.constituency || 'N/A'}
                             </Descriptions.Item>
-                            <Descriptions.Item label="GPS Coordinates">
-                                {property.location.coordinates.coordinates.join(', ')}
-                            </Descriptions.Item>
+                            {property.location?.coordinates?.coordinates && (
+                                <Descriptions.Item label="GPS Coordinates">
+                                    {property.location.coordinates.coordinates.join(', ')}
+                                </Descriptions.Item>
+                            )}
                         </Descriptions>
                     </Card>
                 </TabPane>

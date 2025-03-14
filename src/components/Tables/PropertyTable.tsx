@@ -14,8 +14,52 @@ export const PropertyTable = ({
     onEdit,
     onDelete,
     formatPropertyType,
-    formatStatus
+    formatStatus,
+    formatDate
 }) => {
+    // Calculate total units and value for a property
+    const calculatePropertyUnits = (property) => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => total + (unit.totalUnits || 0), 0);
+    };
+
+    const calculateAvailableUnits = (property) => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => total + (unit.availableUnits || 0), 0);
+    };
+
+    const calculatePropertyValue = (property) => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => {
+            return total + ((unit.price || 0) * (unit.totalUnits || 0));
+        }, 0);
+    };
+
+    // Calculate sale progress as percentage of sold units
+    const calculateSaleProgress = (property) => {
+        const totalUnits = calculatePropertyUnits(property);
+        if (totalUnits === 0) return 0;
+
+        const availableUnits = calculateAvailableUnits(property);
+        const soldUnits = totalUnits - availableUnits;
+
+        return Math.round((soldUnits / totalUnits) * 100);
+    };
+
+    // Get plot sizes for land properties
+    const getPlotSizes = (property) => {
+        if (property.propertyType !== 'land' || !property.units || !Array.isArray(property.units)) {
+            return 'N/A';
+        }
+
+        // Get unique plot sizes
+        const plotSizes = [...new Set(property.units
+            .filter(unit => unit.plotSize)
+            .map(unit => unit.plotSize))];
+
+        return plotSizes.join(', ');
+    };
+
     // Table columns definition
     const columns = [
         {
@@ -50,29 +94,37 @@ export const PropertyTable = ({
             width: 150,
             render: (_, record) => (
                 <span>
-                    <EnvironmentOutlined style={{ marginRight: 5 }} /> {record.location.address}
+                    <EnvironmentOutlined style={{ marginRight: 5 }} /> {record.location?.address || 'N/A'}
                 </span>
             ),
         },
         {
-            title: 'Size',
-            key: 'size',
-            width: 100,
+            title: 'Units Info',
+            key: 'units',
+            width: 140,
             render: (_, record) => {
-                if (record.propertyType === 'land') {
-                    return `${record.landSize} ${record.sizeUnit}`;
-                } else {
-                    return `${record.apartmentSize} sq m`;
-                }
+                const totalUnits = calculatePropertyUnits(record);
+                const availableUnits = calculateAvailableUnits(record);
+
+                return (
+                    <span>
+                        {availableUnits} / {totalUnits} units
+                        {record.propertyType === 'land' && (
+                            <div><small>{getPlotSizes(record)}</small></div>
+                        )}
+                    </span>
+                );
             },
         },
         {
-            title: 'Price (KES)',
-            dataIndex: 'price',
-            key: 'price',
+            title: 'Total Value (KES)',
+            key: 'value',
             width: 160,
-            render: (price) => price > 0 ? price.toLocaleString() : <Text>N/A</Text>,
-            sorter: (a, b) => a.price - b.price,
+            render: (_, record) => {
+                const value = calculatePropertyValue(record);
+                return value > 0 ? value.toLocaleString() : <Text>N/A</Text>;
+            },
+            sorter: (a, b) => calculatePropertyValue(a) - calculatePropertyValue(b),
         },
         {
             title: 'Status',
@@ -98,10 +150,12 @@ export const PropertyTable = ({
             title: 'Manager',
             key: 'manager',
             width: 130,
-            render: (_, record) => record.propertyManager.name,
-            filters: Array.from(new Set(properties.map(p => p.propertyManager.name)))
+            render: (_, record) => record.propertyManager?.name || 'N/A',
+            filters: Array.from(new Set(properties
+                .filter(p => p.propertyManager?.name)
+                .map(p => p.propertyManager.name)))
                 .map(name => ({ text: name, value: name })),
-            onFilter: (value, record) => record.propertyManager.name === value,
+            onFilter: (value, record) => record.propertyManager?.name === value,
         },
         {
             title: 'Date Added',
@@ -109,18 +163,23 @@ export const PropertyTable = ({
             key: 'createdAt',
             width: 120,
             sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+            render: (text) => formatDate(text),
         },
         {
             title: 'Sale Progress',
             key: 'salesProgress',
             width: 160,
             render: (_, record) => {
-                if (record.status === 'sold') {
+                const progress = calculateSaleProgress(record);
+
+                if (progress === 100) {
                     return <Progress percent={100} size="small" status="success" />;
                 }
-                if (record.status === 'reserved') {
-                    return <Progress percent={50} size="small" status="active" />;
+
+                if (progress > 0) {
+                    return <Progress percent={progress} size="small" status="active" />;
                 }
+
                 return <Progress percent={0} size="small" />;
             },
         },
@@ -167,29 +226,43 @@ export const PropertyTable = ({
             scroll={{ x: 1500 }}
             expandable={{
                 expandedRowRender: (record) => (
-                    <p style={{ margin: 0 }}>
-                        <strong>Description:</strong> {record.description}
-                    </p>
+                    <div style={{ margin: 0 }}>
+                        <p><strong>Description:</strong> {record.description}</p>
+                        {record.units && record.units.length > 0 && (
+                            <div>
+                                <strong>Unit Types:</strong>
+                                <ul>
+                                    {record.units.map((unit, index) => (
+                                        <li key={index}>
+                                            {unit.unitType}: {unit.availableUnits}/{unit.totalUnits} units available
+                                            ({unit.propertyType === 'land' ? unit.plotSize : ''}) -
+                                            KES {unit.price?.toLocaleString()}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 ),
             }}
             summary={(pageData) => {
                 if (pageData.length === 0) return null;
 
                 let pageTotal = 0;
-                pageData.forEach(({ price }) => {
-                    pageTotal += price || 0;
+                pageData.forEach((record) => {
+                    pageTotal += calculatePropertyValue(record);
                 });
 
                 return (
                     <Table.Summary fixed>
                         <Table.Summary.Row>
-                            <Table.Summary.Cell index={0} colSpan={5}>
+                            <Table.Summary.Cell index={0} colSpan={4}>
                                 <strong>Page Total</strong>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={5}>
+                            <Table.Summary.Cell index={4}>
                                 <Text type="danger">KES {pageTotal.toLocaleString()}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={6} colSpan={5}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={5} colSpan={5}></Table.Summary.Cell>
                         </Table.Summary.Row>
                     </Table.Summary>
                 );

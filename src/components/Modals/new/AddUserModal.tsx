@@ -1,12 +1,14 @@
 import { PhoneInput } from '@/components/phonenumber';
 import { getPhoneNumber } from '@/components/phonenumber/formatPhoneNumberUtil';
 import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
-import { registerUser, updateUser } from '@/services/auth.api';
+import { registerUser, updateUser, resetPassword } from '@/services/auth.api';
 import ShowConfirm from '@/utils/ConfirmUtil';
 import {
   EditOutlined,
   LockOutlined,
   UsergroupAddOutlined,
+  KeyOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import {
   ActionType,
@@ -26,6 +28,7 @@ import {
   Row,
   Space,
   Tabs,
+  Tooltip,
 } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 
@@ -66,6 +69,7 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
   const formRef = useRef<ActionType>();
 
   const [open, setOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -85,14 +89,66 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
     }
   };
 
+  // Function to generate a random password
+  const generatePassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let password = "";
+
+    // Ensure at least one uppercase, one lowercase, one number, and one special char
+    password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+    password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)];
+    password += "0123456789"[Math.floor(Math.random() * 10)];
+    password += "!@#$%^&*()_+"[Math.floor(Math.random() * 12)];
+
+    // Fill the rest of the password
+    for (let i = 4; i < length; i++) {
+      password += charset[Math.floor(Math.random() * charset.length)];
+    }
+
+    // Shuffle the password
+    password = password.split('').sort(() => 0.5 - Math.random()).join('');
+
+    form.setFieldsValue({
+      password: password,
+      confirmPassword: password,
+    });
+  };
+
+  // Function to trigger password reset
+  const handlePasswordReset = async () => {
+    try {
+      if (!data || !data.email) {
+        message.error('User email is required for password reset');
+        return;
+      }
+
+      setIsResetting(true);
+      const confirmed = await ShowConfirm({
+        title: `Are you sure you want to reset password for ${data.name}?`,
+        content: 'A password reset link will be sent to the user\'s email.',
+        position: true,
+      });
+
+      if (confirmed) {
+        await resetPassword(data.email);
+        message.success('Password reset link has been sent to the user\'s email');
+      }
+    } catch (error) {
+      console.error('Password reset error:', error);
+      message.error('Failed to send password reset link');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleFinish = async (values: any) => {
     try {
       const phoneNumber = getPhoneNumber(values?.phoneNumber);
       const value = { ...values, phone: phoneNumber };
       const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${edit ? 'update this' : 'add new'} ${
-          isProfile ? 'profile' : 'user'
-        }?`,
+        title: `Are you sure you want to ${edit ? 'update this' : 'add new'} ${isProfile ? 'profile' : 'user'
+          }?`,
         position: true,
       });
       if (confirmed) {
@@ -154,9 +210,9 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
       initialValues={
         edit
           ? {
-              ...data,
-              phoneNumber: reversePhoneNumber(data?.phone),
-            }
+            ...data,
+            phoneNumber: reversePhoneNumber(data?.phone),
+          }
           : {}
       }
       onFinish={handleFinish}
@@ -245,66 +301,87 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
         </TabPane>
 
         <TabPane tab="Account & Security" key="2">
-          {/* {!user && ( */}
-          <Row gutter={16}>
-            <Col span={12}>
-              <ProFormText.Password
-                name="password"
-                label="Password"
-                placeholder="Enter password"
-                fieldProps={{
-                  prefix: <LockOutlined />,
-                }}
-                rules={[
-                  { required: true, message: 'Please enter password' },
-                  {
-                    min: 8,
-                    message: 'Password must be at least 8 characters',
-                  },
-                ]}
-              />
-            </Col>
-            <Col span={12}>
-              <ProFormText.Password
-                name="confirmPassword"
-                label="Confirm Password"
-                placeholder="Confirm password"
-                fieldProps={{
-                  prefix: <LockOutlined />,
-                }}
-                dependencies={['password']}
-                rules={[
-                  { required: true, message: 'Please confirm password' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('password') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(
-                        new Error('Passwords do not match'),
-                      );
-                    },
-                  }),
-                ]}
-              />
-            </Col>
-          </Row>
-          {/* )} */}
+          {!edit && (
+            <Row gutter={16}>
+              <Col span={24}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Row gutter={8} align="middle">
+                    <Col flex="auto">
+                      <ProFormText.Password
+                        name="password"
+                        label="Password"
+                        placeholder="Enter password"
+                        fieldProps={{
+                          prefix: <LockOutlined />,
+                        }}
+                        rules={[
+                          { required: true, message: 'Please enter password' },
+                          {
+                            min: 8,
+                            message: 'Password must be at least 8 characters',
+                          },
+                        ]}
+                      />
+                    </Col>
+                    <Col>
+                      <Tooltip title="Generate Strong Password">
+                        <Button
+                          type="default"
+                          icon={<KeyOutlined />}
+                          onClick={generatePassword}
+                          style={{ marginTop: 29 }}
+                        >
+                          Generate
+                        </Button>
+                      </Tooltip>
+                    </Col>
+                  </Row>
+                  <ProFormText.Password
+                    name="confirmPassword"
+                    label="Confirm Password"
+                    placeholder="Confirm password"
+                    fieldProps={{
+                      prefix: <LockOutlined />,
+                    }}
+                    dependencies={['password']}
+                    rules={[
+                      { required: true, message: 'Please confirm password' },
+                      ({ getFieldValue }) => ({
+                        validator(_, value) {
+                          if (!value || getFieldValue('password') === value) {
+                            return Promise.resolve();
+                          }
+                          return Promise.reject(
+                            new Error('Passwords do not match'),
+                          );
+                        },
+                      }),
+                    ]}
+                  />
+                </Space>
+              </Col>
+            </Row>
+          )}
 
-          {/* {user && ( */}
-          <div>
-            <Alert
-              message="Password Management"
-              description="To change the user's password, use the reset password function. This will send a password reset link to the user's email."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <Button type="primary" icon={<LockOutlined />}>
-              Reset Password
-            </Button>
-          </div>
-          {/*   )} */}
+          {edit && (
+            <div>
+              <Alert
+                message="Password Management"
+                description="To change the user's password, use the reset password function. This will send a password reset link to the user's email."
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+              <Button
+                type="primary"
+                icon={<SyncOutlined spin={isResetting} />}
+                onClick={handlePasswordReset}
+                loading={isResetting}
+              >
+                Reset Password
+              </Button>
+            </div>
+          )}
 
           <Divider />
 

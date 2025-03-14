@@ -116,22 +116,44 @@ const LeadsManagement = () => {
   });
 
   // Fetch agents data
-  const { data: agentsData = [], isLoading: isLoadingAgents } = useQuery({
+  const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
       try {
         const response = await fetchAllUsers();
         console.log('Users fetched successfully:', response);
 
-        // Process data to use createdAt as dateJoined
-        const processedData = Array.isArray(response.data)
-          ? response.data.map(user => ({
-            ...user,
-            dateJoined: formatDate(user.createdAt) || user.dateJoined,
-          })).filter(user => user.role === 'sales_agent')
-          : [];
+        // Determine the correct data structure
+        let usersArray = [];
 
-        return processedData;
+        // Handle different possible response structures
+        if (response.data && Array.isArray(response.data)) {
+          // Standard structure: response.data is the array
+          usersArray = response.data;
+        } else if (Array.isArray(response)) {
+          // Alternative structure: response itself is the array
+          usersArray = response;
+        } else if (response.users && Array.isArray(response.users)) {
+          // Alternative structure: response.users is the array
+          usersArray = response.users;
+        } else {
+          console.error('Unexpected users API response structure:', response);
+          return [];
+        }
+
+        console.log(`Processing ${usersArray.length} users`);
+
+        // Map the users with a defensive approach
+        const processedUsers = usersArray.map(user => {
+          // Ensure we have an object with at least an id and role
+          return {
+            ...user,
+            _id: user._id || user.id || `temp-${Date.now()}-${Math.random()}`,
+            role: user.role || user.userRole || 'unknown'
+          };
+        });
+
+        return processedUsers;
       } catch (error) {
         message.error('Failed to fetch users');
         console.error('Error fetching users:', error);
@@ -141,6 +163,25 @@ const LeadsManagement = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false
   });
+
+  // Debug log the fetched data
+  console.log('Fetched users count:', userData.length);
+  console.log('Sample user object:', userData.length > 0 ? userData[0] : 'No users found');
+
+
+  // Extract roles for debugging
+  if (userData.length > 0) {
+    const roles = [...new Set(userData.map(user => user.role))];
+    console.log('User roles present in data:', roles);
+  }
+
+  // Filter users with more robust checks
+  const agentsData = !isLoadingUsers
+    ? userData.filter(user => user &&
+      (user.role === 'sales_agent' ||
+        user.role === 'agent' ||
+        user.role?.toLowerCase().includes('agent')))
+    : [];
 
 
   const { data: propertiesData = [] } = useQuery({
@@ -378,8 +419,6 @@ const LeadsManagement = () => {
         // Update the selected lead
         setSelectedLead(updatedLead);
 
-        // Show success message
-        message.success('Activity added successfully');
 
         // Close the modal and reset form
         setAddActivityVisible(false);
@@ -495,8 +534,6 @@ const LeadsManagement = () => {
         // Update the selected lead
         setSelectedLead(updatedLead);
 
-        // Show success message
-        message.success('Note added successfully');
 
         // Close the modal and reset form
         setAddNoteVisible(false);

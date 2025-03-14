@@ -18,21 +18,21 @@ export const AddEventModal = ({
 }) => {
     return (
         <Modal
-            title="Add Timeline Event"
+            title="Add Activities"
             open={visible}
             onCancel={onCancel}
             footer={null}
         >
             <Form form={form} layout="vertical" onFinish={onOk}>
                 <Form.Item
-                    name="event"
+                    name="activityType"
                     label="Event Type"
                     rules={[{ required: true, message: 'Please enter an event type' }]}
                 >
                     <Select placeholder="Select event type">
                         <Option value="Sale Agreement">Sale Agreement</Option>
                         <Option value="Payment">Payment</Option>
-                        <Option value="Documentation">Documentation</Option>
+                        <Option value="Cancellation">Cancellation</Option>
                         <Option value="Meeting">Meeting</Option>
                         <Option value="Final Payment">Final Payment</Option>
                         <Option value="Refund">Refund</Option>

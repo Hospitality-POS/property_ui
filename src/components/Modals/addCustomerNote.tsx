@@ -14,7 +14,7 @@ export const NoteModal = ({
 }) => {
     return (
         <Modal
-            title={`Add Note for 'Lead'}`}
+            title={`Add Note for Lead`}
             open={visible}
             onOk={onOk}
             onCancel={onCancel}
