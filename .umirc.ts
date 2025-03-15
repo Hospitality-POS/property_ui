@@ -6,7 +6,9 @@ export default defineConfig({
       'primary-color': '#1890ff',
     },
   },
+  esbuildMinifyIIFE: true,
   define: {
+    //BASE_URL: 'https://api.property.reliatech.co.ke',
     BASE_URL: 'http://localhost:5000',
   },
   access: {},
@@ -34,24 +36,23 @@ export default defineConfig({
       icon: 'DashboardOutlined',
       component: './Dashboard',
     },
-
     {
-      name: 'Products',
-      path: '/products',
+      name: 'Portfolio',
+      path: '/property',
       icon: 'ShopOutlined',
-      component: './Product',
-    },
-    {
-      name: 'Customers',
-      path: '/customer',
-      icon: 'UserOutlined',
-      component: './Customer',
+      component: './Property',
     },
     {
       name: 'Leads',
       path: '/leads',
       icon: 'UsergroupAddOutlined',
       component: './Lead',
+    },
+    {
+      name: 'Customers',
+      path: '/customer',
+      icon: 'UserOutlined',
+      component: './Customer',
     },
     {
       name: 'Sales',
@@ -71,24 +72,67 @@ export default defineConfig({
       icon: 'CreditCardOutlined',
       component: './Payments',
     },
+
+    // {
+    //   name: 'Settings',
+    //   path: '/settings',
+    //   icon: 'SettingOutlined',
+    //   routes: [
+    //     {
+    //       name: 'Property Types',
+    //       path: '/settings/reports',
+    //       component: './Vehicles',
+    //       icon: 'HomeOutlined',
+    //       hideInMenu: false,
+    //     },
+    //     {
+    //       name: 'Counties',
+    //       path: '/settings/reports',
+    //       component: './Vehicles',
+    //       icon: 'GlobalOutlined',
+    //       hideInMenu: true,
+    //     },
+    //     {
+    //       name: 'Roles',
+    //       path: '/settings/reports',
+    //       component: './Vehicles',
+    //       icon: 'TeamOutlined',
+    //       hideInMenu: true,
+    //     },
+    //     {
+    //       name: 'Doc Types',
+    //       path: '/settings/reports',
+    //       component: './Vehicles',
+    //       icon: 'FileOutlined',
+    //       hideInMenu: true,
+    //     },
+    //     {
+    //       name: 'Valuation Methodologies',
+    //       path: '/settings/reports',
+    //       component: './Vehicles',
+    //       icon: 'CalculatorOutlined',
+    //       hideInMenu: true,
+    //     },
+    //     {
+    //       name: 'Status',
+    //       path: '/settings/reports',
+    //       component: './Vehicles',
+    //       icon: 'CheckCircleOutlined',
+    //       hideInMenu: true,
+    //     },
+    //   ],
+    // },
     {
-      name: 'Reports',
-      path: '/reports',
+      name: 'User Management',
+      path: '/user-management',
       icon: 'UserOutlined',
-      component: './Vehicles',
-    },
-    {
-      name: 'Access Control',
-      path: '/access-control',
-      icon: 'UserOutlined',
-      component: './Vehicles',
+      component: './Users',
     },
     {
       path: '*',
       component: './404',
     },
   ],
-
   npmClient: 'yarn',
   tailwindcss: {},
 });

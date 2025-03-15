@@ -11,6 +11,7 @@ import {
   ExportOutlined,
   FileDoneOutlined,
   FileExcelOutlined,
+  FilePdfOutlined,
   FileSearchOutlined,
   FileTextOutlined,
   HomeOutlined,
@@ -51,9 +52,17 @@ import {
   Timeline,
   Tooltip,
   Typography,
+  message,
   Upload,
 } from 'antd';
 import { useState } from 'react';
+import AddValuationModal from '../../components/Modals/addValuation'
+import { fetchAllProperties } from '@/services/property';
+import { fetchAllCustomers } from '@/services/customer';
+import { fetchAllUsers } from '@/services/auth.api';
+import { createNewValuation, fetchAllValuations, updateValuation } from '@/services/valuation';
+import { useQuery } from '@tanstack/react-query';
+import moment from 'moment';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Text, Paragraph } = Typography;
@@ -61,357 +70,6 @@ const { TabPane } = Tabs;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-// Sample valuations data
-const valuationsData = [
-  {
-    id: 'V001',
-    property: {
-      id: 'P002',
-      title: 'Garden City 3-Bedroom Apartment',
-      type: 'Apartment',
-      location: 'Garden City, Thika Road',
-      size: '150 sq m',
-    },
-    client: {
-      id: 'C001',
-      name: 'John Kamau',
-      contactNumber: '+254 712 345 678',
-      email: 'john.kamau@example.com',
-      type: 'Individual',
-    },
-    purpose: 'Sale',
-    requestDate: '2025-01-05',
-    completionDate: '2025-01-15',
-    status: 'Completed',
-    valuer: 'Daniel Omondi',
-    valuationFee: 45000,
-    marketValue: 8900000,
-    forcedSaleValue: 7500000,
-    methodology: ['Market Approach', 'Income Approach'],
-    report: 'Valuation_Report_V001.pdf',
-    notes: 'Property in good condition with premium finishes.',
-    timeline: [
-      {
-        date: '2025-01-05',
-        event: 'Request Received',
-        description: 'Valuation request submitted by client',
-      },
-      {
-        date: '2025-01-08',
-        event: 'Site Visit',
-        description: 'Valuer inspected the property and took measurements',
-      },
-      {
-        date: '2025-01-12',
-        event: 'Draft Report',
-        description: 'Preliminary valuation report prepared',
-      },
-      {
-        date: '2025-01-15',
-        event: 'Final Report',
-        description: 'Final valuation report issued to client',
-      },
-    ],
-    comparableProperties: [
-      {
-        id: 'CP001',
-        address: 'Garden City, Unit B7',
-        size: '145 sq m',
-        price: 8500000,
-      },
-      {
-        id: 'CP002',
-        address: 'Garden City, Unit D3',
-        size: '155 sq m',
-        price: 9200000,
-      },
-      {
-        id: 'CP003',
-        address: 'Garden City, Unit A9',
-        size: '150 sq m',
-        price: 8700000,
-      },
-    ],
-    documents: [
-      'Property Deed',
-      'Floor Plan',
-      'Property Photos',
-      'Final Valuation Report',
-    ],
-    propertyRatings: {
-      location: 4,
-      condition: 4,
-      accessibility: 5,
-      amenities: 4,
-      infrastructure: 4,
-    },
-  },
-  {
-    id: 'V002',
-    property: {
-      id: 'P003',
-      title: 'Commercial Plot in Mombasa Road',
-      type: 'Land',
-      location: 'Mombasa Road',
-      size: '0.25 acres',
-    },
-    client: {
-      id: 'C002',
-      name: 'Sarah Wanjiku',
-      contactNumber: '+254 723 456 789',
-      email: 'sarah.wanjiku@example.com',
-      type: 'Individual',
-    },
-    purpose: 'Mortgage',
-    requestDate: '2025-02-10',
-    completionDate: '2025-02-25',
-    status: 'Completed',
-    valuer: 'Daniel Omondi',
-    valuationFee: 35000,
-    marketValue: 3200000,
-    forcedSaleValue: 2700000,
-    methodology: ['Market Approach', 'Cost Approach'],
-    report: 'Valuation_Report_V002.pdf',
-    notes: 'Prime commercial plot with good visibility and access.',
-    timeline: [
-      {
-        date: '2025-02-10',
-        event: 'Request Received',
-        description: 'Valuation request submitted by client',
-      },
-      {
-        date: '2025-02-15',
-        event: 'Site Visit',
-        description: 'Valuer inspected the land and surrounding area',
-      },
-      {
-        date: '2025-02-20',
-        event: 'Draft Report',
-        description: 'Preliminary valuation report prepared',
-      },
-      {
-        date: '2025-02-25',
-        event: 'Final Report',
-        description: 'Final valuation report issued to client',
-      },
-    ],
-    comparableProperties: [
-      {
-        id: 'CP004',
-        address: 'Mombasa Road, Plot 123',
-        size: '0.22 acres',
-        price: 2900000,
-      },
-      {
-        id: 'CP005',
-        address: 'Mombasa Road, Plot 156',
-        size: '0.27 acres',
-        price: 3400000,
-      },
-      {
-        id: 'CP006',
-        address: 'Mombasa Road, Plot 189',
-        size: '0.25 acres',
-        price: 3100000,
-      },
-    ],
-    documents: [
-      'Land Title',
-      'Survey Plan',
-      'Land Photos',
-      'Final Valuation Report',
-    ],
-    propertyRatings: {
-      location: 5,
-      accessibility: 4,
-      infrastructure: 3,
-      zoning: 5,
-      topography: 4,
-    },
-  },
-  {
-    id: 'V003',
-    property: {
-      id: 'P006',
-      title: '1-Bedroom Studio in Kilimani',
-      type: 'Apartment',
-      location: 'Kilimani',
-      size: '75 sq m',
-    },
-    client: {
-      id: 'C003',
-      name: 'Robert Kariuki',
-      contactNumber: '+254 734 567 890',
-      email: 'robert.kariuki@example.com',
-      type: 'Individual',
-    },
-    purpose: 'Insurance',
-    requestDate: '2025-02-20',
-    completionDate: null,
-    status: 'In Progress',
-    valuer: 'Faith Muthoni',
-    valuationFee: 30000,
-    marketValue: null,
-    forcedSaleValue: null,
-    methodology: ['Market Approach'],
-    report: null,
-    notes: 'Awaiting inspection and comparable property analysis.',
-    timeline: [
-      {
-        date: '2025-02-20',
-        event: 'Request Received',
-        description: 'Valuation request submitted by client',
-      },
-      {
-        date: '2025-03-05',
-        event: 'Site Visit Scheduled',
-        description: 'Property inspection planned',
-      },
-    ],
-    comparableProperties: [],
-    documents: ['Property Deed', 'Floor Plan'],
-    propertyRatings: {
-      location: 0,
-      condition: 0,
-      accessibility: 0,
-      amenities: 0,
-      infrastructure: 0,
-    },
-  },
-  {
-    id: 'V004',
-    property: {
-      id: 'P005',
-      title: 'Agricultural Land in Thika',
-      type: 'Land',
-      location: 'Thika Road',
-      size: '0.8 acres',
-    },
-    client: {
-      id: 'B001',
-      name: 'KCB Bank',
-      contactNumber: '+254 745 678 901',
-      email: 'mortgages@kcbbank.com',
-      type: 'Institution',
-    },
-    purpose: 'Mortgage',
-    requestDate: '2025-03-01',
-    completionDate: null,
-    status: 'Pending Inspection',
-    valuer: 'Faith Muthoni',
-    valuationFee: 40000,
-    marketValue: null,
-    forcedSaleValue: null,
-    methodology: [],
-    report: null,
-    notes: 'Bank requires urgent valuation for mortgage application.',
-    timeline: [
-      {
-        date: '2025-03-01',
-        event: 'Request Received',
-        description: 'Valuation request submitted by bank',
-      },
-      {
-        date: '2025-03-08',
-        event: 'Site Visit Scheduled',
-        description: 'Property inspection planned',
-      },
-    ],
-    comparableProperties: [],
-    documents: ['Land Title', 'Survey Plan'],
-    propertyRatings: {
-      location: 0,
-      accessibility: 0,
-      infrastructure: 0,
-      zoning: 0,
-      topography: 0,
-    },
-  },
-  {
-    id: 'V005',
-    property: {
-      id: 'P008',
-      title: 'Penthouse in Riverside Drive',
-      type: 'Apartment',
-      location: 'Riverside Drive',
-      size: '230 sq m',
-    },
-    client: {
-      id: 'B002',
-      name: 'Equity Bank',
-      contactNumber: '+254 756 789 012',
-      email: 'valuations@equitybank.com',
-      type: 'Institution',
-    },
-    purpose: 'Mortgage',
-    requestDate: '2025-02-15',
-    completionDate: '2025-03-01',
-    status: 'Completed',
-    valuer: 'Daniel Omondi',
-    valuationFee: 60000,
-    marketValue: 18500000,
-    forcedSaleValue: 15500000,
-    methodology: ['Market Approach', 'Income Approach', 'Cost Approach'],
-    report: 'Valuation_Report_V005.pdf',
-    notes: 'Premium property with high-end finishes and amenities.',
-    timeline: [
-      {
-        date: '2025-02-15',
-        event: 'Request Received',
-        description: 'Valuation request submitted by bank',
-      },
-      {
-        date: '2025-02-20',
-        event: 'Site Visit',
-        description: 'Valuer inspected the property and amenities',
-      },
-      {
-        date: '2025-02-25',
-        event: 'Draft Report',
-        description: 'Preliminary valuation report prepared',
-      },
-      {
-        date: '2025-03-01',
-        event: 'Final Report',
-        description: 'Final valuation report issued to client',
-      },
-    ],
-    comparableProperties: [
-      {
-        id: 'CP007',
-        address: 'Riverside Drive, PH3',
-        size: '220 sq m',
-        price: 17800000,
-      },
-      {
-        id: 'CP008',
-        address: 'Riverside Drive, PH7',
-        size: '245 sq m',
-        price: 19500000,
-      },
-      {
-        id: 'CP009',
-        address: 'Westlands, PH2',
-        size: '230 sq m',
-        price: 18200000,
-      },
-    ],
-    documents: [
-      'Property Deed',
-      'Floor Plan',
-      'Property Photos',
-      'Final Valuation Report',
-      'Building Approval',
-    ],
-    propertyRatings: {
-      location: 5,
-      condition: 5,
-      accessibility: 4,
-      amenities: 5,
-      infrastructure: 5,
-    },
-  },
-];
 
 const ValuationManagement = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -425,101 +83,221 @@ const ValuationManagement = () => {
   const [valuationStatusFilter, setValuationStatusFilter] = useState('all');
   const [valuationPurposeFilter, setValuationPurposeFilter] = useState('all');
   const [dateRange, setDateRange] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [valuationToEdit, setValuationToEdit] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+
+
+  const [form] = Form.useForm();
+
+
+  const formatCurrency = (amount) => {
+    // Check if amount is a valid number, return 0 if it's NaN or undefined
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return 'KES 0';
+    }
+    return `KES ${parseFloat(amount).toLocaleString()}`;
+  };
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return moment(dateString).format('DD MMM YYYY');
+  };
+
+  // Fetch sales data
+  const { data: valuationsData = [], isLoading: isLoadingValuations, refetch: refetchValuations } = useQuery({
+    queryKey: ['sale', refreshKey],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllValuations();
+        console.log('sales fetched successfully:', response);
+
+        // Process data to use createdAt as dateJoined
+        const processedData = Array.isArray(response.data)
+          ? response.data.map(valuation => ({
+            ...valuation,
+            dateJoined: formatDate(valuation.createdAt) || valuation.dateJoined,
+          }))
+          : [];
+
+        return processedData;
+      } catch (error) {
+        message.error('Failed to fetch sales');
+        console.error('Error fetching sales:', error);
+        return [];
+      }
+    },
+
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+  const { data: propertiesData = [], isLoading: isLoadingProperties, refetch: refetchProperties } = useQuery({
+    queryKey: ['property'],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllProperties();
+        return response.data;
+      } catch (error) {
+        message.error('Failed to fetch properties');
+        console.error('Error fetching properties:', error);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch customers data
+  const { data: customersData = [], isLoading: isLoadingCustomers, refetch: refetchCustomers } = useQuery({
+    queryKey: ['customer'],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllCustomers();
+        return response.data;
+      } catch (error) {
+        message.error('Failed to fetch customers');
+        console.error('Error fetching customers:', error);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+
+  // Fetch users data (agents and managers)
+  const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      try {
+        const response = await fetchAllUsers();
+        console.log('Users fetched successfully:', response);
+
+        // Return all users
+        return Array.isArray(response.data) ? response.data.map(user => ({
+          ...user
+        })) : [];
+      } catch (error) {
+        message.error('Failed to fetch users');
+        console.error('Error fetching users:', error);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+  // Filter the fetched data for agents and managers
+  const valuersData = userData.filter(user => user.role === 'valuer');
+
+
+
+  console.log('valuations dta', valuationsData);
+
 
   // Table columns for valuations list
   const columns = [
-    {
-      title: 'Valuation ID',
-      dataIndex: 'id',
-      key: 'id',
-      fixed: 'left',
-      width: 120,
-      render: (text, record) => (
-        <a onClick={() => handleViewValuation(record)}>{text}</a>
-      ),
-      sorter: (a, b) => a.id.localeCompare(b.id),
-    },
+    // {
+    //   title: 'Valuation ID',
+    //   dataIndex: '_id',
+    //   key: '_id',
+    //   fixed: 'left',
+    //   width: 120,
+    //   render: (text, record) => (
+    //     <a onClick={() => handleViewValuation(record)}>{text}</a>
+    //   ),
+    //   sorter: (a, b) => a._id.localeCompare(b._id),
+    // },
     {
       title: 'Property',
-      dataIndex: ['property', 'title'],
+      dataIndex: ['property', 'name'],
       key: 'property',
+      fixed: 'left',
       width: 200,
-      sorter: (a, b) => a.property.title.localeCompare(b.property.title),
+      sorter: (a, b) => a.property.name.localeCompare(b.property.name),
     },
     {
       title: 'Type',
-      dataIndex: ['property', 'type'],
+      dataIndex: ['property', 'propertyType'],
       key: 'type',
       width: 100,
       render: (type) => (
-        <Tag color={type === 'Apartment' ? 'blue' : 'green'}>{type}</Tag>
+        <Tag color={type === 'apartment' ? 'blue' : 'green'}>
+          {type.charAt(0).toUpperCase() + type.slice(1)}
+        </Tag>
       ),
       filters: [
-        { text: 'Apartment', value: 'Apartment' },
-        { text: 'Land', value: 'Land' },
+        { text: 'Apartment', value: 'apartment' },
+        { text: 'Land', value: 'land' },
       ],
-      onFilter: (value, record) => record.property.type === value,
+      onFilter: (value, record) => record.property.propertyType === value,
     },
     {
       title: 'Client',
-      dataIndex: ['client', 'name'],
-      key: 'client',
+      dataIndex: ['requestedBy', 'name'],
+      key: 'requestedBy',
       width: 150,
       render: (text, record) => (
         <span>
-          {text}{' '}
-          {record.client.type === 'Institution' && (
-            <CrownOutlined style={{ color: '#faad14' }} />
-          )}
+          {text || <Text type="secondary">Not Assigned</Text>}
         </span>
       ),
-      sorter: (a, b) => a.client.name.localeCompare(b.client.name),
+      sorter: (a, b) => {
+        if (!a.requestedBy) return 1;
+        if (!b.requestedBy) return -1;
+        return a.requestedBy.name.localeCompare(b.requestedBy.name);
+      },
     },
     {
       title: 'Purpose',
-      dataIndex: 'purpose',
+      dataIndex: 'valuationPurpose',
       key: 'purpose',
       width: 120,
       filters: [
-        { text: 'Sale', value: 'Sale' },
-        { text: 'Mortgage', value: 'Mortgage' },
-        { text: 'Insurance', value: 'Insurance' },
-        { text: 'Tax', value: 'Tax' },
+        { text: 'Sale', value: 'sale' },
+        { text: 'Mortgage', value: 'mortgage' },
+        { text: 'Insurance', value: 'insurance' },
+        { text: 'Tax', value: 'tax' },
       ],
-      onFilter: (value, record) => record.purpose === value,
-      render: (purpose) => (
-        <Tag
-          color={
-            purpose === 'Sale'
-              ? 'blue'
-              : purpose === 'Mortgage'
-              ? 'green'
-              : purpose === 'Insurance'
-              ? 'purple'
-              : 'orange'
-          }
-        >
-          {purpose}
-        </Tag>
-      ),
+      onFilter: (value, record) => record.valuationPurpose === value,
+      render: (purpose) => {
+        const formattedPurpose = purpose.charAt(0).toUpperCase() + purpose.slice(1);
+        return (
+          <Tag
+            color={
+              purpose === 'sale'
+                ? 'blue'
+                : purpose === 'mortgage'
+                  ? 'green'
+                  : purpose === 'insurance'
+                    ? 'purple'
+                    : 'orange'
+            }
+          >
+            {formattedPurpose}
+          </Tag>
+        );
+      },
     },
     {
       title: 'Request Date',
-      dataIndex: 'requestDate',
+      dataIndex: 'createdAt',
       key: 'requestDate',
       width: 120,
-      sorter: (a, b) => new Date(a.requestDate) - new Date(b.requestDate),
+      render: (date) => new Date(date).toLocaleDateString(),
+      sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
     },
     {
-      title: 'Completion Date',
-      dataIndex: 'completionDate',
-      key: 'completionDate',
+      title: 'Valuation Date',
+      dataIndex: 'valuationDate',
+      key: 'valuationDate',
       width: 140,
-      render: (date) => (date ? date : <Text type="secondary">Pending</Text>),
+      render: (date) => (date ? new Date(date).toLocaleDateString() : <Text type="secondary">Pending</Text>),
       sorter: (a, b) => {
-        if (!a.completionDate) return 1;
-        if (!b.completionDate) return -1;
-        return new Date(a.completionDate) - new Date(b.completionDate);
+        if (!a.valuationDate) return 1;
+        if (!b.valuationDate) return -1;
+        return new Date(a.valuationDate) - new Date(b.valuationDate);
       },
     },
     {
@@ -529,6 +307,7 @@ const ValuationManagement = () => {
       width: 150,
       render: (status) => {
         let color = 'default';
+        if (!status) status = 'Pending';
         if (status === 'Pending Inspection') color = 'orange';
         if (status === 'In Progress') color = 'blue';
         if (status === 'Completed') color = 'green';
@@ -537,23 +316,22 @@ const ValuationManagement = () => {
         return <Tag color={color}>{status}</Tag>;
       },
       filters: [
+        { text: 'Pending', value: 'Pending' },
         { text: 'Pending Inspection', value: 'Pending Inspection' },
         { text: 'In Progress', value: 'In Progress' },
         { text: 'Completed', value: 'Completed' },
         { text: 'Canceled', value: 'Canceled' },
       ],
-      onFilter: (value, record) => record.status === value,
+      onFilter: (value, record) => (record.status || 'Pending') === value,
     },
     {
       title: 'Valuer',
-      dataIndex: 'valuer',
+      dataIndex: ['valuer', 'name'],
       key: 'valuer',
       width: 130,
-      filters: [
-        { text: 'Daniel Omondi', value: 'Daniel Omondi' },
-        { text: 'Faith Muthoni', value: 'Faith Muthoni' },
-      ],
-      onFilter: (value, record) => record.valuer === value,
+      render: (name) => name || <Text type="secondary">Not Assigned</Text>,
+      filters: [], // This would be populated dynamically based on available valuers
+      onFilter: (value, record) => record.valuer && record.valuer.name === value,
     },
     {
       title: 'Market Value (KES)',
@@ -569,13 +347,40 @@ const ValuationManagement = () => {
       },
     },
     {
-      title: 'Fee (KES)',
-      dataIndex: 'valuationFee',
-      key: 'valuationFee',
-      width: 120,
-      render: (fee) => fee.toLocaleString(),
-      sorter: (a, b) => a.valuationFee - b.valuationFee,
+      title: 'Property Price (KES)',
+      dataIndex: ['property', 'price'],
+      key: 'price',
+      width: 160,
+      render: (price) => price?.toLocaleString(),
+      sorter: (a, b) => (a.property?.price || 0) - (b.property?.price || 0),
     },
+    // {
+    //   title: 'Documents',
+    //   key: 'documents',
+    //   width: 120,
+    //   render: (_, record) => (
+    //     <Space>
+    //       {record.reportDocument && (
+    //         <Tooltip title="Report">
+    //           <Button
+    //             icon={<FileTextOutlined />}
+    //             size="small"
+    //             onClick={() => handleViewDocument(record.reportDocument)}
+    //           />
+    //         </Tooltip>
+    //       )}
+    //       {record.certificateDocument && (
+    //         <Tooltip title="Certificate">
+    //           <Button
+    //             icon={<FilePdfOutlined />}
+    //             size="small"
+    //             onClick={() => handleViewDocument(record.certificateDocument)}
+    //           />
+    //         </Tooltip>
+    //       )}
+    //     </Space>
+    //   ),
+    // },
     {
       title: 'Actions',
       key: 'actions',
@@ -611,17 +416,35 @@ const ValuationManagement = () => {
       ),
     },
   ];
-
   // Handle view valuation
   const handleViewValuation = (valuation) => {
     setSelectedValuation(valuation);
     setDrawerVisible(true);
   };
 
-  // Handle edit valuation
   const handleEditValuation = (valuation) => {
-    // In a real app, this would open a form to edit the valuation
-    console.log('Edit valuation:', valuation);
+    setIsEditMode(true);
+    setValuationToEdit(valuation);
+
+    // Set form values based on existing valuation
+    // Use optional chaining to safely access nested properties
+    form.setFieldsValue({
+      property: valuation.property?._id || valuation.property?.id || valuation.property,
+      requestedBy: valuation.requestedBy?._id || valuation.requestedBy?.id || valuation.requestedBy,
+      valuationPurpose: valuation.purpose?.toLowerCase() || valuation.valuationPurpose,
+      valuer: valuation.valuer?._id || valuation.valuer?.id || valuation.valuer,
+      valuationDate: valuation.requestDate ? moment(valuation.requestDate) :
+        valuation.valuationDate ? moment(valuation.valuationDate) : null,
+      marketValue: valuation.marketValue,
+      valuationFee: valuation.valuationFee || 0,
+      notes: valuation.notes,
+      documents: valuation.documents || [],
+      methodology: valuation.methodology || [],
+      methodologyNotes: valuation.methodologyNotes,
+      forcedSaleValue: valuation.forcedSaleValue,
+    });
+
+    setAddValuationVisible(true);
   };
 
   // Show delete confirmation modal
@@ -648,10 +471,66 @@ const ValuationManagement = () => {
     setDateRange(dates);
   };
 
+
+  const handleValuationSubmit = () => {
+    form.validateFields().then(values => {
+      if (isEditMode) {
+        // Create a service function to update the valuation similar to your other API calls
+        updateValuation(valuationToEdit._id, values)
+          .then(updatedValuation => {
+            // Show success message
+            message.success('Valuation updated successfully!');
+            setTimeout(() => {
+              setRefreshKey(prevKey => prevKey + 1);
+              refetchValuations({ force: true });
+            }, 500);
+
+            // Close modal and reset state
+            setAddValuationVisible(false);
+            setIsEditMode(false);
+            setValuationToEdit(null);
+            form.resetFields();
+          })
+          .catch(error => {
+            console.error('Error updating valuation:', error);
+            message.error('Failed to update valuation. Please try again.');
+          });
+      } else {
+        createNewValuation(values)
+          .then(newValuation => {
+            // Show success message
+            message.success('Valuation logged successfully!');
+            setTimeout(() => {
+              setRefreshKey(prevKey => prevKey + 1);
+              refetchValuations({ force: true });
+            }, 500);
+
+            // Close modal
+            setAddValuationVisible(false);
+            form.resetFields();
+          })
+          .catch(error => {
+            console.error('Error adding Valuation:', error);
+            message.error('Failed to add Valuation. Please try again.');
+          });
+      }
+    }).catch(errorInfo => {
+      console.log('Validation failed:', errorInfo);
+    });
+  };
+
+  const handleModalCancel = () => {
+    form.resetFields();
+    setIsEditMode(false);
+    setValuationToEdit(null);
+    setAddValuationVisible(false);
+  };
+
+
   // Calculate valuation totals
   const getTotalValuationFee = () => {
     return valuationsData.reduce(
-      (total, valuation) => total + valuation.valuationFee,
+      (total, valuation) => total + valuation.valuationFee || 0,
       0,
     );
   };
@@ -677,20 +556,19 @@ const ValuationManagement = () => {
 
   // Filter valuations based on search text and filters
   const filteredValuations = valuationsData.filter((valuation) => {
+    const search = searchText.toLowerCase();
+
     const matchesSearch =
-      valuation.id.toLowerCase().includes(searchText.toLowerCase()) ||
-      valuation.property.title
-        .toLowerCase()
-        .includes(searchText.toLowerCase()) ||
-      valuation.client.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      valuation.valuer.toLowerCase().includes(searchText.toLowerCase());
+      (valuation.id?.toLowerCase().includes(search) || false) ||
+      (valuation.property?.title?.toLowerCase().includes(search) || false) ||
+      (valuation.requestedBy?.name?.toLowerCase().includes(search) || false) ||
+      (valuation.valuer?.name?.toLowerCase().includes(search) || false);
 
     const matchesStatus =
-      valuationStatusFilter === 'all' ||
-      valuation.status === valuationStatusFilter;
+      valuationStatusFilter === 'all' || valuation.status === valuationStatusFilter;
+
     const matchesPurpose =
-      valuationPurposeFilter === 'all' ||
-      valuation.purpose === valuationPurposeFilter;
+      valuationPurposeFilter === 'all' || valuation.purpose === valuationPurposeFilter;
 
     let matchesDateRange = true;
     if (dateRange && dateRange[0] && dateRange[1]) {
@@ -875,7 +753,7 @@ const ValuationManagement = () => {
       <Drawer
         title={
           selectedValuation
-            ? `Valuation Details: ${selectedValuation.id}`
+            ? `Valuation Details`
             : 'Valuation Details'
         }
         placement="right"
@@ -911,11 +789,11 @@ const ValuationManagement = () => {
                     </Text>
                     <Text>
                       <EnvironmentOutlined style={{ marginRight: 8 }} />
-                      {selectedValuation.property.location}
+                      {selectedValuation.property?.location?.address}
                     </Text>
                     <Text>
                       <UserOutlined style={{ marginRight: 8 }} />
-                      Client: {selectedValuation.client.name}
+                      Client: {selectedValuation?.requestedBy?.name}
                     </Text>
                   </Space>
                 </Col>
@@ -925,10 +803,10 @@ const ValuationManagement = () => {
                       selectedValuation.status === 'Pending Inspection'
                         ? 'orange'
                         : selectedValuation.status === 'In Progress'
-                        ? 'blue'
-                        : selectedValuation.status === 'Completed'
-                        ? 'green'
-                        : 'red'
+                          ? 'blue'
+                          : selectedValuation.status === 'Completed'
+                            ? 'green'
+                            : 'red'
                     }
                     style={{ fontSize: '14px', padding: '4px 8px' }}
                   >
@@ -958,15 +836,15 @@ const ValuationManagement = () => {
                   selectedValuation.status === 'Pending Inspection'
                     ? 0
                     : selectedValuation.status === 'In Progress'
-                    ? 1
-                    : selectedValuation.status === 'Completed'
-                    ? 2
-                    : 0
+                      ? 1
+                      : selectedValuation.status === 'Completed'
+                        ? 2
+                        : 0
                 }
               >
-                <Step title="Inspection" />
-                <Step title="Valuation" />
-                <Step title="Report" />
+                <Steps.Step title="Inspection" />
+                <Steps.Step title="Valuation" />
+                <Steps.Step title="Report" />
               </Steps>
             </div>
 
@@ -976,13 +854,13 @@ const ValuationManagement = () => {
                 <Col span={12}>
                   <Descriptions column={1} size="small">
                     <Descriptions.Item label="Valuation Purpose">
-                      {selectedValuation.purpose}
+                      {selectedValuation.valuationPurpose}
                     </Descriptions.Item>
                     <Descriptions.Item label="Valuer">
-                      {selectedValuation.valuer}
+                      {selectedValuation.valuer?.name}
                     </Descriptions.Item>
                     <Descriptions.Item label="Valuation Fee">
-                      KES {selectedValuation.valuationFee.toLocaleString()}
+                      KES {selectedValuation?.valuationFee ? selectedValuation?.valuationFee.toLocaleString() : 0}
                     </Descriptions.Item>
                     <Descriptions.Item label="Methodology">
                       {selectedValuation.methodology.join(', ') ||
@@ -993,21 +871,21 @@ const ValuationManagement = () => {
                 <Col span={12}>
                   <Descriptions column={1} size="small">
                     <Descriptions.Item label="Market Value">
-                      {selectedValuation.marketValue
+                      {selectedValuation?.marketValue
                         ? `KES ${selectedValuation.marketValue.toLocaleString()}`
                         : 'Pending'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Forced Sale Value">
-                      {selectedValuation.forcedSaleValue
+                      {selectedValuation?.forcedSaleValue
                         ? `KES ${selectedValuation.forcedSaleValue.toLocaleString()}`
                         : 'Pending'}
                     </Descriptions.Item>
                     <Descriptions.Item label="Report">
-                      {selectedValuation.report || 'Not available yet'}
+                      {selectedValuation?.report || 'Not available yet'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Documents">
-                      {selectedValuation.documents.length} documents
-                    </Descriptions.Item>
+                    {/* <Descriptions.Item label="Documents">
+                      {selectedValuation?.documents ? selectedValuation?.documents.length : 0} documents
+                    </Descriptions.Item> */}
                   </Descriptions>
                 </Col>
               </Row>
@@ -1020,9 +898,9 @@ const ValuationManagement = () => {
                     bordered
                     column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
                   >
-                    <Descriptions.Item label="Property ID">
+                    {/* <Descriptions.Item label="Property ID">
                       {selectedValuation.property.id}
-                    </Descriptions.Item>
+                    </Descriptions.Item> */}
                     <Descriptions.Item label="Property Type">
                       {selectedValuation.property.type}
                     </Descriptions.Item>
@@ -1030,12 +908,12 @@ const ValuationManagement = () => {
                       {selectedValuation.property.size}
                     </Descriptions.Item>
                     <Descriptions.Item label="Location">
-                      {selectedValuation.property.location}
+                      {selectedValuation.property?.location?.address}
                     </Descriptions.Item>
                   </Descriptions>
                 </Card>
 
-                {selectedValuation.status !== 'Pending Inspection' && (
+                {selectedValuation.status !== 'Pending Inspection' && selectedValuation?.propertyRatings && (
                   <Card title="Property Ratings" style={{ marginBottom: 16 }}>
                     <Row gutter={16}>
                       {Object.entries(selectedValuation.propertyRatings).map(
@@ -1059,8 +937,7 @@ const ValuationManagement = () => {
                     </Row>
                   </Card>
                 )}
-
-                {selectedValuation.comparableProperties.length > 0 && (
+                {selectedValuation.comparableProperties && selectedValuation.comparableProperties.length > 0 && (
                   <Card
                     title="Comparable Properties"
                     style={{ marginBottom: 16 }}
@@ -1100,7 +977,7 @@ const ValuationManagement = () => {
 
               <TabPane tab="Timeline" key="2">
                 <Timeline mode="left">
-                  {selectedValuation.timeline.map((item, index) => (
+                  {selectedValuation.timeline && selectedValuation.timeline.map((item, index) => (
                     <Timeline.Item
                       key={index}
                       label={item.date}
@@ -1108,10 +985,10 @@ const ValuationManagement = () => {
                         item.event === 'Final Report'
                           ? 'green'
                           : item.event === 'Draft Report'
-                          ? 'blue'
-                          : item.event === 'Site Visit'
-                          ? 'blue'
-                          : 'gray'
+                            ? 'blue'
+                            : item.event === 'Site Visit'
+                              ? 'blue'
+                              : 'gray'
                       }
                     >
                       <div style={{ fontWeight: 'bold' }}>{item.event}</div>
@@ -1153,24 +1030,24 @@ const ValuationManagement = () => {
                 <Card>
                   <Descriptions title="Client Information" bordered column={1}>
                     <Descriptions.Item label="Name">
-                      {selectedValuation.client.name}
+                      {selectedValuation?.requestedBy?.name}
                     </Descriptions.Item>
                     <Descriptions.Item label="Client Type">
                       <Tag
                         color={
-                          selectedValuation.client.type === 'Institution'
+                          selectedValuation?.requestedBy?.type === 'Institution'
                             ? 'gold'
                             : 'blue'
                         }
                       >
-                        {selectedValuation.client.type}
+                        {selectedValuation?.requestedBy?.type}
                       </Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Contact Number">
-                      {selectedValuation.client.contactNumber}
+                      {selectedValuation.requestedBy?.contactNumber}
                     </Descriptions.Item>
                     <Descriptions.Item label="Email">
-                      {selectedValuation.client.email}
+                      {selectedValuation?.requestedBy?.email}
                     </Descriptions.Item>
                   </Descriptions>
                   <div
@@ -1191,7 +1068,7 @@ const ValuationManagement = () => {
                 </Card>
               </TabPane>
 
-              <TabPane tab="Documents" key="4">
+              {/* <TabPane tab="Documents" key="4">
                 <List
                   itemLayout="horizontal"
                   dataSource={selectedValuation.documents}
@@ -1219,7 +1096,7 @@ const ValuationManagement = () => {
                     Upload Document
                   </Button>
                 )}
-              </TabPane>
+              </TabPane> */}
 
               <TabPane tab="Notes" key="5">
                 <Card>
@@ -1245,197 +1122,21 @@ const ValuationManagement = () => {
       </Drawer>
 
       {/* Request Valuation Modal */}
-      <Modal
-        title="Request Property Valuation"
+      <AddValuationModal
         visible={addValuationVisible}
-        onOk={() => setAddValuationVisible(false)}
-        onCancel={() => setAddValuationVisible(false)}
-        width={800}
-        okText="Submit Request"
-      >
-        <Form layout="vertical">
-          <Tabs defaultActiveKey="1">
-            <TabPane tab="Basic Information" key="1">
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item label="Select Property" required>
-                    <Select
-                      showSearch
-                      style={{ width: '100%' }}
-                      placeholder="Search for property"
-                      optionFilterProp="children"
-                    >
-                      <Option value="p001">
-                        P001 - Premium Land Plot in Nairobi
-                      </Option>
-                      <Option value="p006">
-                        P006 - 1-Bedroom Studio in Kilimani
-                      </Option>
-                      <Option value="p007">
-                        P007 - Beachfront Land in Diani
-                      </Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="Select Client" required>
-                    <Select
-                      showSearch
-                      style={{ width: '100%' }}
-                      placeholder="Search for client"
-                      optionFilterProp="children"
-                    >
-                      <Option value="c001">
-                        C001 - John Kamau (Individual)
-                      </Option>
-                      <Option value="c003">
-                        C003 - Robert Kariuki (Individual)
-                      </Option>
-                      <Option value="b001">
-                        B001 - KCB Bank (Institution)
-                      </Option>
-                      <Option value="b002">
-                        B002 - Equity Bank (Institution)
-                      </Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item label="Valuation Purpose" required>
-                    <Select style={{ width: '100%' }}>
-                      <Option value="Sale">Sale</Option>
-                      <Option value="Mortgage">Mortgage</Option>
-                      <Option value="Insurance">Insurance</Option>
-                      <Option value="Tax">Tax</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="Assigned Valuer" required>
-                    <Select style={{ width: '100%' }}>
-                      <Option value="Daniel Omondi">Daniel Omondi</Option>
-                      <Option value="Faith Muthoni">Faith Muthoni</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item label="Request Date" required>
-                    <DatePicker style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="Valuation Fee (KES)" required>
-                    <InputNumber
-                      style={{ width: '100%' }}
-                      formatter={(value) =>
-                        `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                      }
-                      parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                      placeholder="Enter fee amount"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item label="Special Instructions">
-                <Input.TextArea
-                  rows={4}
-                  placeholder="Any special requirements or instructions..."
-                />
-              </Form.Item>
-            </TabPane>
-
-            <TabPane tab="Required Documents" key="2">
-              <Form.Item label="Required Documents">
-                <Checkbox.Group style={{ width: '100%' }}>
-                  <Row>
-                    <Col span={8}>
-                      <Checkbox value="Property Deed">
-                        Property Deed/Title
-                      </Checkbox>
-                    </Col>
-                    <Col span={8}>
-                      <Checkbox value="Floor Plan">Floor Plan</Checkbox>
-                    </Col>
-                    <Col span={8}>
-                      <Checkbox value="Property Photos">
-                        Property Photos
-                      </Checkbox>
-                    </Col>
-                    <Col span={8}>
-                      <Checkbox value="Survey Plan">Survey Plan</Checkbox>
-                    </Col>
-                    <Col span={8}>
-                      <Checkbox value="Land Certificate">
-                        Land Certificate
-                      </Checkbox>
-                    </Col>
-                    <Col span={8}>
-                      <Checkbox value="Building Approval">
-                        Building Approval
-                      </Checkbox>
-                    </Col>
-                  </Row>
-                </Checkbox.Group>
-              </Form.Item>
-
-              <Form.Item label="Upload Documents">
-                <Upload.Dragger multiple listType="picture">
-                  <p className="ant-upload-drag-icon">
-                    <FileDoneOutlined />
-                  </p>
-                  <p className="ant-upload-text">
-                    Click or drag documents to this area to upload
-                  </p>
-                  <p className="ant-upload-hint">
-                    Upload any existing documents for the property valuation.
-                  </p>
-                </Upload.Dragger>
-              </Form.Item>
-            </TabPane>
-
-            <TabPane tab="Methodology" key="3">
-              <Form.Item label="Valuation Methodology">
-                <Checkbox.Group style={{ width: '100%' }}>
-                  <Row>
-                    <Col span={12}>
-                      <Checkbox value="Market Approach">
-                        Market Approach
-                      </Checkbox>
-                    </Col>
-                    <Col span={12}>
-                      <Checkbox value="Income Approach">
-                        Income Approach
-                      </Checkbox>
-                    </Col>
-                    <Col span={12}>
-                      <Checkbox value="Cost Approach">Cost Approach</Checkbox>
-                    </Col>
-                    <Col span={12}>
-                      <Checkbox value="Residual Method">
-                        Residual Method
-                      </Checkbox>
-                    </Col>
-                  </Row>
-                </Checkbox.Group>
-              </Form.Item>
-
-              <Form.Item label="Additional Notes on Methodology">
-                <Input.TextArea
-                  rows={4}
-                  placeholder="Any specific requirements for the valuation approach..."
-                />
-              </Form.Item>
-            </TabPane>
-          </Tabs>
-        </Form>
-      </Modal>
+        isEditMode={isEditMode}
+        propertiesData={propertiesData}
+        customersData={customersData}
+        isLoadingCustomers={isLoadingCustomers}
+        isLoadingProperties={isLoadingProperties}
+        valuersData={valuersData}
+        isLoadingUsers={isLoadingUsers}
+        formatCurrency={formatCurrency}
+        valuationToEdit={valuationToEdit} // Uncomment this line
+        form={form}
+        onOk={handleValuationSubmit}
+        onCancel={handleModalCancel}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -1448,7 +1149,7 @@ const ValuationManagement = () => {
       >
         <p>
           Are you sure you want to delete the valuation{' '}
-          <strong>{valuationToDelete?.id}</strong> for property{' '}
+          {/* <strong>{valuationToDelete?.id}</strong> for property{' '} */}
           <strong>{valuationToDelete?.property.title}</strong>?
         </p>
         <p>This action cannot be undone.</p>
