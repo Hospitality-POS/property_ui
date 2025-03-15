@@ -11,9 +11,7 @@ const LoginPage = () => {
 
   const { run, loading: isPending } = useRequest(loginUser, {
     manual: true,
-    onSuccess: async (data) => {
-      localStorage.setItem('property_token', JSON.stringify(data.token));
-
+    onSuccess: async () => {
       const currentUser = await initialState?.fetchUserInfo();
 
       await setInitialState({
