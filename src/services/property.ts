@@ -1,5 +1,8 @@
+import { getToken } from '@/utils/getToken';
 import { ParamsType } from '@ant-design/pro-components';
 import axiosInstance from './request';
+
+const { token } = getToken();
 
 export const createNewProperty = async (leadProperty) => {
   try {
@@ -8,9 +11,7 @@ export const createNewProperty = async (leadProperty) => {
       leadProperty,
       {
         headers: {
-          Authorization: `Bearer ${JSON.parse(
-            localStorage.getItem('property_token') || '{}',
-          )}`,
+          Authorization: `Bearer ${token}`,
         },
       },
     );
@@ -24,11 +25,11 @@ export const fetchAllProperties = async (token?: ParamsType) => {
   try {
     const response = await axiosInstance.get(`${BASE_URL}/properties`, {
       headers: {
-        Authorization: `Bearer ${
-          token || JSON.parse(localStorage.getItem('property_token') || '{}')
-        }`,
+        Authorization: `Bearer ${token}`,
       },
     });
+
+    console.log('properties', response.data.data);
     return response.data.data;
   } catch (error) {
     console.log(error);
@@ -47,9 +48,7 @@ export const updateProperty = async (
       propertyData,
       {
         headers: {
-          Authorization: `Bearer ${
-            token || JSON.parse(localStorage.getItem('property_token') || '{}')
-          }`,
+          Authorization: `Bearer ${token}`,
         },
       },
     );
@@ -65,9 +64,7 @@ export const deleteProperty = async (userId: string, token?: ParamsType) => {
       `${BASE_URL}/properties/${userId}`,
       {
         headers: {
-          Authorization: `Bearer ${
-            token || JSON.parse(localStorage.getItem('property_token') || '{}')
-          }`,
+          Authorization: `Bearer ${token}`,
         },
       },
     );
