@@ -16,6 +16,13 @@ export const AddPropertyInterestModal = ({
     onOk,
     onCancel
 }) => {
+    const calculatePropertyValue = (property) => {
+        if (!property.units || !Array.isArray(property.units)) return 0;
+        return property.units.reduce((total, unit) => {
+            return total + ((unit.price || 0) * (unit.totalUnits || 0));
+        }, 0);
+    };
+
     return (
         <Modal
             title={`Add Property Interest for ${leadName || 'Lead'}`}
@@ -33,7 +40,7 @@ export const AddPropertyInterestModal = ({
                     <Select placeholder="Choose a property">
                         {propertiesData.map(property => (
                             <Option key={property._id} value={property._id}>
-                                {property?.name} - {property.location?.address} - {property.price.toLocaleString()} KES
+                                {property?.name} - {property.location?.address} - {calculatePropertyValue(property).toLocaleString()} KES
                             </Option>
                         ))}
                     </Select>

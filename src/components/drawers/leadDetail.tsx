@@ -15,14 +15,16 @@ import {
     Descriptions,
     Avatar,
     Timeline,
-    Empty
+    Empty,
+    Popconfirm
 } from 'antd';
 import {
     PhoneOutlined,
     MailOutlined,
     EnvironmentOutlined,
     PlusOutlined,
-    UserOutlined
+    UserOutlined,
+    DeleteOutlined
 } from '@ant-design/icons';
 import { useNavigate } from '@umijs/max';
 
@@ -47,6 +49,9 @@ export const LeadDetailsDrawer = ({
     onAddActivity,
     onAddNote,
     onAddPropertyInterest,
+    onRemovePropertyInterest,
+    onDeleteNote,
+    onDeleteActivity,
     propertiesData,
     capitalize,
     formatDate,
@@ -58,8 +63,6 @@ export const LeadDetailsDrawer = ({
 
     const navigate = useNavigate();
 
-
-
     return (
         <Drawer
             title={`Lead Details: ${lead.name}`}
@@ -67,13 +70,6 @@ export const LeadDetailsDrawer = ({
             onClose={onClose}
             open={visible}
             width={600}
-            extra={
-                lead.status !== 'converted' && lead.status !== 'lost' ? (
-                    <Button type="primary" onClick={() => onConvert(lead)}>
-                        Convert to Customer
-                    </Button>
-                ) : null
-            }
         >
             <div style={{ marginBottom: 24 }}>
                 <Row>
@@ -181,7 +177,7 @@ export const LeadDetailsDrawer = ({
 
                             </Descriptions.Item>
                             <Descriptions.Item label="Budget">
-                                {lead.interestAreas[0]?.budget ?
+                                {lead.interestAreas && lead.interestAreas.length && lead.interestAreas[0]?.budget ?
                                     `${lead.interestAreas[0].budget.min.toLocaleString()} - ${lead.interestAreas[0].budget.max.toLocaleString()} KES` :
                                     'Not specified'}
                             </Descriptions.Item>
@@ -204,7 +200,24 @@ export const LeadDetailsDrawer = ({
                                 itemLayout="horizontal"
                                 dataSource={lead.notes}
                                 renderItem={(note) => (
-                                    <List.Item>
+                                    <List.Item
+                                        actions={[
+                                            <Popconfirm
+                                                title="Are you sure you want to delete this note?"
+                                                onConfirm={() => onDeleteNote(lead._id, note._id)}
+                                                okText="Yes"
+                                                cancelText="No"
+                                            >
+                                                <Button
+                                                    type="link"
+                                                    danger
+                                                    icon={<DeleteOutlined />}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Popconfirm>
+                                        ]}
+                                    >
                                         <List.Item.Meta
                                             title={note.addedBy?.name ? `Added by ${note.addedBy.name}` : ''}
                                             description={
@@ -226,47 +239,67 @@ export const LeadDetailsDrawer = ({
                             type="primary"
                             icon={<PlusOutlined />}
                             style={{ marginTop: 16 }}
-                            onClick={() => onAddNote(lead)}
+                            onClick={() => onAddNote(lead, false)} // Pass false to indicate no activity creation
                         >
                             Add Note
                         </Button>
                     </Card>
                 </TabPane>
 
-                <TabPane tab="Activity Timeline" key="2">
+                <TabPane tab="Activity/Follow Ups Timeline" key="2">
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
                         style={{ marginBottom: 16 }}
                         onClick={() => onAddActivity(lead)}
                     >
-                        Add Activity
+                        Add Activity/Follow up
                     </Button>
 
                     <Timeline mode="left">
-                        {lead.communications && lead.communications.map((comm, index) => (
-                            <Timeline.Item
-                                key={index}
-                                label={formatDate(comm.date)}
-                                color={
-                                    comm.type === 'call'
-                                        ? 'green'
-                                        : comm.type === 'email'
-                                            ? 'blue'
-                                            : comm.type === 'meeting'
-                                                ? 'orange'
-                                                : comm.type === 'sms'
-                                                    ? 'cyan'
-                                                    : 'gray'
-                                }
-                            >
-                                <div style={{ fontWeight: 'bold' }}>{capitalize(comm.type)}</div>
-                                <div>{comm.summary}</div>
-                                {comm.outcome && <div><strong>Outcome:</strong> {comm.outcome}</div>}
-                                {comm.nextAction && <div><strong>Next Action:</strong> {comm.nextAction}</div>}
-                                {comm.by && <div style={{ fontSize: '12px', color: '#999' }}>By: {comm.by.name}</div>}
-                            </Timeline.Item>
-                        ))}
+                        {lead.communications && lead.communications.length > 0 ? (
+                            lead.communications.map((comm, index) => (
+                                <Timeline.Item
+                                    key={index}
+                                    label={formatDate(comm.date)}
+                                    color={
+                                        comm.type === 'call'
+                                            ? 'green'
+                                            : comm.type === 'email'
+                                                ? 'blue'
+                                                : comm.type === 'meeting'
+                                                    ? 'orange'
+                                                    : comm.type === 'sms'
+                                                        ? 'cyan'
+                                                        : 'gray'
+                                    }
+                                >
+                                    <div style={{ fontWeight: 'bold' }}>{capitalize(comm.type)}</div>
+                                    <div>{comm.summary}</div>
+                                    {comm.outcome && <div><strong>Outcome:</strong> {comm.outcome}</div>}
+                                    {comm.nextAction && <div><strong>Next Action:</strong> {comm.nextAction}</div>}
+                                    {comm.by && <div style={{ fontSize: '12px', color: '#999' }}>By: {comm.by.name}</div>}
+
+                                    <Popconfirm
+                                        title="Delete this activity?"
+                                        onConfirm={() => onDeleteActivity(lead._id, comm._id)}
+                                        okText="Yes"
+                                        cancelText="No"
+                                    >
+                                        <Button
+                                            type="link"
+                                            danger
+                                            size="small"
+                                            icon={<DeleteOutlined />}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </Popconfirm>
+                                </Timeline.Item>
+                            ))
+                        ) : (
+                            <EmptyComponent description="No activities recorded" />
+                        )}
                     </Timeline>
                 </TabPane>
                 <TabPane tab="Interested Properties" key="3">
@@ -275,7 +308,30 @@ export const LeadDetailsDrawer = ({
                             itemLayout="horizontal"
                             dataSource={lead.interestedProperties}
                             renderItem={(property) => (
-                                <List.Item actions={[<Button type="link" onClick={() => navigate("/property")}>View Details</Button>]}>
+                                <List.Item
+                                    actions={[
+                                        <Button
+                                            type="link"
+                                            onClick={() => navigate("/property")}
+                                        >
+                                            View Details
+                                        </Button>,
+                                        <Popconfirm
+                                            title="Remove this property from interested list?"
+                                            onConfirm={() => onRemovePropertyInterest(lead._id, property._id)}
+                                            okText="Yes"
+                                            cancelText="No"
+                                        >
+                                            <Button
+                                                type="link"
+                                                danger
+                                                icon={<DeleteOutlined />}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </Popconfirm>
+                                    ]}
+                                >
                                     <List.Item.Meta
                                         avatar={<Avatar icon={<EnvironmentOutlined />} />}
                                         title={property.name}
@@ -297,52 +353,9 @@ export const LeadDetailsDrawer = ({
                         type="primary"
                         icon={<PlusOutlined />}
                         style={{ marginTop: 16 }}
-                        onClick={() => onAddPropertyInterest(lead)}
+                        onClick={() => onAddPropertyInterest(lead, false)} // Pass false to indicate no activity creation
                     >
                         Add Property Interest
-                    </Button>
-                </TabPane>
-                <TabPane tab="Follow-ups" key="4">
-                    <Card>
-                        {lead.followUpDate ? (
-                            <>
-                                <Title level={5}>Next Scheduled Follow-up</Title>
-                                <Descriptions>
-                                    <Descriptions.Item label="Date" span={3}>
-                                        {formatDate(lead.followUpDate)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Assigned To" span={3}>
-                                        {lead.assignedTo?.name || 'Not assigned'}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Next Action" span={3}>
-                                        {lead.communications && lead.communications.length > 0
-                                            ? lead.communications[lead.communications.length - 1].nextAction || 'Not specified'
-                                            : 'Not specified'}
-                                    </Descriptions.Item>
-                                </Descriptions>
-                                <div style={{ marginTop: 16 }}>
-                                    <Space>
-                                        <Button type="primary" onClick={() => {
-                                            onAddActivity(lead);
-                                        }}>Complete & Log</Button>
-                                        <Button onClick={() => {
-                                            onAddActivity(lead);
-                                        }}>Reschedule</Button>
-                                    </Space>
-                                </div>
-                            </>
-                        ) : (
-                            <EmptyComponent description="No upcoming follow-ups scheduled" />
-                        )}
-                    </Card>
-
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        style={{ marginTop: 16 }}
-                        onClick={() => onAddActivity(lead)}
-                    >
-                        Schedule Follow-up
                     </Button>
                 </TabPane>
             </Tabs>

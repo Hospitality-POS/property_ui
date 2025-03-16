@@ -333,7 +333,7 @@ export const CustomerModal = ({
                             </Col>
                         </Row>
 
-                        {(mode === 'create' || mode === 'convert') && (
+                        {/* {(mode === 'create' || mode === 'convert') && (
                             <Form.Item
                                 label="ID Document Upload"
                                 name="idDocument"
@@ -347,7 +347,7 @@ export const CustomerModal = ({
                                     <Button icon={<UploadOutlined />}>Upload ID Document</Button>
                                 </Upload>
                             </Form.Item>
-                        )}
+                        )} */}
                     </TabPane>
 
                     <TabPane tab="Property Preferences" key="propertyPreferences">

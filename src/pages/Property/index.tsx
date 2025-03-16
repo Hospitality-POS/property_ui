@@ -35,27 +35,47 @@ const PropertyManager = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [form] = Form.useForm();
 
+  // Add state to hold property managers
+  const [localPropertyManagersData, setLocalPropertyManagersData] = useState([]);
+
   // Date formatting helper
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return moment(dateString).format('DD MMM YYYY');
   };
 
-  // Fetch property managers
-  const { data: propertyManagersData = [] } = useQuery({
-    queryKey: ['users'],
+  const { data: propertyManagersData = [], refetch: refetchPropertyManagers } = useQuery({
+    queryKey: ['users', refreshKey],
     queryFn: async () => {
       try {
         const response = await fetchAllUsers();
         console.log('Users fetched successfully:', response);
 
-        // Process data to use createdAt as dateJoined
-        const processedData = Array.isArray(response.data)
-          ? response.data.map(user => ({
+        // Determine the correct data structure
+        let usersArray = [];
+
+        if (Array.isArray(response?.data)) {
+          usersArray = response.data;
+        } else if (Array.isArray(response)) {
+          usersArray = response;
+        } else if (Array.isArray(response?.users)) {
+          usersArray = response.users;
+        } else {
+          console.error('Unexpected users API response structure:', response);
+          return [];
+        }
+
+        console.log(`Processing ${usersArray.length} users`);
+
+        // Safely map users
+        const processedData = usersArray
+          .map(user => ({
             ...user,
-            dateJoined: formatDate(user.createdAt) || user.dateJoined,
-          })).filter(user => user.role === 'property_manager')
-          : [];
+            dateJoined: user.createdAt ? formatDate(user.createdAt) : user.dateJoined,
+          }))
+          .filter(user => user.role === 'property_manager');
+
+        console.log('Filtered property managers:', processedData);
 
         return processedData;
       } catch (error) {
@@ -65,8 +85,13 @@ const PropertyManager = () => {
       }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      // When the query is successful, update our local state
+      setLocalPropertyManagersData(data);
+    }
   });
+
   // Data fetching
   const {
     data: propertiesData = [],
@@ -97,6 +122,11 @@ const PropertyManager = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false
   });
+
+  // Get property managers to use - prefer local state for immediate updates
+  const activePropertyManagersData = localPropertyManagersData.length > 0
+    ? localPropertyManagersData
+    : propertyManagersData;
 
   // Property view handler
   const handleViewProperty = (property) => {
@@ -189,12 +219,14 @@ const PropertyManager = () => {
       // Ensure location structure is preserved correctly
       location: {
         ...property.location,
-        // Format coordinates for the form
-        coordinates: {
-          ...property.location.coordinates,
-          // Present coordinates as string for the form input
-          coordinates: property.location.coordinates.coordinates.join(',')
-        }
+        // Format coordinates for the form if they exist
+        ...(property.location.coordinates && {
+          coordinates: {
+            ...property.location.coordinates,
+            // Present coordinates as string for the form input
+            coordinates: property.location.coordinates.coordinates?.join(',')
+          }
+        })
       }
     };
 
@@ -203,6 +235,41 @@ const PropertyManager = () => {
 
     // Open the form modal with edit mode
     setAddPropertyVisible(true);
+  };
+
+  // Handle newly added property manager
+  const handlePropertyManagerAdded = (newManager) => {
+    console.log('New property manager added:', newManager);
+
+    // Add the new manager to the local managers data
+    setLocalPropertyManagersData(prevManagers => {
+      // Check if this manager is already in the list (by ID or by email)
+      const managerExists = prevManagers.some(
+        manager => manager._id === newManager._id || manager.email === newManager.email
+      );
+
+      if (managerExists) {
+        // If manager already exists, replace it
+        return prevManagers.map(manager =>
+          (manager._id === newManager._id || manager.email === newManager.email) ? newManager : manager
+        );
+      } else {
+        // If manager doesn't exist, add it to the list
+        return [...prevManagers, newManager];
+      }
+    });
+
+    // Trigger a refetch of the users data to include the new manager in the backend
+    refetchPropertyManagers({ force: true })
+      .then(() => {
+        message.success(`Property Manager ${newManager.name} added successfully!`);
+
+        // Update the refreshKey to trigger UI updates
+        setRefreshKey(prevKey => prevKey + 1);
+      })
+      .catch(error => {
+        console.error('Error refreshing users after adding property manager:', error);
+      });
   };
 
   // Delete confirmation modal
@@ -259,7 +326,17 @@ const PropertyManager = () => {
 
   // Statistics calculations
   const getTotalPropertyValue = () => {
-    return propertiesData.reduce((total, property) => total + property.price, 0);
+    // Calculate total value based on units prices
+    return propertiesData.reduce((total, property) => {
+      // If property has units, sum their values
+      if (property.units && Array.isArray(property.units)) {
+        const unitsValue = property.units.reduce((unitTotal, unit) => {
+          return unitTotal + (unit.price * unit.totalUnits || 0);
+        }, 0);
+        return total + unitsValue;
+      }
+      return total;
+    }, 0);
   };
 
   const getAvailablePropertiesCount = () => {
@@ -274,13 +351,35 @@ const PropertyManager = () => {
     return propertiesData.filter((property) => property.status === 'sold').length;
   };
 
+  // Get total units count (across all properties)
+  const getTotalUnitsCount = () => {
+    return propertiesData.reduce((total, property) => {
+      if (property.units && Array.isArray(property.units)) {
+        const totalUnits = property.units.reduce((sum, unit) => sum + (unit.totalUnits || 0), 0);
+        return total + totalUnits;
+      }
+      return total;
+    }, 0);
+  };
+
+  // Get available units count
+  const getAvailableUnitsCount = () => {
+    return propertiesData.reduce((total, property) => {
+      if (property.units && Array.isArray(property.units)) {
+        const availableUnits = property.units.reduce((sum, unit) => sum + (unit.availableUnits || 0), 0);
+        return total + availableUnits;
+      }
+      return total;
+    }, 0);
+  };
+
   // Filter properties based on search and filter criteria
   const filteredProperties = propertiesData.filter((property) => {
     const matchesSearch =
-      property._id.toLowerCase().includes(searchText.toLowerCase()) ||
-      property.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      property.location.address.toLowerCase().includes(searchText.toLowerCase()) ||
-      property.propertyManager.name.toLowerCase().includes(searchText.toLowerCase());
+      property._id?.toLowerCase().includes(searchText.toLowerCase()) ||
+      property.name?.toLowerCase().includes(searchText.toLowerCase()) ||
+      property.location?.address?.toLowerCase().includes(searchText.toLowerCase()) ||
+      property.propertyManager?.name?.toLowerCase().includes(searchText.toLowerCase());
 
     const matchesType =
       propertyTypeFilter === 'all' || property.propertyType === propertyTypeFilter;
@@ -311,13 +410,15 @@ const PropertyManager = () => {
         </Button>
       </Space>
 
-      {/* Property Statistics */}
+
       <PropertyStatistics
         totalValue={getTotalPropertyValue()}
         availableCount={getAvailablePropertiesCount()}
         reservedCount={getReservedPropertiesCount()}
-        soldCount={getSoldPropertiesCount()}
+        soldCount={propertiesData.length - (getAvailablePropertiesCount() + getReservedPropertiesCount())}
         totalCount={propertiesData.length}
+        totalUnits={getTotalUnitsCount()}
+        availableUnits={getAvailableUnitsCount()}
       />
 
       {/* Search and Filters */}
@@ -392,6 +493,7 @@ const PropertyManager = () => {
         onDelete={showDeleteConfirm}
         formatPropertyType={formatPropertyType}
         formatStatus={formatStatus}
+        formatDate={formatDate}
       />
 
       {/* Property Details Drawer */}
@@ -403,6 +505,7 @@ const PropertyManager = () => {
         onClose={() => setDrawerVisible(false)}
         formatPropertyType={formatPropertyType}
         formatStatus={formatStatus}
+        formatDate={formatDate}
       />
 
       {/* Add/Edit Property Modal */}
@@ -412,7 +515,8 @@ const PropertyManager = () => {
         form={form}
         onOk={handleAddProperty}
         onCancel={handleModalCancel}
-        propertyManagersData={propertyManagersData}
+        propertyManagersData={activePropertyManagersData}
+        onPropertyManagerAdded={handlePropertyManagerAdded}
       />
 
       {/* Delete Confirmation Modal */}

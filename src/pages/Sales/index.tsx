@@ -20,6 +20,8 @@ import { AddSaleModal } from '../../components/Modals/addSales';
 import { AddPaymentModal } from '../../components/Modals/paymentModal';
 import { CancelSaleModal } from '../../components/Modals/cancelSale';
 import { AddEventModal } from '../../components/Modals/addEvent';
+import { createPayment } from "../../services/payments"
+import React from 'react';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -51,6 +53,10 @@ const SalesManagement = () => {
     const [installments, setInstallments] = useState([]);
     const [noteText, setNoteText] = useState('');
 
+    // Add state to hold agents and managers
+    const [localAgentsData, setLocalAgentsData] = useState([]);
+    const [localManagersData, setLocalManagersData] = useState([]);
+
     // Form instances
     const [form] = Form.useForm();
     const [eventForm] = Form.useForm();
@@ -79,10 +85,10 @@ const SalesManagement = () => {
 
         const statusMap = {
             'reservation': { text: 'Reserved', color: 'orange' },
-            'processing': { text: 'Processing', color: 'blue' },
-            'in_progress': { text: 'In Progress', color: 'cyan' },
+            'agreement': { text: 'Agreement', color: 'blue' },
+            'processing': { text: 'Processing', color: 'cyan' },
             'completed': { text: 'Completed', color: 'green' },
-            'canceled': { text: 'Canceled', color: 'red' }
+            'cancelled': { text: 'Cancelled', color: 'red' }
         };
 
         const statusInfo = statusMap[status.toLowerCase()] || { text: status, color: 'default' };
@@ -98,6 +104,7 @@ const SalesManagement = () => {
         queryFn: async () => {
             try {
                 const response = await fetchAllSales();
+
                 console.log('sales fetched successfully:', response);
 
                 // Process data to use createdAt as dateJoined
@@ -120,7 +127,7 @@ const SalesManagement = () => {
     });
 
     const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-        queryKey: ['users'],
+        queryKey: ['users', refreshKey], // Add refreshKey to trigger refetch
         queryFn: async () => {
             try {
                 const response = await fetchAllUsers();
@@ -130,24 +137,18 @@ const SalesManagement = () => {
 
                 // Handle different possible response structures
                 if (response.data && Array.isArray(response.data)) {
-                    // Standard structure: response.data is the array
                     usersArray = response.data;
                 } else if (Array.isArray(response)) {
-                    // Alternative structure: response itself is the array
                     usersArray = response;
                 } else if (response.users && Array.isArray(response.users)) {
-                    // Alternative structure: response.users is the array
                     usersArray = response.users;
                 } else {
                     console.error('Unexpected users API response structure:', response);
                     return [];
                 }
 
-                console.log(`Processing ${usersArray.length} users`);
-
                 // Map the users with a defensive approach
                 const processedUsers = usersArray.map(user => {
-                    // Ensure we have an object with at least an id and role
                     return {
                         ...user,
                         _id: user._id || user.id || `temp-${Date.now()}-${Math.random()}`,
@@ -163,38 +164,42 @@ const SalesManagement = () => {
             }
         },
         staleTime: 1000 * 60 * 5, // 5 minutes
-        refetchOnWindowFocus: false
+        refetchOnWindowFocus: false,
+        onSuccess: (data) => {
+            // When the query is successful, update our local states
+            const filteredAgents = data.filter(user => user &&
+                (user.role === 'sales_agent' ||
+                    user.role === 'agent' ||
+                    user.role?.toLowerCase().includes('agent')));
+
+            const filteredManagers = data.filter(user => user &&
+                (user.role === 'property_manager' ||
+                    user.role === 'manager' ||
+                    user.role?.toLowerCase().includes('manager')));
+
+            setLocalAgentsData(filteredAgents);
+            setLocalManagersData(filteredManagers);
+        }
     });
 
-    // Debug log the fetched data
-    console.log('Fetched users count:', userData.length);
-    console.log('Sample user object:', userData.length > 0 ? userData[0] : 'No users found');
-
-    // Extract roles for debugging
-    if (userData.length > 0) {
-        const roles = [...new Set(userData.map(user => user.role))];
-        console.log('User roles present in data:', roles);
-    }
-
     // Filter users with more robust checks
-    const agentsData = !isLoadingUsers
-        ? userData.filter(user => user &&
-            (user.role === 'sales_agent' ||
-                user.role === 'agent' ||
-                user.role?.toLowerCase().includes('agent')))
-        : [];
+    const agentsData = localAgentsData.length > 0
+        ? localAgentsData
+        : (!isLoadingUsers
+            ? userData.filter(user => user &&
+                (user.role === 'sales_agent' ||
+                    user.role === 'agent' ||
+                    user.role?.toLowerCase().includes('agent')))
+            : []);
 
-    const managersData = !isLoadingUsers
-        ? userData.filter(user => user &&
-            (user.role === 'property_manager' ||
-                user.role === 'manager' ||
-                user.role?.toLowerCase().includes('manager')))
-        : [];
-
-    // Log the filtered results
-    console.log('Filtered agents count:', agentsData.length);
-    console.log('Filtered managers count:', managersData.length);
-
+    const managersData = localManagersData.length > 0
+        ? localManagersData
+        : (!isLoadingUsers
+            ? userData.filter(user => user &&
+                (user.role === 'property_manager' ||
+                    user.role === 'manager' ||
+                    user.role?.toLowerCase().includes('manager')))
+            : []);
 
     // Create refetch functions that call the main refetch
     const refetchAgents = refetchUsers;
@@ -238,17 +243,88 @@ const SalesManagement = () => {
         refetchOnWindowFocus: false
     });
 
-    console.log('my properties', propertiesData);
+    // Handle newly added agent
+    const handleAgentAdded = (newAgent) => {
+        console.log('New agent added:', newAgent);
+
+        // Add the new agent to the local agents data
+        setLocalAgentsData(prevAgents => {
+            // Check if this agent is already in the list (by ID or by email)
+            const agentExists = prevAgents.some(
+                agent => agent._id === newAgent._id || agent.email === newAgent.email
+            );
+
+            if (agentExists) {
+                // If agent already exists, replace it
+                return prevAgents.map(agent =>
+                    (agent._id === newAgent._id || agent.email === newAgent.email) ? newAgent : agent
+                );
+            } else {
+                // If agent doesn't exist, add it to the list
+                return [...prevAgents, newAgent];
+            }
+        });
+
+        // Trigger a refetch of the users data to include the new agent in the backend
+        refetchAgents({ force: true })
+            .then(() => {
+                message.success(`Agent ${newAgent.name} added successfully!`);
+
+                // Update the refreshKey to trigger UI updates
+                setRefreshKey(prevKey => prevKey + 1);
+            })
+            .catch(error => {
+                console.error('Error refreshing users after adding agent:', error);
+            });
+    };
+
+    // Handle newly added property manager
+    const handlePropertyManagerAdded = (newManager) => {
+        console.log('New property manager added:', newManager);
+
+        // Add the new manager to the local managers data
+        setLocalManagersData(prevManagers => {
+            // Check if this manager is already in the list (by ID or by email)
+            const managerExists = prevManagers.some(
+                manager => manager._id === newManager._id || manager.email === newManager.email
+            );
+
+            if (managerExists) {
+                // If manager already exists, replace it
+                return prevManagers.map(manager =>
+                    (manager._id === newManager._id || manager.email === newManager.email) ? newManager : manager
+                );
+            } else {
+                // If manager doesn't exist, add it to the list
+                return [...prevManagers, newManager];
+            }
+        });
+
+        // Trigger a refetch of the users data to include the new manager in the backend
+        refetchManagers({ force: true })
+            .then(() => {
+                message.success(`Property Manager ${newManager.name} added successfully!`);
+
+                // Update the refreshKey to trigger UI updates
+                setRefreshKey(prevKey => prevKey + 1);
+            })
+            .catch(error => {
+                console.error('Error refreshing users after adding property manager:', error);
+            });
+    };
 
     // Handle adding an installment
-    const handleAddInstallment = () => {
-        const newInstallments = [...installments, {
-            id: `inst-${installments.length + 1}`,
-            amount: null,
-            dueDate: null,
-            key: Date.now() // unique key for React lists
-        }];
-        setInstallments(newInstallments);
+    const handleAddInstallment = (paymentPlanId = null, suggestedAmount = null) => {
+        const newInstallment = {
+            key: `inst-${Date.now()}`, // unique key for React lists
+            amount: suggestedAmount || null,
+            dueDate: moment().add(1, 'month'),
+            method: 'M-Pesa',
+            status: 'Not Due',
+            paymentPlanId: paymentPlanId
+        };
+
+        setInstallments([...installments, newInstallment]);
     };
 
     // Handle removing an installment
@@ -263,15 +339,35 @@ const SalesManagement = () => {
         ));
     };
 
-    // Handle viewing a sale
+    // Handle viewing asale
     const handleViewSale = (sale) => {
         setSelectedSale(sale);
         setDrawerVisible(true);
     };
 
+    // Custom hook to handle refreshing sale data
+    const useRefreshSaleData = (saleId, salesData) => {
+        return React.useCallback(() => {
+            if (!saleId) return null;
+
+            // Find the updated sale data
+            const updatedSale = salesData.find(s => s._id === saleId);
+            return updatedSale || null;
+        }, [saleId, salesData]);
+    };
+
+    // Use the hook in your component
+    const getSaleWithLatestData = useRefreshSaleData(selectedSale?._id, salesData);
+
     // Handle adding a payment
-    const handleAddPayment = (sale) => {
-        setSelectedSale(sale);
+    const handleAddPayment = (sale, paymentPlan = null) => {
+        // If a payment plan is provided, store it in the selected sale object
+        const saleWithPlan = paymentPlan ? {
+            ...sale,
+            selectedPaymentPlan: paymentPlan
+        } : sale;
+
+        setSelectedSale(saleWithPlan);
         setAddPaymentVisible(true);
     };
 
@@ -282,7 +378,10 @@ const SalesManagement = () => {
         // Find the payment plan ID to attach this payment to
         let paymentPlanId = null;
 
-        if (selectedSale.paymentPlans && selectedSale.paymentPlans.length > 0) {
+        // Use the selected payment plan if available, otherwise use the first one
+        if (selectedSale.selectedPaymentPlan) {
+            paymentPlanId = selectedSale.selectedPaymentPlan._id;
+        } else if (selectedSale.paymentPlans && selectedSale.paymentPlans.length > 0) {
             paymentPlanId = selectedSale.paymentPlans[0]._id;
         }
 
@@ -292,21 +391,40 @@ const SalesManagement = () => {
             paymentDate: values.paymentDate.format('YYYY-MM-DD'),
             paymentMethod: values.paymentMethod,
             transactionReference: values.reference,
-            notes: values.notes,
+            notes: values.notes || (selectedSale.selectedPaymentPlan ?
+                `Payment for installment plan #${selectedSale.selectedPaymentPlan._id.toString().substr(-6)}` : ''),
             paymentPlanId: paymentPlanId,
             saleId: selectedSale._id,
+            status: 'completed',
             customerId: selectedSale.customer?._id
         };
 
-        // In a real app, this would call an API to add the payment
-        console.log('Payment data to be sent to API:', paymentData);
+        createPayment(paymentData)
+            .then(newPayment => {
+                // Show success message
+                message.success('Payment added successfully!');
 
-        // Show success message and close modal
-        message.success('Payment added successfully!');
-        setAddPaymentVisible(false);
+                // Close modal
+                setAddPaymentVisible(false);
 
-        // Refresh data in a real app
-        // refetchSales();
+                // Refresh data
+                setTimeout(() => {
+                    // Refresh the sales list
+                    setRefreshKey(prevKey => prevKey + 1);
+                    refetchSales({ force: true })
+                        .then(() => {
+                            // Once sales are refreshed, update the selected sale in the drawer
+                            const updatedSale = salesData.find(s => s._id === selectedSale._id);
+                            if (updatedSale) {
+                                setSelectedSale(updatedSale);
+                            }
+                        });
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error adding Payment:', error);
+                message.error('Failed to add Payment. Please try again.');
+            });
     };
 
     // Handle adding event
@@ -319,14 +437,46 @@ const SalesManagement = () => {
     const handleEventSubmit = (values) => {
         console.log('Adding event:', values);
 
-        // In a real app, this would call an API to add the event to the timeline
+        // Format the event data
+        const eventData = {
+            activityType: values.activityType,
+            date: values.date.format('YYYY-MM-DD'),
+            description: values.description,
+            by: values.by || (userData.length > 0 ? userData[0]._id : null)
+        };
 
-        // Show success message and close modal
-        message.success('Event added to timeline successfully!');
-        setAddEventVisible(false);
+        // Ensure activities is an array
+        const activities = Array.isArray(selectedSale.activities) ? selectedSale.activities : [];
 
-        // Refresh data in a real app
-        // refetchSales();
+        // Create the updated data structure
+        const formattedData = {
+            activities: [...activities, eventData],
+        };
+
+        console.log('Updating sale with:', formattedData);
+
+        updateSale(selectedSale._id, formattedData)
+            .then((response) => {
+                message.success('Sale activity added successfully!');
+
+                // Close modal first
+                setAddEventVisible(false);
+                eventForm.resetFields();
+
+                // Update the selectedSale state with the new activity
+                setSelectedSale(prevSale => ({
+                    ...prevSale,
+                    activities: [...activities, eventData]
+                }));
+
+                // Then trigger a refetch to ensure database consistency
+                setRefreshKey(prevKey => prevKey + 1);
+                refetchSales({ force: true });
+            })
+            .catch((error) => {
+                console.error('Error adding sale activity:', error);
+                message.error('Failed to add sale activity. Please try again.');
+            });
     };
 
     // Handle adding new sale
@@ -343,84 +493,54 @@ const SalesManagement = () => {
         setSaleToEdit(sale);
         setIsEditMode(true);
 
-        // Get payments from paymentPlans
-        let allPayments = [];
-        let paymentPlanData = null;
+        // Reset installments - we'll let the useEffect in AddSaleModal handle this
+        setInstallments([]);
 
-        // Check if paymentPlans array exists and has items
-        if (sale.paymentPlans && Array.isArray(sale.paymentPlans) && sale.paymentPlans.length > 0) {
-            // Store payment plan data
-            paymentPlanData = sale.paymentPlans[0];
-
-            // Get payments from payment plan
-            if (paymentPlanData.payments && Array.isArray(paymentPlanData.payments)) {
-                allPayments = paymentPlanData.payments;
-            }
-        } else if (sale.payments && Array.isArray(sale.payments)) {
-            // Fallback to sale.payments if paymentPlans doesn't exist
-            allPayments = sale.payments;
-        }
-
-        // Reset installments - prepare pending payments as installments
-        const saleInstallments = allPayments
-            .filter(payment => payment.status !== 'Paid' && payment.status !== 'completed')
-            .map((payment, index) => ({
-                id: `inst-${index + 1}`,
-                amount: payment.amount,
-                dueDate: payment.paymentDate ? moment(payment.paymentDate) : null,
-                method: payment.paymentMethod || 'Bank Transfer',
-                key: Date.now() + index
-            }));
-
-        setInstallments(saleInstallments);
-
-        // Set form values with safe property access
+        // Prepare form values with safe property access
         const formValues = {
-            property: sale.property?._id || sale.property?.id,
-            customer: sale.customer?._id || sale.customer?.id,
+            // Core sale information
+            property: sale.property?._id || sale.property?.id || sale.property,
+            customer: sale.customer?._id || sale.customer?.id || sale.customer,
+            unit: sale.unit?.unitId || sale.unit?._id,
+            unitType: sale.unit?.unitType,
+            plotSize: sale.unit?.plotSize || '',
+            quantity: sale.quantity || 1,
             salePrice: parseFloat(sale.salePrice) || 0,
-            propertyManager: sale.propertyManager?._id || sale.propertyManager?.id,
-            listPrice: parseFloat(sale.listPrice) || 0,
-            saleDate: sale.saleDate ? moment(sale.saleDate) : null,
-            paymentPlan: paymentPlanData ? 'Installment' : 'Full Payment',
-            agent: sale.salesAgent?._id || sale.salesAgent?.id || sale.agent?._id || sale.agent?.id,
-            notes: sale.notes && Array.isArray(sale.notes) && sale.notes.length > 0 ? sale.notes[0].content : ''
+            listPrice: parseFloat(sale.unit?.price) || 0,
+            discount: parseFloat(sale.salePrice - sale.unit?.price) || 0,
+            saleDate: sale.saleDate ? moment(sale.saleDate) : moment(),
+            status: sale.status || 'reservation',
+
+            // Personnel information
+            agent: sale.salesAgent?._id || sale.salesAgent?.id || sale.agent,
+            propertyManager: sale.propertyManager?._id || sale.propertyManager?.id || sale.propertyManager,
+            commissionPercentage: sale.commission?.percentage || 5,
+
+            // Payment information
+            paymentPlan: sale.paymentPlanType || 'Installment',
+
+            // Notes
+            notes: sale.notes && Array.isArray(sale.notes) && sale.notes.length > 0
+                ? sale.notes[0].content || sale.notes[0].text
+                : (typeof sale.notes === 'string' ? sale.notes : '')
         };
 
-        // Get initial payment information from the first payment plan
-        if (paymentPlanData) {
-            formValues.initialPayment = parseFloat(paymentPlanData.initialDeposit) || 0;
-            formValues.paymentDate = paymentPlanData.depositDate ? moment(paymentPlanData.depositDate) : null;
+        // Handle payment plan information
+        if (sale.paymentPlans && sale.paymentPlans.length > 0) {
+            const paymentPlan = sale.paymentPlans[0];
 
-            // Find initial payment from payments
-            const initialPayment = allPayments.find(p => p.notes && p.notes.includes('Initial deposit'));
-            if (initialPayment) {
-                formValues.paymentMethod = initialPayment.paymentMethod || 'Bank Transfer';
-                formValues.reference = initialPayment.transactionReference || '';
-            } else {
-                formValues.paymentMethod = 'Bank Transfer';
-                formValues.reference = '';
-            }
-        } else {
-            // Try to find a completed payment
-            const paidPayment = allPayments.find(p => p && (p.status === 'Paid' || p.status === 'completed'));
-            if (paidPayment) {
-                formValues.initialPayment = parseFloat(paidPayment.amount) || 0;
-                formValues.paymentDate = paidPayment.paymentDate ? moment(paidPayment.paymentDate) : null;
-                formValues.paymentMethod = paidPayment.paymentMethod || 'Bank Transfer';
-                formValues.reference = paidPayment.transactionReference || paidPayment.reference || '';
-            } else {
-                formValues.initialPayment = 0;
-                formValues.paymentDate = null;
-                formValues.paymentMethod = 'Bank Transfer';
-                formValues.reference = '';
-            }
+            formValues.initialPayment = parseFloat(paymentPlan.initialDeposit) || 0;
+            formValues.paymentDate = paymentPlan.startDate ? moment(paymentPlan.startDate) : moment();
+            formValues.paymentMethod = 'M-Pesa'; // Default payment method
         }
 
+        // Set form values
         form.setFieldsValue(formValues);
 
+        // Show modal after form is set up
         setAddSaleVisible(true);
     };
+
 
     const handleSaleFormSubmit = () => {
         form.validateFields()
@@ -481,31 +601,78 @@ const SalesManagement = () => {
 
     // Handle cancel sale
     const handleCancelSale = () => {
-        // In a real app, this would call an API to cancel the sale
-        console.log('Cancel sale:', saleToDelete);
-        setDeleteModalVisible(false);
-        setSaleToDelete(null);
+        if (!saleToDelete) {
+            setDeleteModalVisible(false);
+            return;
+        }
+
+        const cancelData = {
+            status: 'cancelled',
+            events: [
+                ...(Array.isArray(saleToDelete.events) ? saleToDelete.events : []),
+                {
+                    event: 'Sale Cancelled',
+                    addedAt: new Date().toISOString()
+                }
+            ]
+        };
+
+        updateSale(saleToDelete._id, cancelData)
+            .then((response) => {
+                message.success('Sale cancelled successfully!');
+                setDeleteModalVisible(false);
+                setSaleToDelete(null);
+
+                // Refresh sales data
+                setRefreshKey(prevKey => prevKey + 1);
+                refetchSales({ force: true });
+            })
+            .catch((error) => {
+                console.error('Error cancelling sale:', error);
+                message.error('Failed to cancel sale. Please try again.');
+            });
     };
 
-    // Handle save notes
+    // Handle saving notes
     const handleSaveNotes = () => {
         if (!noteText.trim()) {
             message.warning('Please enter a note before saving');
             return;
         }
 
-        console.log('Adding note:', noteText, 'to sale:', selectedSale?._id);
+        // Create a new note object
+        const newNote = {
+            content: noteText,
+            addedAt: new Date().toISOString()
+        };
 
-        // In a real app, this would call an API to add the note
+        // Prepare data for API call
+        const notesData = {
+            notes: Array.isArray(selectedSale.notes)
+                ? [...selectedSale.notes, newNote]
+                : [newNote]
+        };
 
-        // Show success message
-        message.success('Note added successfully!');
+        // Call API to update the sale with the new note
+        updateSale(selectedSale._id, notesData)
+            .then((response) => {
+                message.success('Note added successfully!');
 
-        // Clear the note text
-        setNoteText('');
+                // Immediately update the local state so the note appears in the UI
+                setSelectedSale(prevSale => ({
+                    ...prevSale,
+                    notes: Array.isArray(prevSale.notes)
+                        ? [...prevSale.notes, newNote]
+                        : [newNote]
+                }));
 
-        // Refresh data in a real app
-        // refetchSales();
+                // Clear the note text input
+                setNoteText('');
+            })
+            .catch((error) => {
+                console.error('Error adding note:', error);
+                message.error('Failed to add note. Please try again.');
+            });
     };
 
     // Handle search input change
@@ -532,22 +699,21 @@ const SalesManagement = () => {
 
         const totalAmount = parseFloat(sale.salePrice) || 0;
 
-        // Get payments from the paymentPlans array
+        // Initialize allPayments array
         let allPayments = [];
 
-        // Check if paymentPlans array exists and has items
-        if (sale.paymentPlans && Array.isArray(sale.paymentPlans) && sale.paymentPlans.length > 0) {
+        // First check if payments exist directly in the sale object
+        if (sale.payments && Array.isArray(sale.payments) && sale.payments.length > 0) {
+            allPayments = sale.payments;
+        }
+        // If no direct payments, check paymentPlans
+        else if (sale.paymentPlans && Array.isArray(sale.paymentPlans) && sale.paymentPlans.length > 0) {
             // Collect all payments from all payment plans
             sale.paymentPlans.forEach(plan => {
                 if (plan.payments && Array.isArray(plan.payments)) {
                     allPayments = [...allPayments, ...plan.payments];
                 }
             });
-        }
-
-        // Fallback to sale.payments if it exists
-        if ((!allPayments || allPayments.length === 0) && sale.payments && Array.isArray(sale.payments)) {
-            allPayments = sale.payments;
         }
 
         // Calculate paid amount from completed payments
@@ -581,7 +747,7 @@ const SalesManagement = () => {
     // Calculate sales totals
     const getTotalSalesAmount = () => {
         return salesData
-            .filter(sale => !sale.status || sale.status !== 'Canceled')
+            .filter(sale => !sale.status || sale.status !== 'cancelled')
             .reduce((total, sale) => {
                 const salePrice = parseFloat(sale.salePrice) || 0;
                 return total + salePrice;
@@ -590,7 +756,7 @@ const SalesManagement = () => {
 
     const getTotalCommission = () => {
         return filteredSales
-            .filter(sale => !sale.status || sale.status !== 'canceled')
+            .filter(sale => !sale.status || sale.status !== 'cancelled')
             .reduce((total, sale) => {
                 const commissionAmount = parseFloat(sale.commission?.amount) || 0;
                 return total + commissionAmount;
@@ -598,37 +764,35 @@ const SalesManagement = () => {
     };
 
     const getCompletedSalesCount = () => {
-        return salesData.filter(sale => sale.status === 'Completed').length;
+        return salesData.filter(sale => sale.status === 'completed').length;
     };
 
     const getPendingSalesCount = () => {
         return salesData.filter(sale =>
-            !sale.status || (sale.status !== 'Completed' && sale.status !== 'Canceled')
+            !sale.status || (sale.status !== 'completed' && sale.status !== 'cancelled')
         ).length;
     };
 
     // Filter sales based on search text and filters
-    const filteredSales = salesData.filter(
-        (sale) => {
-            const matchesSearch =
-                (sale.id && sale.id.toString().toLowerCase().includes(searchText.toLowerCase())) ||
-                (sale.property?.name && sale.property.name.toLowerCase().includes(searchText.toLowerCase())) ||
-                (sale.customer?.name && sale.customer.name.toLowerCase().includes(searchText.toLowerCase()));
+    const filteredSales = salesData.filter(sale => {
+        const matchesSearch =
+            (sale.id && sale.id.toString().toLowerCase().includes(searchText.toLowerCase())) ||
+            (sale.property?.name && sale.property.name.toLowerCase().includes(searchText.toLowerCase())) ||
+            (sale.customer?.name && sale.customer.name.toLowerCase().includes(searchText.toLowerCase()));
 
-            const matchesStatus = salesStatusFilter === 'all' || sale.status === salesStatusFilter;
-            const matchesAgent = salesAgentFilter === 'all' || sale.salesAgent?.name === salesAgentFilter;
+        const matchesStatus = salesStatusFilter === 'all' || sale.status === salesStatusFilter.toLowerCase();
+        const matchesAgent = salesAgentFilter === 'all' || sale.salesAgent?.name === salesAgentFilter;
 
-            let matchesDateRange = true;
-            if (dateRange && dateRange[0] && dateRange[1] && sale.saleDate) {
-                const saleDate = new Date(sale.saleDate);
-                const startDate = new Date(dateRange[0]);
-                const endDate = new Date(dateRange[1]);
-                matchesDateRange = saleDate >= startDate && saleDate <= endDate;
-            }
-
-            return matchesSearch && matchesStatus && matchesAgent && matchesDateRange;
+        let matchesDateRange = true;
+        if (dateRange && dateRange[0] && dateRange[1] && sale.saleDate) {
+            const saleDate = new Date(sale.saleDate);
+            const startDate = new Date(dateRange[0]);
+            const endDate = new Date(dateRange[1]);
+            matchesDateRange = saleDate >= startDate && saleDate <= endDate;
         }
-    );
+
+        return matchesSearch && matchesStatus && matchesAgent && matchesDateRange;
+    });
 
     return (
         <>
@@ -666,11 +830,11 @@ const SalesManagement = () => {
                         onChange={value => setSalesStatusFilter(value)}
                     >
                         <Option value="all">All Statuses</Option>
-                        <Option value="Reserved">Reserved</Option>
-                        <Option value="Processing">Processing</Option>
-                        <Option value="In Progress">In Progress</Option>
-                        <Option value="Completed">Completed</Option>
-                        <Option value="Canceled">Canceled</Option>
+                        <Option value="reservation">Reserved</Option>
+                        <Option value="agreement">Agreement</Option>
+                        <Option value="processing">Processing</Option>
+                        <Option value="completed">Completed</Option>
+                        <Option value="cancelled">Cancelled</Option>
                     </Select>
                 </Col>
                 <Col xs={24} sm={8} md={5}>
@@ -745,6 +909,7 @@ const SalesManagement = () => {
                 saleToEdit={saleToEdit}
                 form={form}
                 installments={installments}
+                setInstallments={setInstallments}
                 propertiesData={propertiesData}
                 customersData={customersData}
                 agentsData={agentsData}
@@ -760,6 +925,8 @@ const SalesManagement = () => {
                 onCancel={handleModalCancel}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
+                onAgentAdded={handleAgentAdded}
+                onPropertyManagerAdded={handlePropertyManagerAdded}
             />
 
             {/* Add Payment Modal */}
@@ -767,7 +934,15 @@ const SalesManagement = () => {
                 visible={addPaymentVisible}
                 sale={selectedSale}
                 onOk={handlePaymentSubmit}
-                onCancel={() => setAddPaymentVisible(false)}
+                onCancel={() => {
+                    setAddPaymentVisible(false);
+
+                    // Refresh the selected sale data when modal is closed
+                    const refreshedSale = getSaleWithLatestData();
+                    if (refreshedSale) {
+                        setSelectedSale(refreshedSale);
+                    }
+                }}
                 formatCurrency={formatCurrency}
                 calculatePaymentStats={calculatePaymentStats}
             />

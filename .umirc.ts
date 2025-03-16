@@ -25,6 +25,10 @@ export default defineConfig({
   },
   routes: [
     {
+      path: '/',
+      redirect: '/dashboard',
+    },
+    {
       name: 'Login',
       path: '/login',
       layout: false,
@@ -59,6 +63,13 @@ export default defineConfig({
       path: '/sales',
       icon: 'DollarOutlined',
       component: './Sales',
+    },
+    {
+      name: 'Profile',
+      path: '/profile',
+      icon: 'UserOutlined',
+      hideInMenu: true,
+      component: './Profile',
     },
     {
       name: 'Valuations',

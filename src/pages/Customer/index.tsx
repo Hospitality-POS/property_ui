@@ -65,7 +65,7 @@ const CustomerManagement = () => {
         queryFn: async () => {
             try {
                 const response = await fetchAllCustomers();
-                console.log('customers fetched successfully:', response);
+
 
                 // Process data to use createdAt as dateJoined
                 const processedData = Array.isArray(response.data)
@@ -86,11 +86,13 @@ const CustomerManagement = () => {
         refetchOnWindowFocus: false
     });
 
+
+
     // Fetch leads for the convert lead modal
     const fetchLeads = async () => {
         try {
             const response = await fetchAllLeads();
-            console.log('nice data', response);
+
             // Filter out leads that are already converted
             const availableLeads = response.data.filter(lead => !lead.convertedToCustomer);
             setLeads(availableLeads);
@@ -336,7 +338,6 @@ const CustomerManagement = () => {
 
                 // Call API to update the customer
                 await updateCustomer(selectedCustomer._id, updatedCustomer);
-                console.log('Customer updated:', updatedCustomer);
 
                 // Update the local state
                 setRefreshKey(prevKey => prevKey + 1);
@@ -417,7 +418,7 @@ const CustomerManagement = () => {
     const handleSaveCommunication = async () => {
         try {
             const values = await communicationForm.validateFields();
-            console.log('nice values', values);
+
             // Create the new communication entry
             const newCommunication = {
                 type: values.type,
@@ -510,7 +511,7 @@ const CustomerManagement = () => {
     // Handle delete customer
     const handleDeleteCustomer = () => {
         // In a real app, this would call an API to delete the customer
-        console.log('Delete customer:', customerToDelete);
+
         setDeleteModalVisible(false);
         setCustomerToDelete(null);
     };
@@ -542,13 +543,40 @@ const CustomerManagement = () => {
         ).length;
     };
 
+    // Replace your existing getTotalPurchases function with this one
     const getTotalPurchases = () => {
-        return customersData.reduce(
-            (total, customer) => total + customer.purchases,
-            0
+        // Log customer data to debug
+        console.log('Customer data for purchases calculation:',
+            customersData.map(c => ({ id: c._id, name: c.name, purchases: c.purchases }))
         );
-    };
 
+        // Calculate total purchases properly handling undefined/null values
+        return customersData.reduce((total, customer) => {
+            // If purchases property exists but might be null/undefined
+            if (customer.purchases === null || customer.purchases === undefined) {
+                return total + 0;
+            }
+
+            // If purchases is a number, add it directly
+            if (typeof customer.purchases === 'number') {
+                return total + customer.purchases;
+            }
+
+            // If purchases is a string (perhaps from API), try to parse it
+            if (typeof customer.purchases === 'string') {
+                const parsedValue = parseInt(customer.purchases, 10);
+                return total + (isNaN(parsedValue) ? 0 : parsedValue);
+            }
+
+            // If purchases is an array (e.g., list of purchase objects), count them
+            if (Array.isArray(customer.purchases)) {
+                return total + customer.purchases.length;
+            }
+
+            // Fallback for any other data type
+            return total;
+        }, 0);
+    };
     // Filter customers based on search text and filters
     const filteredCustomers = customersData.filter((customer) => {
         const matchesSearch =

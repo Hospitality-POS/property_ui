@@ -102,6 +102,9 @@ const LoginPage = () => {
                   fieldProps={{
                     size: 'large',
                     prefix: <BankOutlined className="text-gray-400" />,
+                    onChange: (e) => {
+                      e.target.value = e.target.value.replace(/\s/g, '');
+                    },
                   }}
                   placeholder="Company Code"
                   rules={[
@@ -111,6 +114,7 @@ const LoginPage = () => {
                     },
                   ]}
                 />
+
 
                 {/* Username Input */}
                 <ProFormText
