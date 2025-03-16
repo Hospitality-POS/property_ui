@@ -335,14 +335,14 @@ const PaymentDetailsDrawer = ({ visible, payment, onClose }) => {
                     <Descriptions.Item label="Receipt Number">
                         {payment.receiptNumber || "N/A"}
                     </Descriptions.Item>
-                    {payment.includesPenalty && (
+                    {/* {payment.includesPenalty && (
                         <Descriptions.Item label="Penalty Amount">
                             KES {payment.penaltyAmount.toLocaleString()}
                         </Descriptions.Item>
-                    )}
-                    <Descriptions.Item label="Processed By">
+                    )} */}
+                    {/* <Descriptions.Item label="Processed By">
                         {payment.processedBy.name}
-                    </Descriptions.Item>
+                    </Descriptions.Item> */}
                     <Descriptions.Item label="Notes">
                         {payment.notes || "No notes available"}
                     </Descriptions.Item>

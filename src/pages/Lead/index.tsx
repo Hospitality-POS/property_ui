@@ -46,6 +46,9 @@ const LeadsManagement = () => {
   const [addNoteVisible, setAddNoteVisible] = useState(false);
   const [addPropertyInterestVisible, setAddPropertyInterestVisible] = useState(false);
 
+  // Add state to hold agents
+  const [localAgentsData, setLocalAgentsData] = useState([]);
+
   // Form instances
   const [form] = Form.useForm();
   const [activityForm] = Form.useForm();
@@ -56,45 +59,13 @@ const LeadsManagement = () => {
   // Refresh state
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // New lead form state
-  const [newLead, setNewLead] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    source: 'website',
-    sourceDetails: '',
-    interestAreas: [{
-      county: 'Nairobi',
-      propertyType: 'both',
-      budget: {
-        min: 0,
-        max: 0
-      }
-    }],
-    priority: 'medium',
-    assignedTo: '',
-    notes: [{
-      content: ''
-    }]
-  });
-
-  // New activity form state
-  const [newActivity, setNewActivity] = useState({
-    type: 'call',
-    date: new Date().toISOString(),
-    summary: '',
-    outcome: '',
-    nextAction: '',
-  });
-
-
   // Fetch leads data
   const { data: leadsData = [], isLoading: isLoadingLeads, refetch: refetchLeads } = useQuery({
     queryKey: ['lead', refreshKey],
     queryFn: async () => {
       try {
         const response = await fetchAllLeads();
-        console.log('leaders fetched successfully:', response);
+
 
         // Process data to use createdAt as dateJoined
         const processedData = Array.isArray(response.data)
@@ -117,11 +88,10 @@ const LeadsManagement = () => {
 
   // Fetch agents data
   const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', refreshKey], // Add refreshKey to trigger refetch
     queryFn: async () => {
       try {
         const response = await fetchAllUsers();
-        console.log('Users fetched successfully:', response);
 
         // Determine the correct data structure
         let usersArray = [];
@@ -141,7 +111,6 @@ const LeadsManagement = () => {
           return [];
         }
 
-        console.log(`Processing ${usersArray.length} users`);
 
         // Map the users with a defensive approach
         const processedUsers = usersArray.map(user => {
@@ -161,28 +130,26 @@ const LeadsManagement = () => {
       }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      // When the query is successful, update our local state
+      const filteredAgents = data.filter(user => user &&
+        (user.role === 'sales_agent' ||
+          user.role === 'agent' ||
+          user.role?.toLowerCase().includes('agent')));
+
+      setLocalAgentsData(filteredAgents);
+    }
   });
-
-  // Debug log the fetched data
-  console.log('Fetched users count:', userData.length);
-  console.log('Sample user object:', userData.length > 0 ? userData[0] : 'No users found');
-
-
-  // Extract roles for debugging
-  if (userData.length > 0) {
-    const roles = [...new Set(userData.map(user => user.role))];
-    console.log('User roles present in data:', roles);
-  }
-
   // Filter users with more robust checks
-  const agentsData = !isLoadingUsers
-    ? userData.filter(user => user &&
-      (user.role === 'sales_agent' ||
-        user.role === 'agent' ||
-        user.role?.toLowerCase().includes('agent')))
-    : [];
-
+  const agentsData = localAgentsData.length > 0
+    ? localAgentsData
+    : (!isLoadingUsers
+      ? userData.filter(user => user &&
+        (user.role === 'sales_agent' ||
+          user.role === 'agent' ||
+          user.role?.toLowerCase().includes('agent')))
+      : []);
 
   const { data: propertiesData = [] } = useQuery({
     queryKey: ['latestProperties', refreshKey],
@@ -204,7 +171,6 @@ const LeadsManagement = () => {
           new Date(b.createdAt) - new Date(a.createdAt)
         );
 
-        // Return only the 5 latest properties
         return sortedData;
       } catch (error) {
         message.error('Failed to fetch properties');
@@ -215,7 +181,6 @@ const LeadsManagement = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false
   });
-
 
   // Helper function to capitalize first letter
   const capitalize = (str) => {
@@ -295,9 +260,9 @@ const LeadsManagement = () => {
           }],
           priority: values.priority,
           assignedTo: values.assignedTo,
-          notes: [{
+          notes: values.notes ? [{
             content: values.notes
-          }]
+          }] : []
         };
 
         if (modalMode === 'add') {
@@ -345,88 +310,142 @@ const LeadsManagement = () => {
       });
   };
 
+  // Handle newly added agent
+  const handleAgentAdded = (newAgent) => {
+    console.log('New agent added:', newAgent);
+
+    // Add the new agent to the local agents data
+    setLocalAgentsData(prevAgents => {
+      // Check if this agent is already in the list (by ID or by email)
+      const agentExists = prevAgents.some(
+        agent => agent._id === newAgent._id || agent.email === newAgent.email
+      );
+
+      if (agentExists) {
+        // If agent already exists, replace it
+        return prevAgents.map(agent =>
+          (agent._id === newAgent._id || agent.email === newAgent.email) ? newAgent : agent
+        );
+      } else {
+        // If agent doesn't exist, add it to the list
+        return [...prevAgents, newAgent];
+      }
+    });
+
+    // Trigger a refetch of the users data to include the new agent in the backend
+    refetchUsers({ force: true })
+      .then(() => {
+        message.success(`Agent ${newAgent.name} added successfully!`);
+
+        // Update the refreshKey to trigger UI updates
+        setRefreshKey(prevKey => prevKey + 1);
+      })
+      .catch(error => {
+        console.error('Error refreshing users after adding agent:', error);
+      });
+  };
+
   // Show add activity modal
   const showAddActivityModal = (lead) => {
     setSelectedLead(lead);
-    setNewActivity({
-      type: 'call',
-      date: new Date().toISOString(),
-      summary: '',
-      outcome: '',
-      nextAction: '',
-    });
     activityForm.resetFields();
     setAddActivityVisible(true);
   };
 
   // Handle add activity submission
-  const handleAddActivity = () => {
-    activityForm.validateFields()
-      .then(values => {
-        // Format the values to match the schema
-        const formattedActivity = {
-          type: values.type,
-          date: values.date.toISOString(),
-          summary: values.summary,
-          outcome: values.outcome,
-          nextAction: values.nextAction,
-          by: {
-            _id: 'currentUser', // In a real app, this would be the logged-in user's ID
-            name: 'Current User' // In a real app, this would be the logged-in user's name
-          }
-        };
+  const handleAddActivity = async () => {
+    try {
+      let currentUser = await getUserInfo();
+      await activityForm.validateFields();
+      const values = activityForm.getFieldsValue();
 
-        // Create update data with the new communication
-        const updateData = {
-          communications: [...(selectedLead.communications || []), formattedActivity]
-        };
-
-        // If there's a follow-up date, update that too
-        if (values.followUpDate) {
-          updateData.followUpDate = values.followUpDate.toISOString();
+      // Format the values to match the schema
+      const formattedActivity = {
+        type: values.type,
+        date: values.date.toISOString(),
+        summary: values.summary,
+        outcome: values.outcome,
+        nextAction: values.nextAction,
+        by: {
+          _id: currentUser._id || 'currentUser',
+          name: currentUser.name || 'Current User'
         }
+      };
 
-        console.log('Add activity to lead:', selectedLead._id, updateData);
+      console.log('Add activity to lead:', selectedLead._id, formattedActivity);
 
-        // Call the API to update the lead
-        updateLead(selectedLead._id, updateData)
-          .then(updatedLead => {
-            // Update the lead in UI
-            const updatedLeads = leadsData.map(lead =>
-              lead._id === updatedLead._id ? updatedLead : lead
-            );
-            // You would update your state here
-            message.success('Activity added successfully');
-          })
-          .catch(error => {
-            console.error('Error adding activity:', error);
-            message.error('Failed to add activity');
-          });
+      // Call the API to update the lead with just this new communication
+      const updateData = {
+        $push: { communications: formattedActivity }
+      };
 
-        // Create a simulated updated lead for immediate UI feedback
-        const updatedLead = {
-          ...selectedLead,
-          communications: [...(selectedLead.communications || []), {
-            ...formattedActivity,
-            date: new Date().toISOString()
-          }]
-        };
+      // If there's a follow-up date, update that too
+      if (values.followUpDate) {
+        updateData.followUpDate = values.followUpDate.toISOString();
+      }
 
-        if (values.followUpDate) {
-          updatedLead.followUpDate = values.followUpDate.toISOString();
-        }
+      const response = await updateLead(selectedLead._id, updateData);
+      message.success('Activity added successfully');
 
-        // Update the selected lead
-        setSelectedLead(updatedLead);
+      // Refresh leads data
+      setTimeout(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+        refetchLeads({ force: true });
+      }, 500);
 
+      // Create a simulated updated lead for immediate UI feedback
+      const updatedLead = {
+        ...selectedLead,
+        communications: [...(selectedLead.communications || []), formattedActivity]
+      };
 
-        // Close the modal and reset form
-        setAddActivityVisible(false);
-        activityForm.resetFields();
-      })
-      .catch(errorInfo => {
-        console.log('Validation failed:', errorInfo);
+      if (values.followUpDate) {
+        updatedLead.followUpDate = values.followUpDate.toISOString();
+      }
+
+      // Update the selected lead
+      setSelectedLead(updatedLead);
+
+      // Close the modal and reset form
+      setAddActivityVisible(false);
+      activityForm.resetFields();
+    } catch (error) {
+      console.error('Error adding activity:', error);
+      message.error('Failed to add activity');
+    }
+  };
+
+  // Delete an activity
+  const handleDeleteActivity = async (leadId, activityId) => {
+    try {
+      // Call the API to delete the activity
+      await updateLead(leadId, {
+        $pull: { communications: { _id: activityId } }
       });
+
+      message.success('Activity deleted successfully');
+
+      // Refresh leads data
+      setTimeout(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+        refetchLeads({ force: true });
+      }, 500);
+
+      // Update the selected lead in state if currently viewing
+      if (selectedLead && selectedLead._id === leadId) {
+        const updatedCommunications = selectedLead.communications.filter(
+          comm => comm._id !== activityId
+        );
+
+        setSelectedLead({
+          ...selectedLead,
+          communications: updatedCommunications
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      message.error('Failed to delete activity');
+    }
   };
 
   // Show delete confirmation modal
@@ -486,116 +505,228 @@ const LeadsManagement = () => {
   };
 
   // Show add note modal
-  const showAddNoteModal = (lead) => {
+  const showAddNoteModal = (lead, createActivity = true) => {
     setSelectedLead(lead);
     setAddNoteVisible(true);
     noteForm.resetFields();
+    // Store whether to create an activity in the form's extra field
+    noteForm.setFieldsValue({
+      createActivity: createActivity
+    });
   };
 
   // Handle add note
   const handleAddNote = async () => {
-    let currentUser = await getUserInfo();
-    noteForm.validateFields()
-      .then(values => {
-        // Format the note to match the schema
-        const newNote = {
-          content: values.content,
-          addedBy: {
+    try {
+      let currentUser = await getUserInfo();
+      await noteForm.validateFields();
+      const values = noteForm.getFieldsValue();
+
+      // Format the note to match the schema
+      const newNote = {
+        content: values.content,
+        addedBy: {
+          _id: currentUser._id,
+          name: currentUser.name
+        },
+        addedAt: new Date().toISOString()
+      };
+
+      console.log('Add note to lead:', selectedLead._id, newNote);
+
+      // Prepare update data - just push this single new note
+      const updateData = {
+        $push: { notes: newNote }
+      };
+
+      // Create activity only if specified
+      const createActivity = values.createActivity !== false;
+      if (createActivity) {
+        const noteActivity = {
+          type: 'note',
+          date: new Date().toISOString(),
+          summary: `Added note: ${values.content.substring(0, 50)}${values.content.length > 50 ? '...' : ''}`,
+          by: {
             _id: currentUser._id,
             name: currentUser.name
-          },
-          addedAt: new Date().toISOString()
+          }
         };
 
-        console.log('Add note to lead:', selectedLead._id, newNote);
+        updateData.$push.communications = noteActivity;
+      }
 
-        // Call the API to update the lead
-        updateLead(selectedLead._id, {
-          $push: { notes: newNote }
-        })
-          .then(updatedLead => {
-            // Update the lead in UI
-            const updatedLeads = leadsData.map(lead =>
-              lead._id === updatedLead._id ? updatedLead : lead
-            );
-            message.success('Note added successfully');
-          })
-          .catch(error => {
-            console.error('Error adding note:', error);
-            message.error('Failed to add note');
-          });
+      // Call the API to update the lead
+      await updateLead(selectedLead._id, updateData);
+      message.success('Note added successfully');
 
-        // Create a simulated updated lead for immediate UI feedback
-        const updatedLead = {
-          ...selectedLead,
-          notes: [...(selectedLead.notes || []), newNote]
-        };
+      // Refresh leads data
+      setTimeout(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+        refetchLeads({ force: true });
+      }, 500);
 
-        // Update the selected lead
-        setSelectedLead(updatedLead);
+      // Create a simulated updated lead for immediate UI feedback
+      const updatedLead = {
+        ...selectedLead,
+        notes: [...(selectedLead.notes || []), newNote]
+      };
 
+      // Update the selected lead
+      setSelectedLead(updatedLead);
 
-        // Close the modal and reset form
-        setAddNoteVisible(false);
-        noteForm.resetFields();
-      })
-      .catch(errorInfo => {
-        console.log('Validation failed:', errorInfo);
-      });
+      // Close the modal and reset form
+      setAddNoteVisible(false);
+      noteForm.resetFields();
+    } catch (error) {
+      console.error('Error adding note:', error);
+      message.error('Failed to add note');
+    }
   };
 
   // Show add property interest modal
-  const showAddPropertyInterestModal = (lead) => {
+  const showAddPropertyInterestModal = (lead, createActivity = true) => {
     setSelectedLead(lead);
     setAddPropertyInterestVisible(true);
     propertyForm.resetFields();
+    // Store whether to create an activity in the form's extra field
+    propertyForm.setFieldsValue({
+      createActivity: createActivity
+    });
   };
 
-  const handleAddPropertyInterest = () => {
-    propertyForm.validateFields()
-      .then(values => {
-        // Get the selected property
-        const selectedProperty = values.propertyId;
+  // Handle add property interest
+  const handleAddPropertyInterest = async () => {
+    try {
+      let currentUser = await getUserInfo();
+      await propertyForm.validateFields();
+      const values = propertyForm.getFieldsValue();
 
-        console.log('Add property interest to lead:', selectedLead._id, selectedProperty);
+      // Find the selected property from propertiesData
+      const property = propertiesData.find(p => p._id === values.propertyId);
+      if (!property) {
+        message.error('Selected property not found');
+        return;
+      }
 
-        // Create a formatted lead update
-        const formattedLead = {
-          ...selectedLead,
-          interestedProperties: [
-            ...(selectedLead.interestedProperties || []),
-            selectedProperty
-          ]
+      // Check if property is already in interested properties to avoid duplicates
+      const alreadyInterested = selectedLead.interestedProperties?.some(p => p._id === property._id);
+      if (alreadyInterested) {
+        message.warning('This property is already in the interested list');
+        setAddPropertyInterestVisible(false);
+        propertyForm.resetFields();
+        return;
+      }
+
+      // Prepare update data - just push this single new property
+      const updateData = {
+        $push: { interestedProperties: property }
+      };
+
+      // Create activity only if specified
+      const createActivity = values.createActivity !== false;
+      if (createActivity) {
+        const propertyActivity = {
+          type: 'property_interest',
+          date: new Date().toISOString(),
+          summary: `Added property interest: ${property.name}`,
+          by: {
+            _id: currentUser._id,
+            name: currentUser.name
+          }
         };
 
-        // Call updateLead service
-        updateLead(selectedLead._id, formattedLead)
-          .then(updatedLead => {
-            // Show success message
-            message.success('Lead updated successfully!');
+        updateData.$push.communications = propertyActivity;
+      }
 
-            setTimeout(() => {
-              setRefreshKey(prevKey => prevKey + 1);
-              refetchLeads({ force: true });
-            }, 500);
+      // Call updateLead service
+      await updateLead(selectedLead._id, updateData);
+      message.success('Property interest added successfully!');
 
-            // Update the selected lead in state
-            setSelectedLead(updatedLead);
+      // Refresh leads data
+      setTimeout(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+        refetchLeads({ force: true });
+      }, 500);
 
-            // Close modal and reset form
-            setAddPropertyInterestVisible(false);
-            propertyForm.resetFields();
-          })
-          .catch(error => {
-            console.error('Error updating lead:', error);
-            message.error('Failed to update lead. Please try again.');
-          });
-      })
-      .catch(errorInfo => {
-        console.log('Validation failed:', errorInfo);
-      });
+      // Create a simulated updated lead for immediate UI feedback
+      const updatedLead = {
+        ...selectedLead,
+        interestedProperties: [...(selectedLead.interestedProperties || []), property]
+      };
+
+      // Update the selected lead
+      setSelectedLead(updatedLead);
+
+      // Close modal and reset form
+      setAddPropertyInterestVisible(false);
+      propertyForm.resetFields();
+    } catch (error) {
+      console.error('Error adding property interest:', error);
+      message.error('Failed to add property interest');
+    }
   };
 
+  // Handle delete note
+  const handleDeleteNote = async (leadId, noteId) => {
+    try {
+      // Call the API to delete the note
+      await updateLead(leadId, {
+        $pull: { notes: { _id: noteId } }
+      });
+
+      message.success('Note deleted successfully');
+
+      // Refresh leads data
+      setTimeout(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+        refetchLeads({ force: true });
+      }, 500);
+
+      // Update the selected lead in state if currently viewing
+      if (selectedLead && selectedLead._id === leadId) {
+        const updatedNotes = selectedLead.notes.filter(note => note._id !== noteId);
+        setSelectedLead({
+          ...selectedLead,
+          notes: updatedNotes
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      message.error('Failed to delete note');
+    }
+  };
+
+  // Handle remove property interest
+  const handleRemovePropertyInterest = async (leadId, propertyId) => {
+    try {
+      // Call the API to remove the property interest
+      await updateLead(leadId, {
+        $pull: { interestedProperties: { _id: propertyId } }
+      });
+
+      message.success('Property interest removed successfully');
+
+      // Refresh leads data
+      setTimeout(() => {
+        setRefreshKey(prevKey => prevKey + 1);
+        refetchLeads({ force: true });
+      }, 500);
+
+      // Update the selected lead in state if currently viewing
+      if (selectedLead && selectedLead._id === leadId) {
+        const updatedProperties = selectedLead.interestedProperties.filter(
+          property => property._id !== propertyId
+        );
+        setSelectedLead({
+          ...selectedLead,
+          interestedProperties: updatedProperties
+        });
+      }
+    } catch (error) {
+      console.error('Error removing property interest:', error);
+      message.error('Failed to remove property interest');
+    }
+  };
 
   // Handle search
   const handleSearch = (e) => {
@@ -756,6 +887,9 @@ const LeadsManagement = () => {
         onAddActivity={showAddActivityModal}
         onAddNote={showAddNoteModal}
         onAddPropertyInterest={showAddPropertyInterestModal}
+        onRemovePropertyInterest={handleRemovePropertyInterest}
+        onDeleteNote={handleDeleteNote}
+        onDeleteActivity={handleDeleteActivity}
         propertiesData={propertiesData}
         capitalize={capitalize}
         formatDate={formatDate}
@@ -773,6 +907,7 @@ const LeadsManagement = () => {
           setLeadModalVisible(false);
           form.resetFields();
         }}
+        onAgentAdded={handleAgentAdded}
       />
 
       {/* Add Activity Modal */}

@@ -1,12 +1,14 @@
+// Modified AddPropertyModal.jsx
 import {
     Modal, Form, Tabs, Row, Col, Input, Select,
-    InputNumber, Button, Table
+    InputNumber, Button, Table, message
 } from 'antd';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     PlusOutlined,
     DeleteOutlined
 } from '@ant-design/icons';
+import AddEditUserModal from "@/components/Modals/new/AddUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -17,7 +19,8 @@ export const AddPropertyModal = ({
     form,
     onOk,
     onCancel,
-    propertyManagersData
+    propertyManagersData,
+    onPropertyManagerAdded
 }) => {
     const [unitDetails, setUnitDetails] = useState({
         unitType: 'one_bedroom',
@@ -30,6 +33,13 @@ export const AddPropertyModal = ({
     const [units, setUnits] = useState([]);
     // Current selected property type
     const [propertyType, setPropertyType] = useState('apartment');
+    // Track validation status
+    const [managerValidationDisabled, setManagerValidationDisabled] = useState(false);
+    // Track if there's a validation error for units
+    const [unitsValidationError, setUnitsValidationError] = useState(false);
+
+    // Ref for user modal
+    const userModalActionRef = useRef();
 
     // Update property type when form changes
     useEffect(() => {
@@ -56,6 +66,57 @@ export const AddPropertyModal = ({
         }
     }, [form.getFieldValue('propertyType')]);
 
+    // Load existing units when editing
+    useEffect(() => {
+        if (isEditMode && visible) {
+            const formValues = form.getFieldsValue(true);
+
+            if (formValues && formValues.units && Array.isArray(formValues.units)) {
+                // Add key property for table rendering
+                const unitsWithKeys = formValues.units.map((unit, index) => ({
+                    ...unit,
+                    key: `existing-${index}-${Date.now()}`
+                }));
+                setUnits(unitsWithKeys);
+
+                // Also set the units in the form field
+                form.setFieldsValue({
+                    units: formValues.units
+                });
+
+                // Set property type from form
+                if (formValues.propertyType) {
+                    setPropertyType(formValues.propertyType);
+                }
+
+                // If we're in edit mode and have a property manager, disable validation
+                if (formValues.propertyManager) {
+                    setManagerValidationDisabled(true);
+                }
+
+                // Clear any unit validation error if we have units
+                if (unitsWithKeys.length > 0) {
+                    setUnitsValidationError(false);
+                }
+            }
+        } else if (!visible) {
+            // Reset units when modal is closed
+            setUnits([]);
+            setManagerValidationDisabled(false);
+            setUnitsValidationError(false);
+        }
+    }, [isEditMode, visible, form]);
+
+    // Check if form has propertyManager value
+    useEffect(() => {
+        if (visible) {
+            const currentManager = form.getFieldValue('propertyManager');
+            if (currentManager && currentManager !== 'add_new') {
+                setManagerValidationDisabled(true);
+            }
+        }
+    }, [visible, form]);
+
     // Handle unit form changes
     const handleUnitChange = (field, value) => {
         setUnitDetails(prev => {
@@ -70,11 +131,26 @@ export const AddPropertyModal = ({
 
     // Add a unit type to the list
     const addUnit = () => {
+        // Validate unit details
+        if (!unitDetails.price) {
+            message.error('Please enter a price for the unit');
+            return;
+        }
+
         const newUnit = { ...unitDetails, key: Date.now() };
-        setUnits(prev => [...prev, newUnit]);
+        const updatedUnits = [...units, newUnit];
+        setUnits(updatedUnits);
+
+        // Create a clean version of units without the UI-specific keys
+        const cleanUnits = updatedUnits.map(({ key, ...rest }) => rest);
+
+        // Update form field
         form.setFieldsValue({
-            units: [...units, newUnit]
+            units: cleanUnits
         });
+
+        // Clear any unit validation error as we now have at least one unit
+        setUnitsValidationError(false);
 
         // Reset unit details form for next entry based on property type
         if (propertyType === 'land') {
@@ -83,7 +159,6 @@ export const AddPropertyModal = ({
                 price: 0,
                 totalUnits: 1,
                 availableUnits: 1,
-                plotNumber: '',
                 plotSize: '50/100'
             });
         } else {
@@ -100,9 +175,54 @@ export const AddPropertyModal = ({
     const removeUnit = (unitKey) => {
         const updatedUnits = units.filter(unit => unit.key !== unitKey);
         setUnits(updatedUnits);
+
+        // Create a clean version of units without the UI-specific keys
+        const cleanUnits = updatedUnits.map(({ key, ...rest }) => rest);
+
+        // Update form field
         form.setFieldsValue({
-            units: updatedUnits
+            units: cleanUnits
         });
+
+        // If no units left, set validation error
+        if (updatedUnits.length === 0) {
+            setUnitsValidationError(true);
+        }
+    };
+
+    // Handle property manager select change
+    const handlePropertyManagerChange = (value) => {
+
+        if (value && value !== 'add_new') {
+            // If a valid manager is selected, disable validation error
+            setManagerValidationDisabled(true);
+        }
+
+        if (value === "add_new") {
+            // Trigger the user modal via ref
+            if (userModalActionRef.current) {
+                userModalActionRef.current.click();
+            }
+
+            // Don't reset the field value - we'll handle it differently
+        }
+    };
+
+    // Function to handle successful property manager addition
+    const handlePropertyManagerAdded = (newManager) => {
+
+        // Call the parent component's handler with the new manager data
+        if (onPropertyManagerAdded && newManager) {
+            onPropertyManagerAdded(newManager);
+
+            // Set the form's propertyManager field to the newly created manager's ID
+            form.setFieldsValue({
+                propertyManager: newManager._id
+            });
+
+            // Disable validation error since we have a valid value now
+            setManagerValidationDisabled(true);
+        }
     };
 
     // Unit form for apartments
@@ -243,12 +363,17 @@ export const AddPropertyModal = ({
             title: 'Price',
             dataIndex: 'price',
             key: 'price',
-            render: (price) => `KES ${price.toLocaleString()}`
+            render: (price) => `KES ${price?.toLocaleString() || 0}`
         },
         {
-            title: 'Quantity',
+            title: 'Total Units',
             dataIndex: 'totalUnits',
             key: 'totalUnits',
+        },
+        {
+            title: 'Available Units',
+            dataIndex: 'availableUnits',
+            key: 'availableUnits',
         },
         {
             title: 'Actions',
@@ -259,6 +384,7 @@ export const AddPropertyModal = ({
                     danger
                     icon={<DeleteOutlined />}
                     onClick={() => removeUnit(record.key)}
+                    disabled={record._id && isEditMode && (record.totalUnits !== record.availableUnits)}
                 />
             )
         }
@@ -275,12 +401,17 @@ export const AddPropertyModal = ({
             title: 'Price',
             dataIndex: 'price',
             key: 'price',
-            render: (price) => `KES ${price.toLocaleString()}`
+            render: (price) => `KES ${price?.toLocaleString() || 0}`
+        },
+        {
+            title: 'Total Plots',
+            dataIndex: 'totalUnits',
+            key: 'totalUnits',
         },
         {
             title: 'Available Plots',
-            dataIndex: 'totalUnits',
-            key: 'totalUnits',
+            dataIndex: 'availableUnits',
+            key: 'availableUnits',
         },
         {
             title: 'Actions',
@@ -291,21 +422,69 @@ export const AddPropertyModal = ({
                     danger
                     icon={<DeleteOutlined />}
                     onClick={() => removeUnit(record.key)}
+                    disabled={record._id && isEditMode && (record.totalUnits !== record.availableUnits)}
                 />
             )
         }
     ];
 
+    // Handle form submission
+    const handleSubmit = () => {
+        // Check if there are any units before proceeding
+        if (units.length === 0) {
+            setUnitsValidationError(true);
+            message.error('Please add at least one unit to the property');
+            return;
+        }
+
+        // Ensure units are set in form data
+        const formUnits = form.getFieldValue('units') || [];
+
+        if (Array.isArray(formUnits) && formUnits.length === 0 && units.length > 0) {
+            // If no units in form but units in state, update form
+            const cleanUnits = units.map(({ key, ...rest }) => rest);
+            form.setFieldsValue({
+                units: cleanUnits
+            });
+        }
+
+        // Check the propertyManager value before submitting
+        const propertyManagerValue = form.getFieldValue('propertyManager');
+        if (propertyManagerValue === "add_new") {
+            // If it's still set to "add_new", clear it to avoid validation issues
+            form.setFieldsValue({
+                propertyManager: undefined
+            });
+        }
+
+        // Call the parent onOk handler
+        onOk();
+    };
+
+    // Reset modal state when closed
+    const handleCancel = () => {
+        setUnits([]);
+        setUnitDetails({
+            unitType: 'one_bedroom',
+            price: 0,
+            totalUnits: 1,
+            availableUnits: 1
+        });
+        setManagerValidationDisabled(false);
+        setUnitsValidationError(false);
+        onCancel();
+    };
+
     return (
         <Modal
             title={isEditMode ? "Edit Property" : "Add New Property"}
             open={visible}
-            onOk={onOk}
-            onCancel={onCancel}
+            onOk={handleSubmit}
+            onCancel={handleCancel}
             width={1000}
             okText={isEditMode ? "Update Property" : "Add Property"}
         >
-            <Form layout="vertical" form={form}>
+            <Form layout="vertical" form={form} initialValues={{ units: [] }}>
                 <Tabs defaultActiveKey="1">
                     <TabPane tab="Basic Information" key="1">
                         <Row gutter={16}>
@@ -327,6 +506,7 @@ export const AddPropertyModal = ({
                                     <Select
                                         placeholder="Select property type"
                                         onChange={(value) => setPropertyType(value)}
+                                        disabled={isEditMode} // Prevent changing property type when editing
                                     >
                                         <Option value="land">Land</Option>
                                         <Option value="apartment">Apartment</Option>
@@ -382,13 +562,47 @@ export const AddPropertyModal = ({
                                 <Form.Item
                                     label="Property Manager"
                                     name="propertyManager"
-                                    rules={[{ required: true, message: 'Please select a property manager' }]}
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: 'Please select a property manager',
+                                            // Skip validation if managerValidationDisabled is true
+                                            validator: (_, value) => {
+                                                if (managerValidationDisabled || value) {
+                                                    return Promise.resolve();
+                                                }
+                                                return Promise.reject('Please select a property manager');
+                                            }
+                                        }
+                                    ]}
                                 >
-                                    <Select placeholder="Select an agent">
-                                        {propertyManagersData.map(user => (
-                                            <Option key={user._id} value={user._id}>{user.name}</Option>
-                                        ))}
-                                    </Select>
+                                    <div style={{ display: "flex", gap: "8px" }}>
+                                        <Select
+                                            placeholder="Select a property manager"
+                                            onChange={handlePropertyManagerChange}
+                                            style={{ flex: 1 }}
+                                        >
+                                            {propertyManagersData.map(user => (
+                                                <Option key={user._id} value={user._id}>{user.name}</Option>
+                                            ))}
+                                            <Option key="add_new" value="add_new" style={{ color: "blue" }}>
+                                                + Add New Property Manager
+                                            </Option>
+                                        </Select>
+
+                                        {/* Hidden button to be clicked programmatically via ref */}
+                                        <div style={{ display: "none" }}>
+                                            <AddEditUserModal
+                                                actionRef={userModalActionRef}
+                                                edit={false}
+                                                data={null}
+                                                isProfile={false}
+                                                onSuccess={handlePropertyManagerAdded}
+                                                // Set initial role value for property manager
+                                                initialValues={{ role: 'property_manager' }}
+                                            />
+                                        </div>
+                                    </div>
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -407,10 +621,17 @@ export const AddPropertyModal = ({
                                             <h3>Land Plot Units</h3>
                                             {renderLandUnitForm()}
 
-                                            {/* Table of units added */}
+                                            {/* Units form field */}
                                             <Form.Item name="units" hidden>
                                                 <Input />
                                             </Form.Item>
+
+                                            {/* Units validation error message */}
+                                            {unitsValidationError && (
+                                                <div style={{ color: '#ff4d4f', marginBottom: '16px' }}>
+                                                    Please add at least one plot to the property
+                                                </div>
+                                            )}
 
                                             {units.length > 0 && (
                                                 <>
@@ -420,6 +641,7 @@ export const AddPropertyModal = ({
                                                         dataSource={units}
                                                         pagination={false}
                                                         size="small"
+                                                        rowKey={record => record.key || record._id}
                                                     />
                                                 </>
                                             )}
@@ -431,10 +653,17 @@ export const AddPropertyModal = ({
                                             <h3>Unit Management</h3>
                                             {renderApartmentUnitForm()}
 
-                                            {/* Table of units added */}
+                                            {/* Units form field */}
                                             <Form.Item name="units" hidden>
                                                 <Input />
                                             </Form.Item>
+
+                                            {/* Units validation error message */}
+                                            {unitsValidationError && (
+                                                <div style={{ color: '#ff4d4f', marginBottom: '16px' }}>
+                                                    Please add at least one unit to the property
+                                                </div>
+                                            )}
 
                                             {units.length > 0 && (
                                                 <>
@@ -444,6 +673,7 @@ export const AddPropertyModal = ({
                                                         dataSource={units}
                                                         pagination={false}
                                                         size="small"
+                                                        rowKey={record => record.key || record._id}
                                                     />
                                                 </>
                                             )}

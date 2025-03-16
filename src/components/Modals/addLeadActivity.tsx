@@ -44,12 +44,12 @@ export const AddActivityModal = ({
                 <Form.Item
                     label="Date"
                     name="date"
-                    initialValue={moment()}
                     rules={[{ required: true, message: 'Please select a date' }]}
                 >
                     <DatePicker
                         style={{ width: '100%' }}
-                        showTime
+                        showTime={{ format: 'HH:mm' }}
+                        format="YYYY-MM-DD HH:mm"
                     />
                 </Form.Item>
 

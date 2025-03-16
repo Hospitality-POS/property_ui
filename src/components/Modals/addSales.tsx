@@ -10,15 +10,18 @@ import {
     DatePicker,
     Button,
     Divider,
-    Alert
+    Alert,
+    Radio
 } from 'antd';
 import {
     PlusOutlined,
     DeleteOutlined,
-    InfoCircleOutlined
+    InfoCircleOutlined,
+    CalculatorOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import AddEditUserModal from "@/components/Modals/new/AddUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -45,35 +48,230 @@ export const AddSaleModal = ({
     onOk,
     onCancel,
     formatCurrency,
-    formatDate
+    formatDate,
+    onAgentAdded,
+    onPropertyManagerAdded
 }) => {
+    // New state for payment plan options
+    const [paymentFrequency, setPaymentFrequency] = useState('monthly');
+    const [numberOfMonths, setNumberOfMonths] = useState(12);
+    const [totalAfterDiscount, setTotalAfterDiscount] = useState(0);
+    const [discount, setDiscount] = useState(0);
+    const [selectedProperty, setSelectedProperty] = useState(null);
+    const [availableUnits, setAvailableUnits] = useState([]);
+    const [quantity, setQuantity] = useState(1);
 
-    // Handle property selection to auto-populate list price
+    // Refs for user modals
+    const agentModalActionRef = useRef();
+    const managerModalActionRef = useRef();
+
+    // Handle property selection to auto-populate list price and units
     const handlePropertyChange = (value) => {
-        const selectedProperty = propertiesData.find((property) => (property._id || property.id) === value);
-        if (selectedProperty) {
+        const property = propertiesData.find((p) => (p._id || p.id) === value);
+        if (property) {
+            setSelectedProperty(property);
+
+            // Find all available units
+            const units = property.units ? property.units.filter(unit =>
+                unit.status !== 'sold' && unit.availableUnits > 0
+            ) : [];
+
+            setAvailableUnits(units);
+
+            // Reset unit selection
             form.setFieldsValue({
-                listPrice: selectedProperty.price
+                unit: undefined,
+                listPrice: undefined
             });
         }
     };
 
-    // Prefill installments from existing payment plans when in edit mode
-    useEffect(() => {
-        console.log('AddSaleModal useEffect triggered with:', {
-            isEditMode,
-            saleToEdit: saleToEdit?.id || saleToEdit?._id,
-            hasPaymentPlans: Boolean(saleToEdit?.paymentPlans?.length),
-            saleStatus: saleToEdit?.status
+    // Handle unit selection
+    const handleUnitChange = (unitId) => {
+        if (!selectedProperty || !unitId) return;
+
+        const unit = selectedProperty.units.find(u => (u._id || u.id) === unitId);
+        if (unit) {
+            form.setFieldsValue({
+                listPrice: unit.price,
+                salePrice: unit.price
+            });
+
+            // Update form with unit details
+            form.setFieldsValue({
+                unitType: unit.type,
+                plotSize: unit.plotSize || ''
+            });
+
+            calculateTotalAfterDiscount();
+        }
+    };
+
+    // Handle quantity change
+    const handleQuantityChange = (value) => {
+        setQuantity(value || 1);
+
+        // Update price based on quantity
+        const unitPrice = form.getFieldValue('listPrice') || 0;
+        form.setFieldsValue({
+            salePrice: unitPrice * value
         });
 
+        calculateTotalAfterDiscount();
+    };
+
+    // Handle discount calculation
+    const handleDiscountChange = (value) => {
+        setDiscount(value || 0);
+        calculateTotalAfterDiscount();
+    };
+
+    // Calculate total after discount
+    const calculateTotalAfterDiscount = () => {
+        const salePrice = form.getFieldValue('salePrice') || 0;
+        const discountAmount = discount || 0;
+        const total = salePrice - discountAmount;
+        setTotalAfterDiscount(total);
+        return total;
+    };
+
+    // Handle agent selection change
+    const handleAgentChange = (value) => {
+
+        if (value === "add_new") {
+            // Trigger the user modal via ref
+            if (agentModalActionRef.current) {
+                agentModalActionRef.current.click();
+            }
+
+            // Reset the select value to prevent issues
+            setTimeout(() => {
+                form.setFieldsValue({
+                    agent: undefined
+                });
+            }, 100);
+        }
+    };
+
+    // Handle property manager selection change
+    const handlePropertyManagerChange = (value) => {
+
+        if (value === "add_new") {
+            // Trigger the user modal via ref
+            if (managerModalActionRef.current) {
+                managerModalActionRef.current.click();
+            }
+
+            // Reset the select value to prevent issues
+            setTimeout(() => {
+                form.setFieldsValue({
+                    propertyManager: undefined
+                });
+            }, 100);
+        }
+    };
+
+    // Function to handle successful agent addition
+    const handleAgentAdded = (newAgent) => {
+
+
+        // Call the parent component's handler with the new agent data
+        if (onAgentAdded && newAgent) {
+            onAgentAdded(newAgent);
+
+            // Set the form's agent field to the newly created agent's ID
+            form.setFieldsValue({
+                agent: newAgent._id
+            });
+        }
+    };
+
+    // Function to handle successful property manager addition
+    const handlePropertyManagerAdded = (newManager) => {
+
+
+        // Call the parent component's handler with the new manager data
+        if (onPropertyManagerAdded && newManager) {
+            onPropertyManagerAdded(newManager);
+
+            // Set the form's propertyManager field to the newly created manager's ID
+            form.setFieldsValue({
+                propertyManager: newManager._id
+            });
+        }
+    };
+
+    // Generate payment plans based on selected options
+    const generatePaymentPlans = () => {
+        const total = calculateTotalAfterDiscount();
+        const initialPayment = form.getFieldValue('initialPayment') || 0;
+        const remainingAmount = total - initialPayment;
+        const numMonths = numberOfMonths;
+
+        if (numMonths <= 0 || remainingAmount <= 0) {
+            Modal.warning({
+                title: 'Invalid Input',
+                content: 'Please ensure the number of months is greater than 0 and there is a remaining amount after initial payment.',
+            });
+            return;
+        }
+
+        // Calculate monthly installment amount
+        const monthlyAmount = Math.round(remainingAmount / numMonths);
+
+        // Create new installments array
+        const newInstallments = [];
+        const startDate = form.getFieldValue('paymentDate') || moment();
+
+        // Add installments
+        for (let i = 0; i < numMonths; i++) {
+            newInstallments.push({
+                key: `generated-${i}`,
+                amount: i === numMonths - 1
+                    ? remainingAmount - (monthlyAmount * (numMonths - 1)) // Last payment adjusts for rounding
+                    : monthlyAmount,
+                dueDate: moment(startDate).add(i + 1, 'months'),
+                method: 'M-Pesa',
+                status: 'Not Due'
+            });
+        }
+
+        // Update installments
+        setInstallments(newInstallments);
+
+        Modal.success({
+            title: 'Payment Plan Generated',
+            content: `Created ${numMonths} monthly installments of approximately ${formatCurrency(monthlyAmount)} each.`,
+        });
+    };
+
+    // Prefill installments from existing payment plans when in edit mode
+    useEffect(() => {
+
         // If the sale is already paid, show a notification
-        if (isEditMode && saleToEdit?.status === 'paid') {
+        if (isEditMode && saleToEdit?.status === 'completed') {
             Modal.info({
-                title: 'Paid Sale',
-                content: 'This sale has already been paid. Most fields are read-only.',
+                title: 'Completed Sale',
+                content: 'This sale has already been completed. Most fields are read-only.',
                 okText: 'Understood'
             });
+        }
+
+        // Set unit details if in edit mode
+        if (isEditMode && saleToEdit) {
+            // Set the quantity
+            setQuantity(saleToEdit.quantity || 1);
+
+            // If we have a property, find it and set available units
+            if (saleToEdit.property) {
+                const property = propertiesData.find(p =>
+                    (p._id || p.id) === (saleToEdit.property._id || saleToEdit.property)
+                );
+                if (property) {
+                    setSelectedProperty(property);
+                    setAvailableUnits(property.units || []);
+                }
+            }
         }
 
         if (isEditMode && saleToEdit && saleToEdit.paymentPlans && saleToEdit.paymentPlans.length > 0) {
@@ -88,17 +286,9 @@ export const AddSaleModal = ({
             // Create installments from all payment plans
             const allInstallments = [];
 
-            console.log('Processing payment plans:', saleToEdit.paymentPlans);
 
             // For each payment plan, we need to create installments
             saleToEdit.paymentPlans.forEach((paymentPlan) => {
-                console.log(`Processing payment plan: ${paymentPlan._id}, status: ${paymentPlan.status}`);
-
-                // Skip completed payment plans if needed - comment this out if you want to show all plans
-                // if (paymentPlan.status === 'completed') {
-                //    console.log(`Skipping completed payment plan ${paymentPlan._id}`);
-                //    return;
-                // }
 
                 // Create a special label for this payment plan to group installments
                 allInstallments.push({
@@ -111,7 +301,7 @@ export const AddSaleModal = ({
                 });
 
                 if (paymentPlan.installments && paymentPlan.installments.length > 0) {
-                    console.log(`Payment plan ${paymentPlan._id} has ${paymentPlan.installments.length} installments`);
+
                     paymentPlan.installments.forEach((installment, index) => {
                         allInstallments.push({
                             key: `${paymentPlan._id}-${index}`,
@@ -122,63 +312,15 @@ export const AddSaleModal = ({
                             paymentPlanId: paymentPlan._id
                         });
                     });
-                } else {
-                    // If no existing installments, create placeholders based on payment plan details
-                    console.log(`Creating placeholder installments for payment plan ${paymentPlan._id}`);
-                    const startDate = paymentPlan.startDate ? moment(paymentPlan.startDate) : null;
-                    const endDate = paymentPlan.endDate ? moment(paymentPlan.endDate) : null;
-                    const installmentAmount = paymentPlan.installmentAmount;
-                    const frequency = paymentPlan.installmentFrequency;
-
-                    if (startDate && endDate && installmentAmount) {
-                        const duration = moment.duration(endDate.diff(startDate));
-                        let numberOfInstallments = 0;
-
-                        // Calculate number of installments based on frequency
-                        if (frequency === 'monthly') {
-                            numberOfInstallments = Math.ceil(duration.asMonths());
-                        } else if (frequency === 'weekly') {
-                            numberOfInstallments = Math.ceil(duration.asWeeks());
-                        } else if (frequency === 'quarterly') {
-                            numberOfInstallments = Math.ceil(duration.asMonths() / 3);
-                        } else if (frequency === 'custom' && paymentPlan.customFrequencyDays) {
-                            numberOfInstallments = Math.ceil(duration.asDays() / paymentPlan.customFrequencyDays);
-                        }
-
-                        const maxInstallments = Math.min(numberOfInstallments || 0, 12);
-                        console.log(`Creating ${maxInstallments} placeholder installments`);
-
-                        for (let i = 0; i < maxInstallments; i++) {
-                            let dueDate;
-                            if (frequency === 'monthly') {
-                                dueDate = moment(startDate).add(i + 1, 'months');
-                            } else if (frequency === 'weekly') {
-                                dueDate = moment(startDate).add((i + 1) * 7, 'days');
-                            } else if (frequency === 'quarterly') {
-                                dueDate = moment(startDate).add((i + 1) * 3, 'months');
-                            } else if (frequency === 'custom' && paymentPlan.customFrequencyDays) {
-                                dueDate = moment(startDate).add((i + 1) * paymentPlan.customFrequencyDays, 'days');
-                            }
-
-                            allInstallments.push({
-                                key: `${paymentPlan._id}-${i}`,
-                                amount: installmentAmount,
-                                dueDate,
-                                method: 'M-Pesa',
-                                status: 'Not Due',
-                                paymentPlanId: paymentPlan._id
-                            });
-                        }
-                    }
                 }
             });
 
-            console.log(`Created ${allInstallments.length} total installments`);
+
             if (allInstallments.length > 0) {
                 setInstallments(allInstallments);
             } else {
                 // Fallback - create at least one default installment if none were created
-                console.log('No installments created, adding default installment');
+
                 setInstallments([{
                     key: 'default-0',
                     amount: 0,
@@ -189,7 +331,7 @@ export const AddSaleModal = ({
             }
         } else if (isEditMode && saleToEdit && form.getFieldValue('paymentPlan') === 'Installment') {
             // If we're in edit mode but no payment plans, add a default installment
-            console.log('Edit mode with no payment plans, adding default installment');
+
             if (installments.length === 0) {
                 setInstallments([{
                     key: 'default-0',
@@ -200,7 +342,7 @@ export const AddSaleModal = ({
                 }]);
             }
         }
-    }, [isEditMode, saleToEdit, form]); // Removed setInstallments from dependencies
+    }, [isEditMode, saleToEdit, form, propertiesData]);
 
     // Calculate the total of all installments for a specific payment plan
     const calculatePlanTotal = (planId) => {
@@ -290,14 +432,13 @@ export const AddSaleModal = ({
                                         {propertiesData &&
                                             propertiesData
                                                 .filter((property) =>
-                                                    // If we're editing, include the current property even if not available
-                                                    property.status === "available" ||
+                                                    // Show properties with available units, or the current property if editing
+                                                    (property.units && property.units.some(unit => unit.status !== 'sold' && unit.availableUnits > 0)) ||
                                                     (isEditMode && saleToEdit && (property._id || property.id) === (saleToEdit.property?._id || saleToEdit.property))
                                                 )
                                                 .map((property) => (
                                                     <Option key={property._id || property.id} value={property._id || property.id}>
-                                                        {property.name} - {property.location?.address || "No location"} -{" "}
-                                                        {formatCurrency(property.price)}
+                                                        {property.name} - {property.location?.address || "No location"}
                                                     </Option>
                                                 ))}
                                     </Select>
@@ -328,8 +469,49 @@ export const AddSaleModal = ({
                             </Col>
                         </Row>
 
+                        {/* Unit Selection Row */}
                         <Row gutter={16}>
                             <Col span={12}>
+                                <Form.Item
+                                    label="Select Unit"
+                                    name="unit"
+                                    rules={[{ required: true, message: "Please select a unit" }]}
+                                >
+                                    <Select
+                                        showSearch
+                                        style={{ width: "100%" }}
+                                        placeholder="Select unit"
+                                        optionFilterProp="children"
+                                        onChange={handleUnitChange}
+                                        disabled={!selectedProperty || isEditMode} // Disable if no property selected or in edit mode
+                                    >
+                                        {availableUnits.map((unit) => (
+                                            <Option key={unit._id || unit.id} value={unit._id || unit.id}>
+                                                {unit.unitType || unit.type} - {unit.plotSize ? `${unit.plotSize} sqm -` : ''} {formatCurrency(unit.price)}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Quantity"
+                                    name="quantity"
+                                    initialValue={1}
+                                    rules={[{ required: true, message: 'Please enter quantity' }]}
+                                >
+                                    <InputNumber
+                                        style={{ width: '100%' }}
+                                        min={1}
+                                        onChange={handleQuantityChange}
+                                        disabled={isEditMode} // Disable in edit mode
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+
+                        <Row gutter={16}>
+                            <Col span={8}>
                                 <Form.Item
                                     label="Sale Price (KES)"
                                     name="salePrice"
@@ -341,10 +523,11 @@ export const AddSaleModal = ({
                                         parser={value => value.replace(/\$\s?|(,*)/g, '')}
                                         placeholder="Enter sale price"
                                         min={0}
+                                        onChange={() => calculateTotalAfterDiscount()}
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
+                            <Col span={8}>
                                 <Form.Item
                                     label="List Price (KES)"
                                     name="listPrice"
@@ -357,6 +540,21 @@ export const AddSaleModal = ({
                                         placeholder="Enter list price"
                                         min={0}
                                         disabled={true}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item
+                                    label="Discount (KES)"
+                                    name="discount"
+                                >
+                                    <InputNumber
+                                        style={{ width: '100%' }}
+                                        formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                        placeholder="Enter discount amount"
+                                        min={0}
+                                        onChange={handleDiscountChange}
                                     />
                                 </Form.Item>
                             </Col>
@@ -385,6 +583,14 @@ export const AddSaleModal = ({
                                             if (value === 'Installment') {
                                                 // Ensure we have at least one installment when switching to installment mode
                                                 setTimeout(ensureInstallments, 0);
+                                            } else if (value === 'Full Payment') {
+                                                // Auto-fill for full payment
+                                                const totalAmount = calculateTotalAfterDiscount();
+                                                form.setFieldsValue({
+                                                    initialPayment: totalAmount,
+                                                    paymentDate: moment(), // Set to current date
+                                                    status: 'completed' // Set sale status to completed
+                                                });
                                             }
                                         }}
                                     >
@@ -400,6 +606,25 @@ export const AddSaleModal = ({
                             </Col>
                             <Col span={8}>
                                 <Form.Item
+                                    label="Sale Status"
+                                    name="status"
+                                    initialValue="reservation"
+                                    rules={[{ required: true, message: 'Please select a status' }]}
+                                >
+                                    <Select>
+                                        <Option value="reservation">Reservation</Option>
+                                        <Option value="agreement">Agreement</Option>
+                                        <Option value="processing">Processing</Option>
+                                        <Option value="completed">Completed</Option>
+                                        <Option value="cancelled">Cancelled</Option>
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                        </Row>
+
+                        <Row gutter={16}>
+                            <Col span={8}>
+                                <Form.Item
                                     label="Assigned Agent"
                                     name="agent"
                                     rules={[{ required: true, message: 'Please select an agent' }]}
@@ -410,19 +635,32 @@ export const AddSaleModal = ({
                                         placeholder="Search for Agent"
                                         optionFilterProp="children"
                                         loading={isLoadingAgents}
+                                        onChange={handleAgentChange}
                                     >
                                         {agentsData && agentsData.map(agent => (
                                             <Option key={agent._id || agent.id} value={agent._id || agent.id}>
                                                 {agent.name} - {agent.email}
                                             </Option>
                                         ))}
+                                        <Option key="add_new" value="add_new" style={{ color: "blue" }}>
+                                            + Add New Agent
+                                        </Option>
                                     </Select>
                                 </Form.Item>
-                            </Col>
-                        </Row>
 
-                        <Row gutter={16}>
-                            <Col span={12}>
+                                {/* Hidden button to be clicked programmatically via ref */}
+                                <div style={{ display: "none" }}>
+                                    <AddEditUserModal
+                                        actionRef={agentModalActionRef}
+                                        edit={false}
+                                        data={null}
+                                        isProfile={false}
+                                        onSuccess={handleAgentAdded}
+                                        initialValues={{ role: 'sales_agent' }}
+                                    />
+                                </div>
+                            </Col>
+                            <Col span={8}>
                                 <Form.Item
                                     label="Property Manager"
                                     name="propertyManager"
@@ -433,13 +671,43 @@ export const AddSaleModal = ({
                                         placeholder="Select property manager"
                                         optionFilterProp="children"
                                         loading={isLoadingManagers}
+                                        onChange={handlePropertyManagerChange}
                                     >
                                         {managersData && managersData.map(manager => (
                                             <Option key={manager._id || manager.id} value={manager._id || manager.id}>
                                                 {manager.name} - {manager.email}
                                             </Option>
                                         ))}
+                                        <Option key="add_new" value="add_new" style={{ color: "blue" }}>
+                                            + Add New Property Manager
+                                        </Option>
                                     </Select>
+                                </Form.Item>
+
+                                {/* Hidden button to be clicked programmatically via ref */}
+                                <div style={{ display: "none" }}>
+                                    <AddEditUserModal
+                                        actionRef={managerModalActionRef}
+                                        edit={false}
+                                        data={null}
+                                        isProfile={false}
+                                        onSuccess={handlePropertyManagerAdded}
+                                        initialValues={{ role: 'property_manager' }}
+                                    />
+                                </div>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item
+                                    label="Commission (%)"
+                                    name="commissionPercentage"
+                                    initialValue={5}
+                                >
+                                    <InputNumber
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        max={100}
+                                        precision={2}
+                                    />
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -513,6 +781,61 @@ export const AddSaleModal = ({
                                     <>
                                         <Divider>Installment Schedule</Divider>
 
+                                        {/* New Payment Plan Generator */}
+                                        {!isEditMode && (
+                                            <div style={{ marginBottom: 24, padding: 16, background: '#f5f5f5', borderRadius: 4 }}>
+                                                <h4>Payment Plan Generator</h4>
+                                                <Row gutter={16} align="middle">
+                                                    <Col span={8}>
+                                                        <Form.Item label="Payment Frequency" style={{ marginBottom: 0 }}>
+                                                            <Radio.Group
+                                                                value={paymentFrequency}
+                                                                onChange={(e) => setPaymentFrequency(e.target.value)}
+                                                                buttonStyle="solid"
+                                                            >
+                                                                <Radio.Button value="monthly">Monthly</Radio.Button>
+                                                            </Radio.Group>
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col span={8}>
+                                                        <Form.Item label="Number of Months" style={{ marginBottom: 0 }}>
+                                                            <InputNumber
+                                                                style={{ width: '100%' }}
+                                                                min={1}
+                                                                max={60}
+                                                                value={numberOfMonths}
+                                                                onChange={(value) => setNumberOfMonths(value)}
+                                                            />
+                                                        </Form.Item>
+                                                    </Col>
+                                                    <Col span={8}>
+                                                        <Button
+                                                            type="primary"
+                                                            icon={<CalculatorOutlined />}
+                                                            onClick={generatePaymentPlans}
+                                                            style={{ marginTop: 22 }}
+                                                        >
+                                                            Generate Payment Plan
+                                                        </Button>
+                                                    </Col>
+                                                </Row>
+                                                <div style={{ marginTop: 12 }}>
+                                                    <Alert
+                                                        message={
+                                                            <>
+                                                                Total after discount: <strong>{formatCurrency(calculateTotalAfterDiscount())}</strong> |
+                                                                Initial payment: <strong>{formatCurrency(form.getFieldValue('initialPayment') || 0)}</strong> |
+                                                                To finance: <strong>{formatCurrency(calculateTotalAfterDiscount() - (form.getFieldValue('initialPayment') || 0))}</strong> |
+                                                                Monthly payment: <strong>{formatCurrency((calculateTotalAfterDiscount() - (form.getFieldValue('initialPayment') || 0)) / numberOfMonths)}</strong>
+                                                            </>
+                                                        }
+                                                        type="info"
+                                                        showIcon
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {isEditMode && saleToEdit && saleToEdit.paymentPlans && saleToEdit.paymentPlans.length > 0 && (
                                             <Alert
                                                 message="Installment Schedule"
@@ -523,13 +846,6 @@ export const AddSaleModal = ({
                                                 style={{ marginBottom: 16 }}
                                             />
                                         )}
-
-                                        {/* Debug information */}
-                                        <div style={{ marginBottom: 16, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>
-                                            Debug: {installments.length} installments found
-                                        </div>
-
-                                        {/* Display all installments */}
                                         {installments.length > 0 ? (
                                             installments.map((installment) =>
                                                 installment.isHeader ? (
@@ -596,11 +912,11 @@ export const AddSaleModal = ({
                                                                         placeholder="Amount"
                                                                         value={installment.amount}
                                                                         onChange={(value) => {
-                                                                            // Prevent changes if sale is already paid
-                                                                            if (saleToEdit?.status === 'paid') {
+                                                                            // Prevent changes if sale is already completed
+                                                                            if (saleToEdit?.status === 'completed') {
                                                                                 Modal.warning({
-                                                                                    title: 'Cannot Modify Paid Sale',
-                                                                                    content: 'This sale has already been paid and cannot be modified.',
+                                                                                    title: 'Cannot Modify Completed Sale',
+                                                                                    content: 'This sale has already been completed and cannot be modified.',
                                                                                 });
                                                                                 return;
                                                                             }
@@ -632,7 +948,7 @@ export const AddSaleModal = ({
                                                                             }
                                                                         }}
                                                                         min={0}
-                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'paid'}
+                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'completed'}
                                                                     />
                                                                 </Form.Item>
                                                             </Col>
@@ -642,7 +958,7 @@ export const AddSaleModal = ({
                                                                         style={{ width: '100%' }}
                                                                         value={installment.dueDate}
                                                                         onChange={(date) => onInstallmentChange(installment.key, 'dueDate', date)}
-                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'paid'}
+                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'completed'}
                                                                     />
                                                                 </Form.Item>
                                                             </Col>
@@ -652,7 +968,7 @@ export const AddSaleModal = ({
                                                                         style={{ width: '100%' }}
                                                                         value={installment.method || 'M-Pesa'}
                                                                         onChange={(value) => onInstallmentChange(installment.key, 'method', value)}
-                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'paid'}
+                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'completed'}
                                                                     >
                                                                         <Option value="Bank Transfer">Bank Transfer</Option>
                                                                         <Option value="M-Pesa">M-Pesa</Option>
@@ -667,7 +983,7 @@ export const AddSaleModal = ({
                                                                         style={{ width: '100%' }}
                                                                         value={installment.status || 'Not Due'}
                                                                         onChange={(value) => onInstallmentChange(installment.key, 'status', value)}
-                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'paid'}
+                                                                        disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'completed'}
                                                                     >
                                                                         <Option value="Pending">Pending</Option>
                                                                         <Option value="Not Due">Not Due</Option>
@@ -682,7 +998,7 @@ export const AddSaleModal = ({
                                                                     danger
                                                                     icon={<DeleteOutlined />}
                                                                     onClick={() => onRemoveInstallment(installment.key)}
-                                                                    disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'paid'}
+                                                                    disabled={installment.status === 'Paid' || installment.status === 'completed' || saleToEdit?.status === 'completed'}
                                                                 />
                                                             </Col>
                                                         </Row>
@@ -692,7 +1008,7 @@ export const AddSaleModal = ({
                                         ) : (
                                             // Show a message if no installments exist yet
                                             <div style={{ textAlign: 'center', margin: '20px 0', color: '#999' }}>
-                                                No installments defined yet. Click "Add Installment" to create one.
+                                                No installments defined yet. Use the generator above or click "Add Installment" to create one.
                                             </div>
                                         )}
 
@@ -704,9 +1020,9 @@ export const AddSaleModal = ({
                                                         .filter(plan => plan.status !== 'completed')
                                                         .map(plan => {
                                                             const remainingAmount = calculateRemainingAmount(plan._id);
-                                                            const isDisabled = remainingAmount <= 0 || saleToEdit?.status === 'paid';
-                                                            const disabledReason = saleToEdit?.status === 'paid'
-                                                                ? "Sale is already paid"
+                                                            const isDisabled = remainingAmount <= 0 || saleToEdit?.status === 'completed';
+                                                            const disabledReason = saleToEdit?.status === 'completed'
+                                                                ? "Sale is already completed"
                                                                 : "Maximum amount reached";
 
                                                             return (
@@ -724,8 +1040,8 @@ export const AddSaleModal = ({
                                                                     title={isDisabled ? disabledReason : ""}
                                                                 >
                                                                     Add to Plan {plan._id.substr(-4)}
-                                                                    {isDisabled && (saleToEdit?.status === 'paid'
-                                                                        ? " (Sale paid)"
+                                                                    {isDisabled && (saleToEdit?.status === 'completed'
+                                                                        ? " (Sale completed)"
                                                                         : " (Max reached)")}
                                                                 </Button>
                                                             );
@@ -738,11 +1054,11 @@ export const AddSaleModal = ({
                                                             block
                                                             icon={<PlusOutlined />}
                                                             onClick={() => handleAddInstallment(saleToEdit.paymentPlans[0]._id)}
-                                                            disabled={calculateRemainingAmount(saleToEdit.paymentPlans[0]._id) <= 0 || saleToEdit?.status === 'paid'}
-                                                            title={saleToEdit?.status === 'paid' ? "Sale is already paid" : "Maximum amount reached"}
+                                                            disabled={calculateRemainingAmount(saleToEdit.paymentPlans[0]._id) <= 0 || saleToEdit?.status === 'completed'}
+                                                            title={saleToEdit?.status === 'completed' ? "Sale is already completed" : "Maximum amount reached"}
                                                         >
                                                             Add Installment
-                                                            {saleToEdit?.status === 'paid' ? " (Sale paid)" : calculateRemainingAmount(saleToEdit.paymentPlans[0]._id) <= 0 ? " (Max reached)" : ""}
+                                                            {saleToEdit?.status === 'completed' ? " (Sale completed)" : calculateRemainingAmount(saleToEdit.paymentPlans[0]._id) <= 0 ? " (Max reached)" : ""}
                                                         </Button>
                                                     )}
                                                 </div>
@@ -754,7 +1070,7 @@ export const AddSaleModal = ({
                                                     icon={<PlusOutlined />}
                                                     onClick={() => onAddInstallment()}
                                                 >
-                                                    Add Installment
+                                                    Add Installment Manually
                                                 </Button>
                                             )}
                                         </Form.Item>

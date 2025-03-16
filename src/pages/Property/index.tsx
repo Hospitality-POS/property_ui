@@ -35,14 +35,17 @@ const PropertyManager = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [form] = Form.useForm();
 
+  // Add state to hold property managers
+  const [localPropertyManagersData, setLocalPropertyManagersData] = useState([]);
+
   // Date formatting helper
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return moment(dateString).format('DD MMM YYYY');
   };
 
-  const { data: propertyManagersData = [] } = useQuery({
-    queryKey: ['users'],
+  const { data: propertyManagersData = [], refetch: refetchPropertyManagers } = useQuery({
+    queryKey: ['users', refreshKey],
     queryFn: async () => {
       try {
         const response = await fetchAllUsers();
@@ -83,6 +86,10 @@ const PropertyManager = () => {
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      // When the query is successful, update our local state
+      setLocalPropertyManagersData(data);
+    }
   });
 
   // Data fetching
@@ -115,6 +122,11 @@ const PropertyManager = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false
   });
+
+  // Get property managers to use - prefer local state for immediate updates
+  const activePropertyManagersData = localPropertyManagersData.length > 0
+    ? localPropertyManagersData
+    : propertyManagersData;
 
   // Property view handler
   const handleViewProperty = (property) => {
@@ -223,6 +235,41 @@ const PropertyManager = () => {
 
     // Open the form modal with edit mode
     setAddPropertyVisible(true);
+  };
+
+  // Handle newly added property manager
+  const handlePropertyManagerAdded = (newManager) => {
+    console.log('New property manager added:', newManager);
+
+    // Add the new manager to the local managers data
+    setLocalPropertyManagersData(prevManagers => {
+      // Check if this manager is already in the list (by ID or by email)
+      const managerExists = prevManagers.some(
+        manager => manager._id === newManager._id || manager.email === newManager.email
+      );
+
+      if (managerExists) {
+        // If manager already exists, replace it
+        return prevManagers.map(manager =>
+          (manager._id === newManager._id || manager.email === newManager.email) ? newManager : manager
+        );
+      } else {
+        // If manager doesn't exist, add it to the list
+        return [...prevManagers, newManager];
+      }
+    });
+
+    // Trigger a refetch of the users data to include the new manager in the backend
+    refetchPropertyManagers({ force: true })
+      .then(() => {
+        message.success(`Property Manager ${newManager.name} added successfully!`);
+
+        // Update the refreshKey to trigger UI updates
+        setRefreshKey(prevKey => prevKey + 1);
+      })
+      .catch(error => {
+        console.error('Error refreshing users after adding property manager:', error);
+      });
   };
 
   // Delete confirmation modal
@@ -438,8 +485,6 @@ const PropertyManager = () => {
         </Col>
       </Row>
 
-
-
       {/* Properties Table Component */}
       <PropertyTable
         properties={filteredProperties}
@@ -470,7 +515,8 @@ const PropertyManager = () => {
         form={form}
         onOk={handleAddProperty}
         onCancel={handleModalCancel}
-        propertyManagersData={propertyManagersData}
+        propertyManagersData={activePropertyManagersData}
+        onPropertyManagerAdded={handlePropertyManagerAdded}
       />
 
       {/* Delete Confirmation Modal */}

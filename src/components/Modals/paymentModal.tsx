@@ -94,7 +94,7 @@ export const AddPaymentModal = ({
                                 parser={value => value.replace(/\$\s?|(,*)/g, '')}
                                 placeholder="Enter amount"
                                 min={0}
-                                disabled={isPaymentPlanPayment} // Disable field if it's a payment plan payment
+                            // disabled={isPaymentPlanPayment} // Disable field if it's a payment plan payment
                             />
                         </Form.Item>
                     </Col>

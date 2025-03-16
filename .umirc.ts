@@ -8,8 +8,8 @@ export default defineConfig({
   },
   esbuildMinifyIIFE: true,
   define: {
-    //BASE_URL: 'https://api.property.reliatech.co.ke',
-    BASE_URL: 'http://localhost:5000',
+    BASE_URL: 'https://api.property.reliatech.co.ke',
+    //BASE_URL: 'http://localhost:5000',
   },
   access: {},
   model: {},
@@ -24,6 +24,10 @@ export default defineConfig({
     title: 'RPM System',
   },
   routes: [
+    {
+      path: '/',
+      redirect: '/dashboard',
+    },
     {
       name: 'Login',
       path: '/login',

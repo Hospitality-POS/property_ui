@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
     Modal,
     Form,
@@ -7,7 +7,7 @@ import {
     Input,
     Select,
     InputNumber,
-    Typography
+    Button
 } from "antd";
 import {
     UserOutlined,
@@ -27,13 +27,39 @@ export const AddLeadModal = ({
     form,
     agentsData,
     onOk,
-    onCancel
+    onCancel,
+    onAgentAdded
 }) => {
-    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    // Create a ref to trigger the AddEditUserModal
+    const userModalActionRef = useRef();
 
+    // This is the important part - ensure the handleSelectChange function correctly opens the modal
     const handleSelectChange = (value) => {
         if (value === "add_new") {
-            setIsUserModalOpen(true);
+            // Instead of using state, we'll directly trigger the userModalActionRef
+            if (userModalActionRef.current) {
+                userModalActionRef.current.click();
+            }
+
+            // Reset the select value to prevent issues
+            setTimeout(() => {
+                form.setFieldsValue({
+                    assignedTo: undefined
+                });
+            }, 100);
+        }
+    };
+
+    // Function to handle successful agent addition
+    const handleAgentAdded = (newAgent) => {
+        // Call the parent component's handler with the new agent data
+        if (onAgentAdded && newAgent) {
+            onAgentAdded(newAgent);
+
+            // Set the form's assignedTo field to the newly created agent's ID
+            form.setFieldsValue({
+                assignedTo: newAgent._id
+            });
         }
     };
 
@@ -165,30 +191,46 @@ export const AddLeadModal = ({
                         </Col>
                     </Row>
 
-                    <Form.Item label="Assigned Agent" name="assignedTo">
-                        <Select placeholder="Select an agent" onChange={handleSelectChange} allowClear>
-                            {agentsData.map((agent) => (
-                                <Option key={agent._id} value={agent._id}>
-                                    {agent.name}
-                                </Option>
-                            ))}
-                            <Option key="add_new" value="add_new" style={{ color: "blue" }}>
-                                + Add New Agent
-                            </Option>
-                        </Select>
-                    </Form.Item>
+                    <Row gutter={16}>
+                        <Col span={24}>
+                            <Form.Item label="Assigned Agent" name="assignedTo">
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                    <Select
+                                        placeholder="Select an agent"
+                                        onChange={handleSelectChange}
+                                        allowClear
+                                        style={{ flex: 1 }}
+                                    >
+                                        {agentsData.map((agent) => (
+                                            <Option key={agent._id} value={agent._id}>
+                                                {agent.name}
+                                            </Option>
+                                        ))}
+                                        <Option key="add_new" value="add_new" style={{ color: "blue" }}>
+                                            + Add New Agent
+                                        </Option>
+                                    </Select>
+
+                                    {/* Hidden button to be clicked programmatically via ref */}
+                                    <div style={{ display: "none" }}>
+                                        <AddEditUserModal
+                                            actionRef={userModalActionRef}
+                                            edit={false}
+                                            data={null}
+                                            isProfile={false}
+                                            onSuccess={handleAgentAdded}
+                                        />
+                                    </div>
+                                </div>
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
                     <Form.Item label="Notes" name="notes">
                         <TextArea rows={4} placeholder="Any additional information about the lead..." />
                     </Form.Item>
                 </Form>
             </Modal>
-
-            {/* Add Agent Modal */}
-            <AddEditUserModal
-                visible={isUserModalOpen}
-                onCancel={() => setIsUserModalOpen(false)}
-            />
         </>
     );
 };

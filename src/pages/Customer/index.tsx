@@ -65,7 +65,7 @@ const CustomerManagement = () => {
         queryFn: async () => {
             try {
                 const response = await fetchAllCustomers();
-                console.log('customers fetched successfully:', response);
+
 
                 // Process data to use createdAt as dateJoined
                 const processedData = Array.isArray(response.data)
@@ -86,13 +86,13 @@ const CustomerManagement = () => {
         refetchOnWindowFocus: false
     });
 
-    console.log('gfgfghgh', customersData);
+
 
     // Fetch leads for the convert lead modal
     const fetchLeads = async () => {
         try {
             const response = await fetchAllLeads();
-            console.log('nice data', response);
+
             // Filter out leads that are already converted
             const availableLeads = response.data.filter(lead => !lead.convertedToCustomer);
             setLeads(availableLeads);
@@ -338,7 +338,6 @@ const CustomerManagement = () => {
 
                 // Call API to update the customer
                 await updateCustomer(selectedCustomer._id, updatedCustomer);
-                console.log('Customer updated:', updatedCustomer);
 
                 // Update the local state
                 setRefreshKey(prevKey => prevKey + 1);
@@ -419,7 +418,7 @@ const CustomerManagement = () => {
     const handleSaveCommunication = async () => {
         try {
             const values = await communicationForm.validateFields();
-            console.log('nice values', values);
+
             // Create the new communication entry
             const newCommunication = {
                 type: values.type,
@@ -512,7 +511,7 @@ const CustomerManagement = () => {
     // Handle delete customer
     const handleDeleteCustomer = () => {
         // In a real app, this would call an API to delete the customer
-        console.log('Delete customer:', customerToDelete);
+
         setDeleteModalVisible(false);
         setCustomerToDelete(null);
     };

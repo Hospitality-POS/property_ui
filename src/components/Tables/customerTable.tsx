@@ -43,6 +43,7 @@ export const CustomersTable = ({
     onEdit,
     onDelete
 }) => {
+    console.log('customer info', customers);
     // Internal date formatting functions
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
@@ -71,6 +72,22 @@ export const CustomersTable = ({
         }
     };
 
+    // Function to get the latest communication date
+    const getLatestCommunication = (communications) => {
+        if (!communications || !Array.isArray(communications) || communications.length === 0) {
+            return null;
+        }
+
+        try {
+            const sortedComms = [...communications].sort(
+                (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
+            );
+            return sortedComms[0];
+        } catch (e) {
+            return null;
+        }
+    };
+
     // Table columns
     const columns = [
         {
@@ -83,9 +100,9 @@ export const CustomersTable = ({
                 <a onClick={() => onView(record)}>{safeString(text)}</a>
             ),
             sorter: (a, b) => {
-                const aId = safeString(a._id);
-                const bId = safeString(b._id);
-                return aId.localeCompare(bId);
+                const aName = safeString(a.name);
+                const bName = safeString(b.name);
+                return aName.localeCompare(bName);
             },
         },
         {
@@ -102,6 +119,9 @@ export const CustomersTable = ({
                             <CheckCircleOutlined style={{ color: '#52c41a' }} />
                         )}
                     </div>
+                    {record.alternatePhone && (
+                        <div>Alt: {safeString(record.alternatePhone)}</div>
+                    )}
                 </span>
             ),
         },
@@ -143,6 +163,15 @@ export const CustomersTable = ({
             },
         },
         {
+            title: 'Occupation',
+            dataIndex: 'occupation',
+            key: 'occupation',
+            width: 120,
+            render: (occupation) => {
+                return safeString(occupation) || 'Not specified';
+            },
+        },
+        {
             title: 'Property Interests',
             dataIndex: ['preferences', 'propertyTypes'],
             key: 'propertyTypes',
@@ -174,29 +203,36 @@ export const CustomersTable = ({
             },
         },
         {
-            title: 'Budget Range (KES)',
-            dataIndex: ['preferences', 'budgetRange'],
-            key: 'budgetRange',
-            width: 180,
-            render: (budget, record) => {
-                const min = safeAccess(record, ['preferences', 'budgetRange', 'min']);
-                const max = safeAccess(record, ['preferences', 'budgetRange', 'max']);
+            title: 'Lead Source',
+            dataIndex: 'leadSource',
+            key: 'leadSource',
+            width: 120,
+            render: (source) => {
+                const sourceStr = safeString(source);
+                if (!sourceStr) return 'Unknown';
 
-                if (!min && !max) return 'Not specified';
-                if (!min) return `Up to ${Number(max).toLocaleString()}`;
-                if (!max) return `From ${Number(min).toLocaleString()}`;
+                const colorMap = {
+                    'direct': 'green',
+                    'referral': 'blue',
+                    'website': 'purple',
+                    'social': 'cyan',
+                    'agent': 'orange'
+                };
 
                 return (
-                    <span>
-                        {Number(min).toLocaleString()} - {Number(max).toLocaleString()}
-                    </span>
+                    <Tag color={colorMap[sourceStr.toLowerCase()] || 'default'}>
+                        {sourceStr.charAt(0).toUpperCase() + sourceStr.slice(1)}
+                    </Tag>
                 );
             },
-            sorter: (a, b) => {
-                const aMax = Number(safeAccess(a, ['preferences', 'budgetRange', 'max'], 0));
-                const bMax = Number(safeAccess(b, ['preferences', 'budgetRange', 'max'], 0));
-                return aMax - bMax;
-            },
+            filters: [
+                { text: 'Direct', value: 'direct' },
+                { text: 'Referral', value: 'referral' },
+                { text: 'Website', value: 'website' },
+                { text: 'Social', value: 'social' },
+                { text: 'Agent', value: 'agent' }
+            ],
+            onFilter: (value, record) => safeString(record.leadSource).toLowerCase() === value,
         },
         {
             title: 'Created',
@@ -215,60 +251,79 @@ export const CustomersTable = ({
             key: 'lastContact',
             width: 120,
             render: (_, record) => {
-                if (record.communications && Array.isArray(record.communications) && record.communications.length > 0) {
-                    const sortedComms = [...record.communications].sort(
-                        (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
-                    );
-                    return formatRelativeTime(sortedComms[0].date);
+                const latestComm = getLatestCommunication(record.communications);
+                if (latestComm) {
+                    return formatRelativeTime(latestComm.date);
                 }
                 return <Text type="secondary">No contact</Text>;
             },
             sorter: (a, b) => {
-                const getLatestCommDate = (record) => {
-                    if (!record.communications || !Array.isArray(record.communications) || record.communications.length === 0) {
-                        return new Date(0);
-                    }
+                const aComm = getLatestCommunication(a.communications);
+                const bComm = getLatestCommunication(b.communications);
 
-                    try {
-                        const sortedComms = [...record.communications].sort(
-                            (x, y) => new Date(y.date || 0) - new Date(x.date || 0)
-                        );
-                        return new Date(sortedComms[0].date || 0);
-                    } catch (e) {
-                        return new Date(0);
-                    }
-                };
+                const aDate = aComm && aComm.date ? new Date(aComm.date) : new Date(0);
+                const bDate = bComm && bComm.date ? new Date(bComm.date) : new Date(0);
 
-                const aDate = getLatestCommDate(a);
-                const bDate = getLatestCommDate(b);
                 return bDate - aDate;
             },
         },
         {
-            title: 'Purchases',
-            dataIndex: 'purchases',
-            key: 'purchases',
+            title: 'Notes',
+            key: 'notes',
             width: 100,
-            render: (purchases) => {
-                let count = 0;
-
-                if (typeof purchases === 'number') {
-                    count = purchases;
-                } else if (Array.isArray(purchases)) {
-                    count = purchases.length;
-                }
-
+            render: (_, record) => {
+                const notesCount = Array.isArray(record.notes) ? record.notes.length : 0;
                 return (
-                    <Badge count={count} showZero style={{ backgroundColor: count > 0 ? '#52c41a' : '#d9d9d9' }} />
+                    <Badge
+                        count={notesCount}
+                        showZero
+                        style={{ backgroundColor: notesCount > 0 ? '#1890ff' : '#d9d9d9' }}
+                    />
                 );
             },
             sorter: (a, b) => {
-                const aCount = typeof a.purchases === 'number' ? a.purchases :
-                    Array.isArray(a.purchases) ? a.purchases.length : 0;
-
-                const bCount = typeof b.purchases === 'number' ? b.purchases :
-                    Array.isArray(b.purchases) ? b.purchases.length : 0;
-
+                const aCount = Array.isArray(a.notes) ? a.notes.length : 0;
+                const bCount = Array.isArray(b.notes) ? b.notes.length : 0;
+                return aCount - bCount;
+            },
+        },
+        {
+            title: 'Purchases',
+            key: 'purchases',
+            width: 100,
+            render: (_, record) => {
+                const count = Array.isArray(record.purchases) ? record.purchases.length : 0;
+                return (
+                    <Badge
+                        count={count}
+                        showZero
+                        style={{ backgroundColor: count > 0 ? '#52c41a' : '#d9d9d9' }}
+                    />
+                );
+            },
+            sorter: (a, b) => {
+                const aCount = Array.isArray(a.purchases) ? a.purchases.length : 0;
+                const bCount = Array.isArray(b.purchases) ? b.purchases.length : 0;
+                return aCount - bCount;
+            },
+        },
+        {
+            title: 'Payment Plans',
+            key: 'paymentPlans',
+            width: 120,
+            render: (_, record) => {
+                const count = Array.isArray(record.paymentPlans) ? record.paymentPlans.length : 0;
+                return (
+                    <Badge
+                        count={count}
+                        showZero
+                        style={{ backgroundColor: count > 0 ? '#fa8c16' : '#d9d9d9' }}
+                    />
+                );
+            },
+            sorter: (a, b) => {
+                const aCount = Array.isArray(a.paymentPlans) ? a.paymentPlans.length : 0;
+                const bCount = Array.isArray(b.paymentPlans) ? b.paymentPlans.length : 0;
                 return aCount - bCount;
             },
         },
@@ -352,15 +407,44 @@ export const CustomersTable = ({
                 expandedRowRender: (record) => {
                     const locations = safeAccess(record, ['preferences', 'locations'], []);
                     const requirements = safeAccess(record, ['preferences', 'otherRequirements'], 'None specified');
+                    const latestNote = Array.isArray(record.notes) && record.notes.length > 0
+                        ? record.notes.sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt))[0]
+                        : null;
+                    const latestPurchase = Array.isArray(record.purchases) && record.purchases.length > 0
+                        ? record.purchases[0]
+                        : null;
 
                     return (
-                        <p style={{ margin: 0 }}>
-                            <strong>Preferred Locations:</strong>{' '}
-                            {Array.isArray(locations) && locations.length > 0 ? locations.join(', ') : 'None specified'}
-                            <br />
-                            <strong>Requirements:</strong>{' '}
-                            {requirements}
-                        </p>
+                        <div style={{ margin: 0 }}>
+                            {record.company && (
+                                <p><strong>Company:</strong> {safeString(record.company)}</p>
+                            )}
+                            <p>
+                                <strong>ID Number:</strong> {safeString(record.idNumber) || 'Not provided'}
+                            </p>
+                            <p>
+                                <strong>Preferred Locations:</strong>{' '}
+                                {Array.isArray(locations) && locations.length > 0 ? locations.join(', ') : 'None specified'}
+                            </p>
+                            <p>
+                                <strong>Requirements:</strong>{' '}
+                                {requirements || 'None specified'}
+                            </p>
+                            {latestNote && (
+                                <p>
+                                    <strong>Latest Note ({formatDate(latestNote.addedAt)}):</strong>{' '}
+                                    {latestNote.content}
+                                </p>
+                            )}
+                            {latestPurchase && (
+                                <p>
+                                    <strong>Latest Purchase:</strong>{' '}
+                                    {latestPurchase.property ? safeString(latestPurchase.property.title || latestPurchase.property.name) : 'Unknown property'} -
+                                    KES {Number(latestPurchase.salePrice).toLocaleString()} -
+                                    Status: <Tag color={latestPurchase.status === 'completed' ? 'green' : 'orange'}>{safeString(latestPurchase.status)}</Tag>
+                                </p>
+                            )}
+                        </div>
                     );
                 },
             }}

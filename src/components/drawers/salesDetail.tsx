@@ -14,7 +14,6 @@ import {
     Table,
     Timeline,
     List,
-    Avatar,
     Input,
     Descriptions,
     Space,
@@ -58,6 +57,41 @@ export const SaleDetailsDrawer = ({
         return null;
     }
 
+    // Map the status to the display value
+    const getStatusDisplay = (status) => {
+        if (!status) return { text: 'Unknown', color: 'default' };
+
+        const statusMap = {
+            'reservation': { text: 'Reserved', color: 'orange' },
+            'agreement': { text: 'Agreement', color: 'blue' },
+            'processing': { text: 'Processing', color: 'cyan' },
+            'completed': { text: 'Completed', color: 'green' },
+            'cancelled': { text: 'Cancelled', color: 'red' }
+        };
+
+        const statusInfo = statusMap[status.toLowerCase()] || { text: status, color: 'default' };
+        return statusInfo;
+    };
+
+    // Get unit information from the sale
+    const getUnitInfo = () => {
+        if (sale.unit) {
+            return {
+                type: sale.unit.unitType,
+                plotSize: sale.unit.plotSize,
+                price: sale.unit.price
+            };
+        }
+        return {
+            type: 'Unknown Unit',
+            plotSize: '',
+            price: 0
+        };
+    };
+
+    const unitInfo = getUnitInfo();
+    const statusInfo = getStatusDisplay(sale.status);
+
     return (
         <Drawer
             title="Sale Details"
@@ -67,7 +101,7 @@ export const SaleDetailsDrawer = ({
             width={700}
             footer={
                 <div style={{ textAlign: 'right' }}>
-                    {sale && (!sale.status || (sale.status !== 'Completed' && sale.status !== 'Canceled')) &&
+                    {sale && sale.status !== 'completed' && sale.status !== 'cancelled' &&
                         sale.paymentPlanType === 'Full Payment' && (
                             <Button type="primary" onClick={() => onAddPayment(sale)} style={{ marginRight: 8 }}>
                                 Make Payment
@@ -84,10 +118,10 @@ export const SaleDetailsDrawer = ({
                         <Space direction="vertical">
                             {sale.property && (
                                 <>
-
                                     <Text>
                                         <HomeOutlined style={{ marginRight: 8 }} />
-                                        {sale.property.propertyType || 'Unknown Type'} - {sale?.property.propertyType === "apartment" ? sale.property.apartmentSize + ' sqm' : sale.property.landSize + " " + sale.property.sizeUnit}
+                                        {sale.property.propertyType || 'Unknown Type'} - Unit: {unitInfo.type}
+                                        {unitInfo.plotSize ? ` - ${unitInfo.plotSize} sqm` : ''}
                                     </Text>
                                     <Text>
                                         <EnvironmentOutlined style={{ marginRight: 8 }} />
@@ -102,14 +136,8 @@ export const SaleDetailsDrawer = ({
                         </Space>
                     </Col>
                     <Col span={8} style={{ textAlign: 'right' }}>
-                        <Tag color={
-                            !sale.status ? 'default' :
-                                sale.status === 'Reserved' ? 'orange' :
-                                    sale.status === 'Processing' ? 'blue' :
-                                        sale.status === 'In Progress' ? 'cyan' :
-                                            sale.status === 'Completed' ? 'green' : 'red'
-                        } style={{ fontSize: '14px', padding: '4px 8px' }}>
-                            {sale.status || 'Unknown Status'}
+                        <Tag color={statusInfo.color} style={{ fontSize: '14px', padding: '4px 8px' }}>
+                            {statusInfo.text}
                         </Tag>
                         <div style={{ marginTop: 8 }}>
                             <Text strong>Sale Date:</Text> {formatDate(sale.saleDate)}
@@ -123,31 +151,26 @@ export const SaleDetailsDrawer = ({
             {/* Sale Progress Steps */}
             <div style={{ marginBottom: 24 }}>
                 <Steps size="small" current={
-                    sale.saleStage === 'Reservation' ? 0 :
-                        // sale.saleStage === 'Documentation' ? 1 :
-                        //     sale.saleStage === 'Financing' ? 2 :
-                        //         sale.saleStage === 'Payment Collection' ? 3 :
-                        sale.saleStage === 'Completed' ? 1 : 0
+                    sale.status === 'reservation' ? 0 :
+                        sale.status === 'agreement' ? 1 :
+                            sale.status === 'processing' ? 2 :
+                                sale.status === 'completed' ? 3 : 0
                 }>
                     <Step
                         title="Reservation"
-                        status={sale.status === 'Canceled' ? 'error' : undefined}
-                    />
-                    {/* <Step
-                        title="Documentation"
-                        status={sale.status === 'Canceled' ? 'error' : undefined}
+                        status={sale.status === 'cancelled' ? 'error' : undefined}
                     />
                     <Step
-                        title="Financing"
-                        status={sale.status === 'Canceled' ? 'error' : undefined}
+                        title="Agreement"
+                        status={sale.status === 'cancelled' ? 'error' : undefined}
                     />
                     <Step
-                        title="Payment"
-                        status={sale.status === 'Canceled' ? 'error' : undefined}
-                    /> */}
+                        title="Processing"
+                        status={sale.status === 'cancelled' ? 'error' : undefined}
+                    />
                     <Step
                         title="Completed"
-                        status={sale.status === 'Canceled' ? 'error' : undefined}
+                        status={sale.status === 'cancelled' ? 'error' : undefined}
                     />
                 </Steps>
             </div>
@@ -158,50 +181,24 @@ export const SaleDetailsDrawer = ({
                     <Col span={12}>
                         <Descriptions column={1} size="small">
                             <Descriptions.Item label="Sale Price">{formatCurrency(sale.salePrice)}</Descriptions.Item>
-                            <Descriptions.Item label="List Price">{formatCurrency(sale.property?.price) || 'Not specified'}</Descriptions.Item>
-                            <Descriptions.Item label="Discount">
-                                {sale.discount && parseFloat(sale.discount) > 0 ? formatCurrency(sale.discount) : 'None'}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Payment Plan">
-                                {sale.paymentPlans && sale.paymentPlans.length > 0
-                                    ? `Installment (${sale.paymentPlans[0].installmentFrequency || 'custom'})`
-                                    : 'Full Payment'}
-                            </Descriptions.Item>
-                            {sale.paymentPlans && sale.paymentPlans.length > 0 && (
-                                <>
-                                    <Descriptions.Item label="Initial Deposit">
-                                        {formatCurrency(sale.paymentPlans[0].initialDeposit)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Installment Amount">
-                                        {formatCurrency(sale.paymentPlans[0].installmentAmount)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Outstanding Balance">
-                                        {formatCurrency(sale.paymentPlans[0].outstandingBalance)}
-                                    </Descriptions.Item>
-                                </>
+                            <Descriptions.Item label="List Price">{formatCurrency(unitInfo.price)}</Descriptions.Item>
+                            <Descriptions.Item label="Unit Type">{unitInfo.type || 'Not specified'}</Descriptions.Item>
+                            {unitInfo.plotSize && (
+                                <Descriptions.Item label="Plot Size">{unitInfo.plotSize} sqm</Descriptions.Item>
                             )}
+                            <Descriptions.Item label="Quantity">{sale.quantity || 1}</Descriptions.Item>
+                            <Descriptions.Item label="Payment Plan">
+                                {sale.paymentPlanType || 'Full Payment'}
+                            </Descriptions.Item>
                         </Descriptions>
                     </Col>
                     <Col span={12}>
                         <Descriptions column={1} size="small">
                             <Descriptions.Item label="Agent">{sale.salesAgent?.name || 'Not assigned'}</Descriptions.Item>
+                            <Descriptions.Item label="Property Manager">{sale.propertyManager?.name || 'Not assigned'}</Descriptions.Item>
                             <Descriptions.Item label="Commission">{formatCurrency(sale.commission?.amount)}</Descriptions.Item>
-                            {sale.paymentPlans && sale.paymentPlans.length > 0 && (
-                                <>
-                                    <Descriptions.Item label="Plan Start Date">
-                                        {formatDate(sale.paymentPlans[0].startDate)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Plan End Date">
-                                        {formatDate(sale.paymentPlans[0].endDate)}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Plan Status">
-                                        <Tag color={sale.paymentPlans[0].status === 'active' ? 'green' : 'orange'}>
-                                            {sale.paymentPlans[0].status?.charAt(0).toUpperCase() + sale.paymentPlans[0].status?.slice(1) || 'Unknown'}
-                                        </Tag>
-                                    </Descriptions.Item>
-                                </>
-                            )}
-                            <Descriptions.Item label="Reservation Fee">{formatCurrency(sale.reservationFee)}</Descriptions.Item>
+                            <Descriptions.Item label="Commission %">{sale.commission?.percentage || 5}%</Descriptions.Item>
+                            <Descriptions.Item label="Reservation Fee">{formatCurrency(sale.reservationFee) || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Sale Date">
                                 {formatDate(sale.saleDate)}
                             </Descriptions.Item>
@@ -267,13 +264,11 @@ export const SaleDetailsDrawer = ({
                                                                 <Descriptions.Item label="Installment Amount">
                                                                     {formatCurrency(plan.installmentAmount)}
                                                                 </Descriptions.Item>
-                                                                <Descriptions.Item label="Frequency">
-                                                                    {plan.installmentFrequency.charAt(0).toUpperCase() + plan.installmentFrequency.slice(1)}
-                                                                    {plan.installmentFrequency === 'custom' && plan.customFrequencyDays &&
-                                                                        ` (${plan.customFrequencyDays} days)`}
+                                                                <Descriptions.Item label="Initial Deposit">
+                                                                    {formatCurrency(plan.initialDeposit)}
                                                                 </Descriptions.Item>
-                                                                <Descriptions.Item label="Late Penalty">
-                                                                    {plan.latePenaltyPercentage}%
+                                                                <Descriptions.Item label="Total Amount">
+                                                                    {formatCurrency(plan.totalAmount)}
                                                                 </Descriptions.Item>
                                                             </Descriptions>
                                                         </Col>
@@ -384,12 +379,6 @@ export const SaleDetailsDrawer = ({
                                             render: installmentAmount => formatCurrency(installmentAmount)
                                         },
                                         {
-                                            title: 'Frequency',
-                                            dataIndex: 'installmentFrequency',
-                                            key: 'frequency',
-                                            render: frequency => frequency.charAt(0).toUpperCase() + frequency.slice(1)
-                                        },
-                                        {
                                             title: 'Total Amount',
                                             dataIndex: 'totalAmount',
                                             key: 'totalAmount',
@@ -421,9 +410,9 @@ export const SaleDetailsDrawer = ({
                                                 <Tag color={
                                                     status === 'active' ? 'green' :
                                                         status === 'completed' ? 'blue' :
-                                                            status === 'defaulted' ? 'red' : 'orange'
+                                                            status === 'pending' ? 'orange' : 'red'
                                                 }>
-                                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                                    {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
                                                 </Tag>
                                             )
                                         },
@@ -432,7 +421,7 @@ export const SaleDetailsDrawer = ({
                                             key: 'actions',
                                             render: (text, record) => (
                                                 <Space>
-                                                    {record.status === 'active' && sale.status !== 'Completed' && sale.status !== 'Canceled' && (
+                                                    {record.status === 'active' && sale.status !== 'completed' && sale.status !== 'cancelled' && (
                                                         <Button
                                                             type="primary"
                                                             onClick={() => onAddPayment(sale, record)}
@@ -466,7 +455,7 @@ export const SaleDetailsDrawer = ({
 
                 <TabPane tab="Payments" key="2">
                     {/* Overall Payment Statistics */}
-                    {sale && sale.status !== 'Canceled' && (
+                    {sale && sale.status !== 'cancelled' && (
                         <Card style={{ marginBottom: 16 }}>
                             {(() => {
                                 const stats = calculatePaymentStats(sale);
@@ -603,7 +592,7 @@ export const SaleDetailsDrawer = ({
                     />
                 </TabPane>
 
-                <TabPane tab="Timeline" key="3">
+                <TabPane tab="Activities" key="3">
                     <Timeline mode="left">
                         {sale && sale.activities && sale.activities.length > 0 ? (
                             sale.activities.map((item, index) => (
@@ -611,8 +600,8 @@ export const SaleDetailsDrawer = ({
                                     key={index}
                                     label={formatDate(item.date)}
                                     color={
-                                        item.event === 'Cancellation' || item.event === 'Refund' ? 'red' :
-                                            item.event === 'Sale Agreement' || item.event === 'Final Payment' ? 'green' :
+                                        item.activityType === 'Cancellation' || item.activityType === 'Refund' ? 'red' :
+                                            item.activityType === 'Sale Agreement' || item.activityType === 'Final Payment' ? 'green' :
                                                 'blue'
                                     }
                                 >
@@ -620,8 +609,22 @@ export const SaleDetailsDrawer = ({
                                     <div>{item.description}</div>
                                 </Timeline.Item>
                             ))
+                        ) : sale && sale.events && sale.events.length > 0 ? (
+                            sale.events.map((item, index) => (
+                                <Timeline.Item
+                                    key={index}
+                                    label={formatDate(item.addedAt)}
+                                    color={
+                                        item.event.includes('Cancel') ? 'red' :
+                                            item.event.includes('Complet') ? 'green' :
+                                                'blue'
+                                    }
+                                >
+                                    <div style={{ fontWeight: 'bold' }}>{item.event}</div>
+                                </Timeline.Item>
+                            ))
                         ) : (
-                            <Timeline.Item>No timeline activities available</Timeline.Item>
+                            <Timeline.Item>No activities or events available</Timeline.Item>
                         )}
                     </Timeline>
 
@@ -642,6 +645,8 @@ export const SaleDetailsDrawer = ({
                             <Descriptions.Item label="Name">{sale.customer?.name || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Contact Number">{sale.customer?.contactNumber || sale.customer?.phone || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Email">{sale.customer?.email || 'N/A'}</Descriptions.Item>
+                            <Descriptions.Item label="Address">{sale.customer?.address || 'N/A'}</Descriptions.Item>
+                            <Descriptions.Item label="ID Number">{sale.customer?.identificationNumber || 'N/A'}</Descriptions.Item>
                         </Descriptions>
                         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
                             <Space>
@@ -653,6 +658,44 @@ export const SaleDetailsDrawer = ({
                     </Card>
                 </TabPane>
 
+                {/* <TabPane tab="Documents" key="5">
+                    <Card>
+                        {sale.documents && Array.isArray(sale.documents) && sale.documents.length > 0 ? (
+                            <List
+                                itemLayout="horizontal"
+                                dataSource={sale.documents}
+                                renderItem={(doc, index) => (
+                                    <List.Item
+                                        actions={[
+                                            <Button type="link" key="view">View</Button>,
+                                            <Button type="link" key="download">Download</Button>
+                                        ]}
+                                    >
+                                        <List.Item.Meta
+                                            title={doc.name || `Document ${index + 1}`}
+                                            description={`Type: ${doc.type || 'Unknown'} - Uploaded: ${formatDate(doc.uploadedAt)}`}
+                                        />
+                                    </List.Item>
+                                )}
+                            />
+                        ) : (
+                            <Empty
+                                description="No documents available"
+                                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            />
+                        )}
+                        <div style={{ marginTop: 16 }}>
+                            <Button
+                                type="dashed"
+                                icon={<PlusOutlined />}
+                                block
+                            >
+                                Upload Document
+                            </Button>
+                        </div>
+                    </Card>
+                </TabPane> */}
+
                 <TabPane tab="Notes" key="5">
                     <Card>
                         {sale.notes && Array.isArray(sale.notes) && sale.notes.length > 0 ? (
@@ -662,7 +705,7 @@ export const SaleDetailsDrawer = ({
                                 renderItem={(note, index) => (
                                     <List.Item>
                                         <List.Item.Meta
-                                            title={`Note ${index + 1} - ${formatDate(note.createdAt)}`}
+                                            title={`Note ${index + 1} - ${formatDate(note.addedAt || note.createdAt)}`}
                                             description={note.content || note.text || '(No content)'}
                                         />
                                     </List.Item>
