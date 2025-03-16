@@ -104,6 +104,7 @@ const SalesManagement = () => {
         queryFn: async () => {
             try {
                 const response = await fetchAllSales();
+
                 console.log('sales fetched successfully:', response);
 
                 // Process data to use createdAt as dateJoined

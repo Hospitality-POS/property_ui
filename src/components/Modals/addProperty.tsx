@@ -8,7 +8,7 @@ import {
     PlusOutlined,
     DeleteOutlined
 } from '@ant-design/icons';
-import AddEditUserModal from "@/components/Modals/new/AddUserModal";
+import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;

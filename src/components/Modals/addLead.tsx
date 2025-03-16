@@ -16,7 +16,7 @@ import {
     EnvironmentOutlined,
     DollarOutlined
 } from "@ant-design/icons";
-import AddEditUserModal from "@/components/Modals/new/AddUserModal";
+import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 
 const { TextArea } = Input;
 const { Option } = Select;

@@ -21,7 +21,7 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import { useEffect, useState, useRef } from 'react';
-import AddEditUserModal from "@/components/Modals/new/AddUserModal";
+import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
