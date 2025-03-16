@@ -18,19 +18,18 @@ export const fetchAllPayments = async () => {
   }
 };
 export const createPayment = async (paymentData) => {
-    console.log('dara', paymentData);
-    try {
-        const response = await axiosInstance.post(`${BASE_URL}/payments`, paymentData,
-            {
-                headers: {
-                    Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
-                        }`,
-                },
-            }
-        );
-        return response.data;
-    } catch (error) {
-        console.log(error);
-        throw error;
-    }
+  console.log('dara', localStorage.getItem('property_token'));
+  try {
+    const response = await axiosInstance.post(`${BASE_URL}/payments`, paymentData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
 };

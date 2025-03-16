@@ -759,7 +759,7 @@ export const AddSaleModal = ({
                                         <Option value="Bank Transfer">Bank Transfer</Option>
                                         <Option value="M-Pesa">M-Pesa</Option>
                                         <Option value="Cash">Cash</Option>
-                                        <Option value="Check">Check</Option>
+                                        <Option value="cheque">Cheque</Option>
                                     </Select>
                                 </Form.Item>
                             </Col>
@@ -973,7 +973,7 @@ export const AddSaleModal = ({
                                                                         <Option value="Bank Transfer">Bank Transfer</Option>
                                                                         <Option value="M-Pesa">M-Pesa</Option>
                                                                         <Option value="Cash">Cash</Option>
-                                                                        <Option value="Check">Check</Option>
+                                                                        <Option value="cheque">Cheque</Option>
                                                                     </Select>
                                                                 </Form.Item>
                                                             </Col>

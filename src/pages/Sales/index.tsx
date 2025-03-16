@@ -98,6 +98,9 @@ const SalesManagement = () => {
         };
     };
 
+
+
+
     // Fetch sales data
     const { data: salesData = [], isLoading: isLoadingSales, refetch: refetchSales } = useQuery({
         queryKey: ['sale', refreshKey],
@@ -359,7 +362,6 @@ const SalesManagement = () => {
     // Use the hook in your component
     const getSaleWithLatestData = useRefreshSaleData(selectedSale?._id, salesData);
 
-    // Handle adding a payment
     const handleAddPayment = (sale, paymentPlan = null) => {
         // If a payment plan is provided, store it in the selected sale object
         const saleWithPlan = paymentPlan ? {
@@ -396,7 +398,9 @@ const SalesManagement = () => {
             paymentPlanId: paymentPlanId,
             saleId: selectedSale._id,
             status: 'completed',
-            customerId: selectedSale.customer?._id
+            customerId: selectedSale.customer?._id,
+            // Add a flag to indicate that payment plan status should be updated
+            updatePaymentPlanStatus: true
         };
 
         createPayment(paymentData)
@@ -407,19 +411,62 @@ const SalesManagement = () => {
                 // Close modal
                 setAddPaymentVisible(false);
 
-                // Refresh data
-                setTimeout(() => {
-                    // Refresh the sales list
+                // Now update the payment plan status in the sale record
+                if (paymentPlanId) {
+                    // Calculate the new outstanding balance for the payment plan
+                    const paymentPlan = selectedSale.selectedPaymentPlan ||
+                        (selectedSale.paymentPlans && selectedSale.paymentPlans.length > 0 ?
+                            selectedSale.paymentPlans[0] : null);
+
+                    if (paymentPlan) {
+                        const newOutstandingBalance = Math.max(0, (parseFloat(paymentPlan.outstandingBalance) || 0) - values.amount);
+                        const isFullyPaid = newOutstandingBalance <= 0;
+
+                        // Prepare the data for updating the payment plan
+                        const updateData = {
+                            paymentPlanUpdate: {
+                                paymentPlanId: paymentPlanId,
+                                updates: {
+                                    outstandingBalance: newOutstandingBalance,
+                                    status: isFullyPaid ? 'completed' : 'active',
+                                    lastPaymentDate: values.paymentDate.format('YYYY-MM-DD')
+                                }
+                            }
+                        };
+
+                        // Update the sale with the new payment plan status
+                        updateSale(selectedSale._id, updateData)
+                            .then(() => {
+                                console.log('Payment plan status updated successfully');
+
+                                // Force refresh sales data
+                                setRefreshKey(prevKey => prevKey + 1);
+                                refetchSales({ force: true })
+                                    .then(() => {
+                                        // Once sales are refreshed, update the selected sale in the drawer
+                                        // This ensures we have the latest data for the sale
+                                        const updatedSale = getSaleWithLatestData();
+                                        if (updatedSale) {
+                                            setSelectedSale(updatedSale);
+                                        }
+                                    });
+                            })
+                            .catch(error => {
+                                console.error('Error updating payment plan status:', error);
+                                message.warning('Payment was added but plan status update failed');
+                            });
+                    }
+                } else {
+                    // No payment plan ID, just refresh the sale data
                     setRefreshKey(prevKey => prevKey + 1);
                     refetchSales({ force: true })
                         .then(() => {
-                            // Once sales are refreshed, update the selected sale in the drawer
-                            const updatedSale = salesData.find(s => s._id === selectedSale._id);
+                            const updatedSale = getSaleWithLatestData();
                             if (updatedSale) {
                                 setSelectedSale(updatedSale);
                             }
                         });
-                }, 500);
+                }
             })
             .catch(error => {
                 console.error('Error adding Payment:', error);

@@ -16,6 +16,7 @@ export const loginUser = async (
       password,
       companyCode,
     });
+    console.log('nice working', response.data.tenant);
 
     if (response.data.tenant) {
       localStorage.setItem('companyCode', response.data.tenant.tenant_code);

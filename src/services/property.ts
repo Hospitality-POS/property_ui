@@ -29,8 +29,7 @@ export const fetchAllProperties = async (token?: ParamsType) => {
       },
     });
 
-    console.log('properties', response.data.data);
-    return response.data.data;
+    return response.data;
   } catch (error) {
     console.log(error);
     throw error;
