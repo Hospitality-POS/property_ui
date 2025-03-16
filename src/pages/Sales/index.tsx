@@ -131,7 +131,6 @@ const SalesManagement = () => {
         queryFn: async () => {
             try {
                 const response = await fetchAllUsers();
-                console.log('Users fetched successfully:', response);
 
                 // Determine the correct data structure
                 let usersArray = [];

@@ -172,7 +172,6 @@ const ValuationManagement = () => {
     queryFn: async () => {
       try {
         const response = await fetchAllUsers();
-        console.log('Users fetched successfully:', response);
 
         // Return all users
         return Array.isArray(response.data) ? response.data.map(user => ({

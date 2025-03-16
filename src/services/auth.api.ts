@@ -1,11 +1,9 @@
 import axios from 'axios';
 import axiosInstance from './request';
 
-// Helper function to safely get token from localStorage
-const getToken = () => {
-  const tokenStr = localStorage.getItem('property_token');
-  return tokenStr || '';
-};
+import { getToken } from '@/utils/getToken';
+
+const { token } = getToken();
 
 export const loginUser = async (
   username: string,
@@ -33,7 +31,6 @@ export const loginUser = async (
 
 export const registerUser = async (userData: any) => {
   try {
-    const token = getToken();
     const response = await axiosInstance.post(
       `${BASE_URL}/users/register`,
       userData,
@@ -52,10 +49,9 @@ export const registerUser = async (userData: any) => {
 
 export const getUserInfo = async () => {
   try {
-    const authToken = getToken();
     const response = await axiosInstance.get(`${BASE_URL}/users/user-info`, {
       headers: {
-        Authorization: `Bearer ${authToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     return response.data?.data || null;
@@ -67,10 +63,9 @@ export const getUserInfo = async () => {
 
 export const fetchAllUsers = async () => {
   try {
-    const authToken = getToken();
     const response = await axiosInstance.get(`${BASE_URL}/users`, {
       headers: {
-        Authorization: `Bearer ${authToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     return response.data.data;
@@ -82,13 +77,12 @@ export const fetchAllUsers = async () => {
 
 export const updateUser = async (userId: string, userData: any) => {
   try {
-    const authToken = getToken();
     const response = await axiosInstance.put(
       `${BASE_URL}/users/${userId}`,
       userData,
       {
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          Authorization: `Bearer ${token}`,
         },
       },
     );
@@ -101,10 +95,9 @@ export const updateUser = async (userId: string, userData: any) => {
 
 export const deleteUser = async (userId: string) => {
   try {
-    const authToken = getToken();
     const response = await axiosInstance.delete(`${BASE_URL}/users/${userId}`, {
       headers: {
-        Authorization: `Bearer ${authToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
     return response.data;
