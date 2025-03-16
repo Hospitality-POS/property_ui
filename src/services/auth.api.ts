@@ -1,20 +1,28 @@
-import { ParamsType } from '@ant-design/pro-components';
 import axios from 'axios';
 import axiosInstance from './request';
 
-const token = JSON.parse(localStorage.getItem('property_token') || '{}');
+// Helper function to safely get token from localStorage
+const getToken = () => {
+  const tokenStr = localStorage.getItem('property_token');
+  return tokenStr || '';
+};
 
-export const loginUser = async (username: string, password: string, companyCode: string) => {
+export const loginUser = async (
+  username: string,
+  password: string,
+  companyCode: string,
+) => {
   try {
     const response = await axios.post(`${BASE_URL}/users/login`, {
       username,
       password,
-      companyCode
+      companyCode,
     });
-    if (response.data.tenant) {
-      localStorage.setItem("companyCode", response.data.tenant.tenant_code);
-    }
 
+    if (response.data.tenant) {
+      localStorage.setItem('companyCode', response.data.tenant.tenant_code);
+      localStorage.setItem('property_token', response.data.token);
+    }
 
     return response.data;
   } catch (error) {
@@ -23,16 +31,17 @@ export const loginUser = async (username: string, password: string, companyCode:
   }
 };
 
-export const registerUser = async (userData) => {
+export const registerUser = async (userData: any) => {
   try {
-    console.log('fdsgfjdshfsd', localStorage.getItem('property_token'));
-    const response = await axiosInstance.post(`${BASE_URL}/users/register`, userData,
+    const token = getToken();
+    const response = await axiosInstance.post(
+      `${BASE_URL}/users/register`,
+      userData,
       {
         headers: {
-          Authorization: `Bearer ${JSON.parse(localStorage.getItem('property_token') || '{}')
-            }`,
+          Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
     return response.data;
   } catch (error) {
@@ -41,12 +50,12 @@ export const registerUser = async (userData) => {
   }
 };
 
-export const getUserInfo = async (token?: ParamsType) => {
+export const getUserInfo = async () => {
   try {
+    const authToken = getToken();
     const response = await axiosInstance.get(`${BASE_URL}/users/user-info`, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
-          }`,
+        Authorization: `Bearer ${authToken}`,
       },
     });
     return response.data?.data || null;
@@ -56,13 +65,12 @@ export const getUserInfo = async (token?: ParamsType) => {
   }
 };
 
-export const fetchAllUsers = async (token?: ParamsType) => {
+export const fetchAllUsers = async () => {
   try {
-
+    const authToken = getToken();
     const response = await axiosInstance.get(`${BASE_URL}/users`, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
-          }`,
+        Authorization: `Bearer ${authToken}`,
       },
     });
     return response.data.data;
@@ -74,12 +82,16 @@ export const fetchAllUsers = async (token?: ParamsType) => {
 
 export const updateUser = async (userId: string, userData: any) => {
   try {
-    const response = await axiosInstance.put(`${BASE_URL}/users/${userId}`, userData, {
-      headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
-          }`,
+    const authToken = getToken();
+    const response = await axiosInstance.put(
+      `${BASE_URL}/users/${userId}`,
+      userData,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
       },
-    });
+    );
     return response.data;
   } catch (error) {
     console.log(error);
@@ -87,12 +99,12 @@ export const updateUser = async (userId: string, userData: any) => {
   }
 };
 
-export const deleteUser = async (userId: string, token?: ParamsType) => {
+export const deleteUser = async (userId: string) => {
   try {
+    const authToken = getToken();
     const response = await axiosInstance.delete(`${BASE_URL}/users/${userId}`, {
       headers: {
-        Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')
-          }`,
+        Authorization: `Bearer ${authToken}`,
       },
     });
     return response.data;

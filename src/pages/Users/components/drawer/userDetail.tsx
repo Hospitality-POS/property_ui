@@ -1,5 +1,5 @@
-import AddEditUserModal from '@/components/Modals/new/AddUserModal';
 import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
+import AddEditUserModal from '@/pages/Users/components/modal/AddUserModal';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,

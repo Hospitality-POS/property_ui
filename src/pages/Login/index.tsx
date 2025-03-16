@@ -1,18 +1,39 @@
-import { useLogin } from '@/hooks/useLogin';
+import { loginUser } from '@/services/auth.api';
 import { BankOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ProForm, ProFormText } from '@ant-design/pro-components';
-// import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Checkbox, Divider, Form, Typography } from 'antd';
+import { history, useModel, useRequest } from '@umijs/max';
+import { Checkbox, Divider, Form, message, Typography } from 'antd';
 import bgImage from '/public/assets/images/background.svg';
 import logo from '/public/assets/images/icon.png';
 
-// const queryClient = new QueryClient();
-
 const LoginPage = () => {
-  const { loginMutation, handleLogin } = useLogin();
+  const { initialState, setInitialState } = useModel('@@initialState');
+
+  const { run, loading: isPending } = useRequest(loginUser, {
+    manual: true,
+    onSuccess: async () => {
+      const currentUser = await initialState?.fetchUserInfo();
+
+      await setInitialState({
+        ...initialState,
+        currentUser,
+      });
+
+      message.success('Login successful! Redirecting...');
+      history.push('/dashboard');
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 401) {
+        message.error('Invalid username or password');
+      } else if (error.response?.status === 403) {
+        message.error('Invalid company code');
+      } else {
+        message.error('Login failed. Please try again later.');
+      }
+    },
+  });
 
   return (
-    // <QueryClientProvider client={queryClient}>
     <div className="flex h-screen bg-gray-50">
       <div className="flex flex-1 overflow-hidden">
         {/* Left Side - Login Form */}
@@ -35,7 +56,18 @@ const LoginPage = () => {
 
             {/* Login Form */}
             <ProForm
-              onFinish={handleLogin}
+              onFinish={async (values) => {
+                try {
+                  await run(
+                    values.username,
+                    values.password,
+                    values.companyCode,
+                  );
+                  return true;
+                } catch (error) {
+                  return false;
+                }
+              }}
               submitter={{
                 searchConfig: { submitText: 'Sign In' },
                 render: (_, dom) => dom[1],
@@ -50,7 +82,7 @@ const LoginPage = () => {
                     fontWeight: '600',
                     marginTop: '16px',
                   },
-                  loading: loginMutation.isPending,
+                  loading: isPending,
                 },
               }}
             >
@@ -66,7 +98,7 @@ const LoginPage = () => {
                 {/* Company Code Input */}
                 <ProFormText
                   name="companyCode"
-                  initialValue="r0001"
+                  initialValue="RPOS-Q8QALD"
                   fieldProps={{
                     size: 'large',
                     prefix: <BankOutlined className="text-gray-400" />,
@@ -156,7 +188,6 @@ const LoginPage = () => {
         </div>
       </div>
     </div>
-    // </QueryClientProvider>
   );
 };
 
