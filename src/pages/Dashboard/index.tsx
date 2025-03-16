@@ -289,7 +289,6 @@ const DashboardContent = () => {
         queryFn: async () => {
             try {
                 const response = await fetchAllUsers();
-                console.log('Users fetched successfully:', response);
 
                 // Process data to use createdAt as dateJoined
                 const processedData = Array.isArray(response.data)
