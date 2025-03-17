@@ -61,6 +61,8 @@ const UserProfile = () => {
         fetchUserData();
     }, []);
 
+    const storedCode = localStorage.getItem('companyCode');
+
     const formatDate = (dateString) => {
         return moment(dateString).format('MMMM D, YYYY [at] h:mm A');
     };
@@ -149,7 +151,7 @@ const UserProfile = () => {
                                                 </p>
                                                 <p className="flex items-center mb-3">
                                                     <BankOutlined className="text-gray-400 mr-3" />
-                                                    <span>Company Code: r0001</span>
+                                                    <span>Company Code: {storedCode}</span>
                                                 </p>
                                             </div>
                                         </div>
@@ -168,9 +170,9 @@ const UserProfile = () => {
                                         }}
                                     >
                                         <Descriptions layout="vertical" column={{ xs: 1, sm: 2 }}>
-                                            <Descriptions.Item label="User ID">
+                                            {/* <Descriptions.Item label="User ID">
                                                 <Text copyable>{userData.id}</Text>
-                                            </Descriptions.Item>
+                                            </Descriptions.Item> */}
                                             <Descriptions.Item label="ID Number">
                                                 <div className="flex items-center">
                                                     <IdcardOutlined className="text-gray-400 mr-2" />

@@ -348,6 +348,7 @@ const SalesManagement = () => {
         setDrawerVisible(true);
     };
 
+
     // Custom hook to handle refreshing sale data
     const useRefreshSaleData = (saleId, salesData) => {
         return React.useCallback(() => {
@@ -373,7 +374,7 @@ const SalesManagement = () => {
         setAddPaymentVisible(true);
     };
 
-    // Handle payment submission
+    // Fixed handlePaymentSubmit function that closes the modal immediately
     const handlePaymentSubmit = (values) => {
         console.log('Adding payment:', values);
 
@@ -408,7 +409,7 @@ const SalesManagement = () => {
                 // Show success message
                 message.success('Payment added successfully!');
 
-                // Close modal
+                // Close modal immediately after successful payment
                 setAddPaymentVisible(false);
 
                 // Now update the payment plan status in the sale record
@@ -439,17 +440,27 @@ const SalesManagement = () => {
                             .then(() => {
                                 console.log('Payment plan status updated successfully');
 
-                                // Force refresh sales data
-                                setRefreshKey(prevKey => prevKey + 1);
-                                refetchSales({ force: true })
-                                    .then(() => {
-                                        // Once sales are refreshed, update the selected sale in the drawer
-                                        // This ensures we have the latest data for the sale
-                                        const updatedSale = getSaleWithLatestData();
-                                        if (updatedSale) {
-                                            setSelectedSale(updatedSale);
-                                        }
-                                    });
+                                // After updating the payment plan, wait a moment then fetch the fresh data
+                                setTimeout(() => {
+                                    // Direct API call to get fresh data after payment
+                                    fetchAllSales()
+                                        .then(response => {
+                                            const freshData = response?.data || [];
+                                            // Find the matching sale
+                                            const updatedSale = freshData.find(sale => sale._id === selectedSale._id);
+
+                                            if (updatedSale) {
+                                                console.log('Found updated sale data with new payment');
+                                                setSelectedSale(updatedSale);
+
+                                                // Update the refresh key to ensure other components reflect the change
+                                                setRefreshKey(prevKey => prevKey + 1);
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error('Error fetching updated sale data:', error);
+                                        });
+                                }, 500); // Small delay to ensure backend processing is complete
                             })
                             .catch(error => {
                                 console.error('Error updating payment plan status:', error);
@@ -457,22 +468,31 @@ const SalesManagement = () => {
                             });
                     }
                 } else {
-                    // No payment plan ID, just refresh the sale data
-                    setRefreshKey(prevKey => prevKey + 1);
-                    refetchSales({ force: true })
-                        .then(() => {
-                            const updatedSale = getSaleWithLatestData();
-                            if (updatedSale) {
-                                setSelectedSale(updatedSale);
-                            }
-                        });
+                    // No payment plan ID, just get the updated sale data
+                    setTimeout(() => {
+                        fetchAllSales()
+                            .then(response => {
+                                const freshData = response?.data || [];
+                                const updatedSale = freshData.find(sale => sale._id === selectedSale._id);
+
+                                if (updatedSale) {
+                                    setSelectedSale(updatedSale);
+                                    setRefreshKey(prevKey => prevKey + 1);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching updated sale data:', error);
+                            });
+                    }, 500);
                 }
             })
             .catch(error => {
                 console.error('Error adding Payment:', error);
                 message.error('Failed to add Payment. Please try again.');
+                setAddPaymentVisible(false);
             });
     };
+
 
     // Handle adding event
     const handleAddEvent = () => {
@@ -947,6 +967,7 @@ const SalesManagement = () => {
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
                 calculatePaymentStats={calculatePaymentStats}
+            // refreshData={refreshSaleData} // Pass the refresh function here
             />
 
             {/* Add/Edit Sale Modal */}
@@ -983,12 +1004,7 @@ const SalesManagement = () => {
                 onOk={handlePaymentSubmit}
                 onCancel={() => {
                     setAddPaymentVisible(false);
-
-                    // Refresh the selected sale data when modal is closed
-                    const refreshedSale = getSaleWithLatestData();
-                    if (refreshedSale) {
-                        setSelectedSale(refreshedSale);
-                    }
+                    // No refresh on cancel
                 }}
                 formatCurrency={formatCurrency}
                 calculatePaymentStats={calculatePaymentStats}

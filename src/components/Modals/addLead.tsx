@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
     Modal,
     Form,
@@ -7,7 +7,8 @@ import {
     Input,
     Select,
     InputNumber,
-    Button
+    Button,
+    message
 } from "antd";
 import {
     UserOutlined,
@@ -30,13 +31,19 @@ export const AddLeadModal = ({
     onCancel,
     onAgentAdded
 }) => {
+    // State to store the selected agent ID for direct control
+    const [selectedAgentId, setSelectedAgentId] = useState(null);
+
     // Create a ref to trigger the AddEditUserModal
     const userModalActionRef = useRef();
 
-    // This is the important part - ensure the handleSelectChange function correctly opens the modal
+    // Handle selection change in the agent dropdown
     const handleSelectChange = (value) => {
+        console.log("Select value changed to:", value);
+        setSelectedAgentId(value);
+
         if (value === "add_new") {
-            // Instead of using state, we'll directly trigger the userModalActionRef
+            // Trigger the add user modal
             if (userModalActionRef.current) {
                 userModalActionRef.current.click();
             }
@@ -46,7 +53,13 @@ export const AddLeadModal = ({
                 form.setFieldsValue({
                     assignedTo: undefined
                 });
+                setSelectedAgentId(null);
             }, 100);
+        } else {
+            // Update the form value when selected manually
+            form.setFieldsValue({
+                assignedTo: value
+            });
         }
     };
 
@@ -60,7 +73,48 @@ export const AddLeadModal = ({
             form.setFieldsValue({
                 assignedTo: newAgent._id
             });
+            setSelectedAgentId(newAgent._id);
         }
+    };
+
+    // Ensure form is updated with assigned agent when in edit mode
+    useEffect(() => {
+        if (visible) {
+            // Get current form values whenever modal becomes visible
+            const currentValues = form.getFieldsValue();
+
+            // Make sure the assignedTo is correctly set
+            if (currentValues.assignedTo) {
+                const assignedId = currentValues.assignedTo;
+                setSelectedAgentId(assignedId);
+
+                // Check if the assignedTo ID exists in our agents list
+                const agentExists = agentsData.some(agent => agent._id === assignedId);
+
+                if (!agentExists) {
+                    console.warn(`Warning: Agent with ID ${assignedId} not found in agents list.`);
+
+                    // Option 1: Leave as is, showing the ID
+                    // The select will show the raw ID since no matching Option exists
+
+                    // Option 2: (Uncomment to use) Clear the invalid assignment
+                    /*
+                    setSelectedAgentId(null);
+                    form.setFieldsValue({
+                        ...currentValues,
+                        assignedTo: undefined
+                    });
+                    message.warning('The previously assigned agent is no longer available.');
+                    */
+                }
+            }
+        }
+    }, [visible, form, agentsData]);
+
+    // Handle modal close
+    const handleCancel = () => {
+        setSelectedAgentId(null);
+        onCancel();
     };
 
     return (
@@ -69,11 +123,12 @@ export const AddLeadModal = ({
                 title={isEditMode ? "Edit Lead" : "Add New Lead"}
                 open={visible}
                 onOk={onOk}
-                onCancel={onCancel}
+                onCancel={handleCancel}
                 width={1000}
                 okText={isEditMode ? "Update Lead" : "Add Lead"}
             >
                 <Form layout="vertical" form={form}>
+                    {/* Form rows remain unchanged */}
                     <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item
@@ -193,19 +248,39 @@ export const AddLeadModal = ({
 
                     <Row gutter={16}>
                         <Col span={24}>
-                            <Form.Item label="Assigned Agent" name="assignedTo">
+                            <Form.Item
+                                label="Assigned Agent"
+                                name="assignedTo"
+                                extra={
+                                    selectedAgentId &&
+                                        !agentsData.some(agent => agent._id === selectedAgentId) ?
+                                        "Note: Previously assigned agent is not in the current agent list." : ""
+                                }
+                            >
                                 <div style={{ display: "flex", gap: "8px" }}>
                                     <Select
                                         placeholder="Select an agent"
                                         onChange={handleSelectChange}
                                         allowClear
                                         style={{ flex: 1 }}
+                                        showSearch
+                                        optionFilterProp="children"
+                                        value={selectedAgentId}
                                     >
                                         {agentsData.map((agent) => (
                                             <Option key={agent._id} value={agent._id}>
                                                 {agent.name}
                                             </Option>
                                         ))}
+
+                                        {/* Add a special option for the missing agent if relevant */}
+                                        {selectedAgentId &&
+                                            !agentsData.some(agent => agent._id === selectedAgentId) && (
+                                                <Option key={selectedAgentId} value={selectedAgentId}>
+                                                    ID: {selectedAgentId} (Not Found)
+                                                </Option>
+                                            )}
+
                                         <Option key="add_new" value="add_new" style={{ color: "blue" }}>
                                             + Add New Agent
                                         </Option>

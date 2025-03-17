@@ -63,6 +63,7 @@ export const SaleDetailsDrawer = ({
     useEffect(() => {
         // If the drawer is visible, refresh the data
         if (visible && sale && refreshData) {
+            console.log('SaleDetailsDrawer: Refreshing data for sale ID:', sale._id);
             refreshData();
         }
     }, [visible, sale, refreshData]);

@@ -121,8 +121,8 @@ export const resetPassword = async (email: string) => {
       { email },
       {
         headers: {
-          Authorization: `Bearer ${token || JSON.parse(localStorage.getItem('property_token') || '{}')}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
     return response.data;

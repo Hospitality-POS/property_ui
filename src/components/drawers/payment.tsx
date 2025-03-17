@@ -28,7 +28,7 @@ const { Title, Text } = Typography;
 
 const PaymentDetailsDrawer = ({ visible, payment, onClose }) => {
     const receiptRef = useRef(null);
-
+    console.log('payment details', payment);
     if (!payment) return null;
 
     // Format date to be more user-friendly
