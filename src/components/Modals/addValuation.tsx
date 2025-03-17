@@ -9,15 +9,20 @@ import {
     InputNumber,
     DatePicker,
     Checkbox,
-    Upload
+    Upload,
+    Tag,
+    message
 } from 'antd';
 import {
     PlusOutlined,
     DeleteOutlined,
     FileTextOutlined,
-    FileDoneOutlined
+    FileDoneOutlined,
+    UserOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
+import { useState, useRef, useEffect } from 'react';
+import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -37,18 +42,130 @@ const AddValuationModal = ({
     form,
     onOk,
     onCancel,
+    onValuerAdded
 }) => {
     const modalTitle = isEditMode ? "Edit Property Valuation" : "Request Property Valuation";
     const submitButtonText = isEditMode ? "Update Valuation" : "Submit Request";
+
+    const [selectedValuer, setSelectedValuer] = useState(null);
+    const [isAddingValuer, setIsAddingValuer] = useState(false);
+    const userModalActionRef = useRef();
+
+    useEffect(() => {
+        if (isEditMode && valuationToEdit && valuationToEdit.valuer) {
+            const valuer = valuationToEdit.valuer;
+            const valuerData = {
+                _id: valuer._id || valuer.id || valuer,
+                id: valuer._id || valuer.id || valuer,
+                name: valuer.name || '',
+                email: valuer.email || ''
+            };
+            setSelectedValuer(valuerData);
+        }
+    }, [isEditMode, valuationToEdit]);
+
+    useEffect(() => {
+        if (visible) {
+            const valuerId = form.getFieldValue('valuer');
+            if (valuerId && !selectedValuer) {
+                const foundValuer = valuersData.find(v =>
+                    v._id === valuerId || v.id === valuerId
+                );
+                if (foundValuer) {
+                    setSelectedValuer(foundValuer);
+                }
+            }
+        }
+    }, [visible, form, valuersData, selectedValuer]);
+
+    const handleValuerChange = (value) => {
+        if (value === null || value === undefined) {
+            setSelectedValuer(null);
+            return;
+        }
+
+        if (value === 'add_new') {
+            setIsAddingValuer(true);
+            if (userModalActionRef.current) {
+                userModalActionRef.current.click();
+            }
+            return;
+        }
+
+        const selectedValuerObject = valuersData.find(v =>
+            v._id === value || v.id === value
+        );
+
+        if (selectedValuerObject) {
+            setSelectedValuer(selectedValuerObject);
+        } else {
+            const placeholderValuer = {
+                _id: value,
+                id: value,
+                name: "Unknown Valuer",
+                email: ""
+            };
+            setSelectedValuer(placeholderValuer);
+        }
+    };
+
+    const handleValuerAdded = (newValuer) => {
+        if (!newValuer || (!newValuer._id && !newValuer.id)) {
+            setIsAddingValuer(false);
+            return;
+        }
+
+        const valuerId = newValuer._id || newValuer.id;
+        const valuerToStore = {
+            _id: valuerId,
+            id: valuerId,
+            name: newValuer.name || 'New Valuer',
+            email: newValuer.email || '',
+            role: newValuer.role || 'valuer'
+        };
+
+        setSelectedValuer(valuerToStore);
+        setIsAddingValuer(false);
+
+        if (onValuerAdded) {
+            onValuerAdded(valuerToStore);
+        }
+
+        setTimeout(() => {
+            setSelectedValuer({ ...valuerToStore });
+        }, 50);
+    };
+
+    const handleSubmit = () => {
+        if (!selectedValuer || !selectedValuer._id) {
+            message.error('Please select a valuer');
+            return;
+        }
+
+        form.validateFields()
+            .then(values => {
+                const valuerID = selectedValuer._id || selectedValuer.id;
+                const submissionData = {
+                    ...values,
+                    valuer: valuerID
+                };
+
+                onOk(submissionData);
+            })
+            .catch(errorInfo => {
+                console.log('Validation failed:', errorInfo);
+            });
+    };
 
     return (
         <Modal
             title={modalTitle}
             open={visible}
-            onOk={onOk}
+            onOk={handleSubmit}
             onCancel={onCancel}
             width={800}
             okText={submitButtonText}
+        // key={selectedValuer ? `modal-${selectedValuer._id}` : 'modal-empty'}
         >
             <Form layout="vertical" form={form}>
                 <Tabs defaultActiveKey="1">
@@ -66,11 +183,11 @@ const AddValuationModal = ({
                                         placeholder="Search for property"
                                         optionFilterProp="children"
                                         loading={isLoadingProperties}
-                                        disabled={isEditMode} // Prevent changing property in edit mode
+                                        disabled={isEditMode}
                                     >
                                         {propertiesData && propertiesData.map(property => (
                                             <Option key={property._id || property.id} value={property._id || property.id}>
-                                                {property.name} - {property.location?.address || 'No location'} - {formatCurrency(property.price)}
+                                                {property.name} - {property.location?.address || 'No location'}
                                             </Option>
                                         ))}
                                     </Select>
@@ -88,7 +205,7 @@ const AddValuationModal = ({
                                         placeholder="Search for Customer"
                                         optionFilterProp="children"
                                         loading={isLoadingCustomers}
-                                        disabled={isEditMode} // Prevent changing customer in edit mode
+                                        disabled={isEditMode}
                                     >
                                         {customersData && customersData.map(customer => (
                                             <Option key={customer._id || customer.id} value={customer._id || customer.id}>
@@ -117,24 +234,73 @@ const AddValuationModal = ({
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item
-                                    label="Assigned Valuer"
-                                    name="valuer"
-                                    rules={[{ required: true, message: 'Please select a Valuer' }]}
-                                >
-                                    <Select
-                                        showSearch
-                                        placeholder="Select valuer"
-                                        optionFilterProp="children"
-                                        loading={isLoadingUsers}
-                                    >
-                                        {valuersData && valuersData.map(valuer => (
-                                            <Option key={valuer._id || valuer.id} value={valuer._id || valuer.id}>
-                                                {valuer.name} - {valuer.email}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
+                                <div className="ant-form-item">
+                                    <div className="ant-form-item-label">
+                                        <label className="ant-form-item-required">Assigned Valuer</label>
+                                    </div>
+                                    <div className="ant-form-item-control">
+                                        <div style={{ display: "flex", gap: "8px" }}>
+                                            <Select
+                                                showSearch
+                                                placeholder="Select valuer"
+                                                optionFilterProp="children"
+                                                loading={isLoadingUsers}
+                                                value={selectedValuer ? (selectedValuer._id || selectedValuer.id) : undefined}
+                                                onChange={handleValuerChange}
+                                                style={{ width: '100%' }}
+                                            >
+                                                {valuersData && valuersData.map(valuer => (
+                                                    <Option
+                                                        key={valuer._id || valuer.id}
+                                                        value={valuer._id || valuer.id}
+                                                    >
+                                                        {valuer.name} - {valuer.email}
+                                                    </Option>
+                                                ))}
+                                                <Option key="add_new" value="add_new" style={{ color: "blue" }}>
+                                                    + Add New Valuer
+                                                </Option>
+                                            </Select>
+                                        </div>
+
+                                        {!selectedValuer && !isAddingValuer && (
+                                            <div className="ant-form-item-explain ant-form-item-explain-error">
+                                                <div role="alert">Please select a valuer</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {selectedValuer && (
+                                    <div style={{ marginTop: 8, marginBottom: 16 }}>
+                                        <Tag color="blue" icon={<UserOutlined />}>
+                                            Selected valuer: <strong>{selectedValuer.name}</strong>
+                                            {selectedValuer.email ? ` (${selectedValuer.email})` : ''}
+                                        </Tag>
+                                        <div style={{ fontSize: '11px', color: 'rgba(0, 0, 0, 0.45)', marginTop: 4 }}>
+                                            Valuer ID: {selectedValuer._id || selectedValuer.id}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isAddingValuer && !selectedValuer && (
+                                    <div style={{ marginTop: 8, marginBottom: 16 }}>
+                                        <Tag color="processing" icon={<PlusOutlined />}>
+                                            Adding new valuer...
+                                        </Tag>
+                                    </div>
+                                )}
+
+                                <div style={{ display: "none" }}>
+                                    <AddEditUserModal
+                                        actionRef={userModalActionRef}
+                                        edit={false}
+                                        data={null}
+                                        isProfile={false}
+                                        onSuccess={handleValuerAdded}
+                                        initialValues={{ role: 'valuer' }}
+                                    />
+                                </div>
                             </Col>
                         </Row>
 
@@ -183,31 +349,6 @@ const AddValuationModal = ({
                             <TextArea rows={4} placeholder="Any special requirements or instructions..." />
                         </Form.Item>
                     </TabPane>
-
-                    {/* <TabPane tab="Required Documents" key="2">
-                        <Form.Item label="Required Documents" name="documents">
-                            <Checkbox.Group>
-                                <Row>
-                                    <Col span={8}><Checkbox value="Property Deed">Property Deed/Title</Checkbox></Col>
-                                    <Col span={8}><Checkbox value="Floor Plan">Floor Plan</Checkbox></Col>
-                                    <Col span={8}><Checkbox value="Property Photos">Property Photos</Checkbox></Col>
-                                    <Col span={8}><Checkbox value="Survey Plan">Survey Plan</Checkbox></Col>
-                                    <Col span={8}><Checkbox value="Land Certificate">Land Certificate</Checkbox></Col>
-                                    <Col span={8}><Checkbox value="Building Approval">Building Approval</Checkbox></Col>
-                                </Row>
-                            </Checkbox.Group>
-                        </Form.Item>
-
-                        <Form.Item label="Upload Documents" name="uploadedFiles">
-                            <Upload.Dragger multiple listType="picture">
-                                <p className="ant-upload-drag-icon">
-                                    <FileDoneOutlined />
-                                </p>
-                                <p className="ant-upload-text">Click or drag documents to this area to upload</p>
-                                <p className="ant-upload-hint">Upload any existing documents for the property valuation.</p>
-                            </Upload.Dragger>
-                        </Form.Item>
-                    </TabPane> */}
 
                     <TabPane tab="Methodology" key="3">
                         <Form.Item label="Valuation Methodology" name="methodology">

@@ -86,6 +86,7 @@ const ValuationManagement = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [valuationToEdit, setValuationToEdit] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [localValuersData, setLocalValuersData] = useState([]);
 
 
 
@@ -167,16 +168,38 @@ const ValuationManagement = () => {
 
 
   // Fetch users data (agents and managers)
+  // Fetch users data with a focus on valuers
   const { data: userData = [], isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', refreshKey], // Add refreshKey to trigger refetch
     queryFn: async () => {
       try {
         const response = await fetchAllUsers();
 
-        // Return all users
-        return Array.isArray(response.data) ? response.data.map(user => ({
-          ...user
-        })) : [];
+        // Determine the correct data structure
+        let usersArray = [];
+
+        // Handle different possible response structures
+        if (response.data && Array.isArray(response.data)) {
+          usersArray = response.data;
+        } else if (Array.isArray(response)) {
+          usersArray = response;
+        } else if (response.users && Array.isArray(response.users)) {
+          usersArray = response.users;
+        } else {
+          console.error('Unexpected users API response structure:', response);
+          return [];
+        }
+
+        // Map the users with a defensive approach
+        const processedUsers = usersArray.map(user => {
+          return {
+            ...user,
+            _id: user._id || user.id || `temp-${Date.now()}-${Math.random()}`,
+            role: user.role || user.userRole || 'unknown'
+          };
+        });
+
+        return processedUsers;
       } catch (error) {
         message.error('Failed to fetch users');
         console.error('Error fetching users:', error);
@@ -184,15 +207,31 @@ const ValuationManagement = () => {
       }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      // When the query is successful, update local state for valuers
+      const filteredValuers = data.filter(user => user &&
+        (user.role === 'valuer' ||
+          user.role?.toLowerCase().includes('valuer') ||
+          user.role?.toLowerCase().includes('appraiser')));
+
+      setLocalValuersData(filteredValuers);
+    }
   });
 
-  // Filter the fetched data for agents and managers
-  const valuersData = userData.filter(user => user.role === 'valuer');
+  // Filter for valuers with more robust checks
+  const valuersData = localValuersData.length > 0
+    ? localValuersData
+    : (!isLoadingUsers
+      ? userData.filter(user => user &&
+        (user.role === 'valuer' ||
+          user.role?.toLowerCase().includes('valuer') ||
+          user.role?.toLowerCase().includes('appraiser')))
+      : []);
 
 
 
-  console.log('valuations dta', valuationsData);
+
 
 
   // Table columns for valuations list
@@ -345,14 +384,14 @@ const ValuationManagement = () => {
         return a.marketValue - b.marketValue;
       },
     },
-    {
-      title: 'Property Price (KES)',
-      dataIndex: ['property', 'price'],
-      key: 'price',
-      width: 160,
-      render: (price) => price?.toLocaleString(),
-      sorter: (a, b) => (a.property?.price || 0) - (b.property?.price || 0),
-    },
+    // {
+    //   title: 'Property Price (KES)',
+    //   dataIndex: ['property', 'price'],
+    //   key: 'price',
+    //   width: 160,
+    //   render: (price) => price?.toLocaleString(),
+    //   sorter: (a, b) => (a.property?.price || 0) - (b.property?.price || 0),
+    // },
     // {
     //   title: 'Documents',
     //   key: 'documents',
@@ -469,54 +508,121 @@ const ValuationManagement = () => {
   const handleDateRangeChange = (dates) => {
     setDateRange(dates);
   };
+  const handleValuerAdded = (newValuer) => {
+    console.log('New valuer added:', newValuer);
 
+    // Add the new valuer to the local valuers data
+    setLocalValuersData(prevValuers => {
+      // Check if this valuer is already in the list (by ID or by email)
+      const valuerExists = prevValuers.some(
+        valuer => valuer._id === newValuer._id || valuer.email === newValuer.email
+      );
 
-  const handleValuationSubmit = () => {
-    form.validateFields().then(values => {
-      if (isEditMode) {
-        // Create a service function to update the valuation similar to your other API calls
-        updateValuation(valuationToEdit._id, values)
-          .then(updatedValuation => {
-            // Show success message
-            message.success('Valuation updated successfully!');
-            setTimeout(() => {
-              setRefreshKey(prevKey => prevKey + 1);
-              refetchValuations({ force: true });
-            }, 500);
-
-            // Close modal and reset state
-            setAddValuationVisible(false);
-            setIsEditMode(false);
-            setValuationToEdit(null);
-            form.resetFields();
-          })
-          .catch(error => {
-            console.error('Error updating valuation:', error);
-            message.error('Failed to update valuation. Please try again.');
-          });
+      if (valuerExists) {
+        // If valuer already exists, replace it
+        return prevValuers.map(valuer =>
+          (valuer._id === newValuer._id || valuer.email === newValuer.email) ? newValuer : valuer
+        );
       } else {
-        createNewValuation(values)
-          .then(newValuation => {
-            // Show success message
-            message.success('Valuation logged successfully!');
-            setTimeout(() => {
-              setRefreshKey(prevKey => prevKey + 1);
-              refetchValuations({ force: true });
-            }, 500);
-
-            // Close modal
-            setAddValuationVisible(false);
-            form.resetFields();
-          })
-          .catch(error => {
-            console.error('Error adding Valuation:', error);
-            message.error('Failed to add Valuation. Please try again.');
-          });
+        // If valuer doesn't exist, add it to the list
+        return [...prevValuers, newValuer];
       }
-    }).catch(errorInfo => {
-      console.log('Validation failed:', errorInfo);
     });
+
+    // Trigger a refetch of the users data to include the new valuer in the backend
+    refetchUsers({ force: true })
+      .then(() => {
+        message.success(`Valuer ${newValuer.name} added successfully!`);
+
+        // Update the refreshKey to trigger UI updates
+        setRefreshKey(prevKey => prevKey + 1);
+      })
+      .catch(error => {
+        console.error('Error refreshing users after adding valuer:', error);
+      });
   };
+
+
+
+  // Updated handleValuationSubmit to properly handle the valuer field
+
+  // Update the handleValuationSubmit function in your parent component 
+  // (ValuationManagement.jsx)
+
+  const handleValuationSubmit = (validatedValues) => {
+    // Get either the passed validated values or validate the form directly
+    const submitForm = async (values) => {
+      // Make sure we have values to submit
+      if (!values) {
+        console.error('No form values to submit');
+        return;
+      }
+
+      console.log('Submitting valuation with values:', values);
+
+      // Double-check the valuer field
+      if (!values.valuer) {
+        message.error('Valuer is required. Please select a valuer.');
+        return;
+      }
+
+      try {
+        if (isEditMode) {
+          // Update existing valuation
+          const response = await updateValuation(valuationToEdit._id, values);
+          message.success('Valuation updated successfully!');
+
+          setTimeout(() => {
+            setRefreshKey(prevKey => prevKey + 1);
+            refetchValuations({ force: true });
+          }, 500);
+
+          // Close modal and reset state
+          setAddValuationVisible(false);
+          setIsEditMode(false);
+          setValuationToEdit(null);
+          form.resetFields();
+        } else {
+          // Create new valuation
+          const response = await createNewValuation(values);
+          message.success('Valuation logged successfully!');
+
+          setTimeout(() => {
+            setRefreshKey(prevKey => prevKey + 1);
+            refetchValuations({ force: true });
+          }, 500);
+
+          // Close modal
+          setAddValuationVisible(false);
+          form.resetFields();
+        }
+      } catch (error) {
+        console.error('Error with valuation operation:', error);
+        // Show detailed error message
+        const errorMessage = error.response?.data?.message || error.message || 'An unknown error occurred';
+        console.error('Full error details:', error.response?.data || error);
+        message.error(`Failed: ${errorMessage}`);
+      }
+    };
+
+    // If we received validated values directly, use those
+    if (validatedValues) {
+      submitForm(validatedValues);
+    } else {
+      // Otherwise validate the form ourselves
+      form.validateFields()
+        .then(values => {
+          submitForm(values);
+        })
+        .catch(errorInfo => {
+          console.log('Validation failed:', errorInfo);
+        });
+    }
+  };
+
+  const activeValuersData = localValuersData.length > 0
+    ? localValuersData
+    : valuersData;
 
   const handleModalCancel = () => {
     form.resetFields();
@@ -1128,13 +1234,14 @@ const ValuationManagement = () => {
         customersData={customersData}
         isLoadingCustomers={isLoadingCustomers}
         isLoadingProperties={isLoadingProperties}
-        valuersData={valuersData}
+        valuersData={activeValuersData} // Use the active valuers data
         isLoadingUsers={isLoadingUsers}
         formatCurrency={formatCurrency}
-        valuationToEdit={valuationToEdit} // Uncomment this line
+        valuationToEdit={valuationToEdit}
         form={form}
         onOk={handleValuationSubmit}
         onCancel={handleModalCancel}
+        onValuerAdded={handleValuerAdded} // Add this prop
       />
 
       {/* Delete Confirmation Modal */}

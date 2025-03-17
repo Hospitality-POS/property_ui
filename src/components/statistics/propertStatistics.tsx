@@ -131,7 +131,7 @@ export const PropertyStatistics = ({
                     />
                 </Card>
             </Col>
-            <Col xs={24} sm={12} md={6}>
+            <Col xs={24} sm={12} md={6} style={{ marginBottom: 10 }}>
                 <Card>
                     <Statistic
                         title="Occupancy Rate"

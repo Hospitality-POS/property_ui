@@ -8,7 +8,6 @@ import {
   LockOutlined,
   UsergroupAddOutlined,
   KeyOutlined,
-  SyncOutlined,
 } from '@ant-design/icons';
 import {
   ActionType,
@@ -156,6 +155,9 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
     }
   };
 
+  // Update the handleFinish function in your AddEditUserModal component
+  // to ensure the id is properly included in the user data
+
   const handleFinish = async (values: any) => {
     try {
       const phoneNumber = getPhoneNumber(values?.phoneNumber);
@@ -179,19 +181,34 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
           message.success('User created successfully');
         }
 
-        // Call onSuccess callback with the newly created/updated user
+        // Log the API response to debug
+        console.log('API Response:', result);
+
+        // FIXED: Ensure we have valid ID values from the API response
         if (onSuccess && result) {
-          // Ensure the result has a proper structure
+          // Get the ID from the result (could be in _id, id, or custom field)
+          let userId = result.user._id || result.user.id;
+
+
+          // Create a properly structured user object with the correct ID
           const userData = {
-            _id: result._id || result.id || `temp-${Date.now()}`,
+            // Use the determined ID for both _id and id fields
+            _id: userId,
+            id: userId,
+            // Include all original fields from the API response
+            ...result,
+            // Ensure these fields are always set correctly
             name: values.name,
             email: values.email,
             phone: phoneNumber,
-            role: values.role || initialValues.role || 'agent',
-            // Add any other needed fields
+            role: values.role || initialValues.role || 'valuer',
+            status: values.status || 'Active',
+            idNumber: values.idNumber || '',
+            gender: values.gender || '',
+            address: values.address || ''
           };
 
-
+          console.log('Passing user data to parent component:', userData);
           onSuccess(userData);
         }
 
@@ -202,26 +219,10 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
       }
     } catch (error) {
       console.log('Error:', error);
-
-      // For demo/development mode, create a mock response if API fails
-      if (onSuccess && !edit) {
-        const mockUser = {
-          _id: `mock-${Date.now()}`,
-          name: values.name,
-          email: values.email,
-          phone: getPhoneNumber(values?.phoneNumber),
-          role: values.role || initialValues.role || 'agent',
-        };
-
-        console.log("API failed. Using mock data:", mockUser);
-        onSuccess(mockUser);
-        return true;
-      }
-
+      message.error('Failed to save user');
       return false;
     }
   };
-
   return (
     <ModalForm
       title={
@@ -357,49 +358,66 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
 
         <TabPane tab="Account & Security" key="2">
           {!edit && (
-            <Row gutter={16}>
-              <Col span={12}>
-                <ProFormText.Password
-                  name="password"
-                  label="Password"
-                  placeholder="Enter password"
-                  fieldProps={{
-                    prefix: <LockOutlined />,
-                  }}
-                  rules={[
-                    { required: true, message: 'Please enter password' },
-                    {
-                      min: 8,
-                      message: 'Password must be at least 8 characters',
-                    },
-                  ]}
-                />
-              </Col>
-              <Col span={12}>
-                <ProFormText.Password
-                  name="confirmPassword"
-                  label="Confirm Password"
-                  placeholder="Confirm password"
-                  fieldProps={{
-                    prefix: <LockOutlined />,
-                  }}
-                  dependencies={['password']}
-                  rules={[
-                    { required: true, message: 'Please confirm password' },
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (!value || getFieldValue('password') === value) {
-                          return Promise.resolve();
-                        }
-                        return Promise.reject(
-                          new Error('Passwords do not match'),
-                        );
-                      },
-                    }),
-                  ]}
-                />
-              </Col>
-            </Row>
+            <>
+              <Row gutter={16} align="middle">
+                <Col span={20}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <ProFormText.Password
+                        name="password"
+                        label="Password"
+                        placeholder="Enter password"
+                        fieldProps={{
+                          prefix: <LockOutlined />,
+                        }}
+                        rules={[
+                          { required: true, message: 'Please enter password' },
+                          {
+                            min: 8,
+                            message: 'Password must be at least 8 characters',
+                          },
+                        ]}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <ProFormText.Password
+                        name="confirmPassword"
+                        label="Confirm Password"
+                        placeholder="Confirm password"
+                        fieldProps={{
+                          prefix: <LockOutlined />,
+                        }}
+                        dependencies={['password']}
+                        rules={[
+                          { required: true, message: 'Please confirm password' },
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              if (!value || getFieldValue('password') === value) {
+                                return Promise.resolve();
+                              }
+                              return Promise.reject(
+                                new Error('Passwords do not match'),
+                              );
+                            },
+                          }),
+                        ]}
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+                <Col span={4} style={{ marginTop: 30, textAlign: 'right' }}>
+                  <Tooltip title="Generate Strong Password">
+                    <Button
+                      type="default"
+                      icon={<KeyOutlined />}
+                      onClick={generatePassword}
+                    >
+                      Generate
+                    </Button>
+                  </Tooltip>
+                </Col>
+              </Row>
+            </>
           )}
 
           {edit && (
@@ -411,7 +429,12 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
                 showIcon
                 style={{ marginBottom: 16 }}
               />
-              <Button type="primary" icon={<LockOutlined />}>
+              <Button
+                type="primary"
+                icon={<LockOutlined />}
+                onClick={handlePasswordReset}
+                loading={isResetting}
+              >
                 Reset Password
               </Button>
             </div>
