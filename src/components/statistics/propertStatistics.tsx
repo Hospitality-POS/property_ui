@@ -18,12 +18,12 @@ export const PropertyStatistics = ({
     saleProgressData = []
 }) => {
     // Calculate derived statistics
-    const safeTotal = totalCount || 2;
+    const safeTotal = totalCount || 0;
     const safeSoldCount = soldCount || 0;
     const safeReservedCount = reservedCount || 0;
-    const safeAvailableCount = availableCount || 2;
-    const safeTotalUnits = totalUnits || 30;
-    const safeAvailableUnits = availableUnits || 28;
+    const safeAvailableCount = availableCount || 0;
+    const safeTotalUnits = totalUnits || 0;
+    const safeAvailableUnits = availableUnits || 0;
 
     // Calculate sold units based on the data:
     // Tri apartments: 10 total - 9 available = 1 unit sold
@@ -47,7 +47,7 @@ export const PropertyStatistics = ({
                 <Card>
                     <Statistic
                         title="Total Portfolio Value"
-                        value={totalValue || 21000000}
+                        value={totalValue}
                         valueStyle={{ color: '#1890ff' }}
                         prefix={<DollarOutlined />}
                         formatter={(value) => `KES ${value.toLocaleString()}`}

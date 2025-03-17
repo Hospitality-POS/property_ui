@@ -216,9 +216,18 @@ const LeadsManagement = () => {
   };
 
   // Show edit lead modal
+  // Show edit lead modal
   const handleEditLead = (lead) => {
     setModalMode('edit');
     setLeadToEdit(lead);
+
+    // The issue is here - we need to handle the assignedTo properly
+    // Check if assignedTo exists and has the correct structure
+    const assignedToId = lead.assignedTo?._id || lead.assignedTo;
+
+
+
+    console.log('Edit lead assignedTo:', assignedToId); // Debug log
 
     // Set the form values based on the selected lead
     form.setFieldsValue({
@@ -227,15 +236,16 @@ const LeadsManagement = () => {
       email: lead.email,
       source: lead.source,
       sourceDetails: lead.sourceDetails,
-      county: lead.interestAreas[0]?.county || '',
-      propertyType: lead.interestAreas[0]?.propertyType || 'both',
-      budgetMin: lead.interestAreas[0]?.budget?.min || 0,
-      budgetMax: lead.interestAreas[0]?.budget?.max || 0,
+      county: lead.interestAreas?.[0]?.county || '',
+      propertyType: lead.interestAreas?.[0]?.propertyType || 'both',
+      budgetMin: lead.interestAreas?.[0]?.budget?.min || 0,
+      budgetMax: lead.interestAreas?.[0]?.budget?.max || 0,
       priority: lead.priority,
-      assignedTo: lead.assignedTo?._id,
-      notes: lead.notes[0]?.content || ''
+      assignedTo: assignedToId,
+      notes: lead.notes?.[0]?.content || ''
     });
 
+    // Set the modal visible after form is populated
     setLeadModalVisible(true);
   };
 

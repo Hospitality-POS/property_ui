@@ -16,6 +16,7 @@ export const AddEventModal = ({
     onOk,
     onCancel
 }) => {
+
     return (
         <Modal
             title="Add Activities"
