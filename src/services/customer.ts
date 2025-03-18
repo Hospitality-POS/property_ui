@@ -28,6 +28,7 @@ export const fetchAllCustomers = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
+
     return response.data;
   } catch (error) {
     console.log(error);

@@ -903,7 +903,7 @@ export const AddSaleModal = ({
                                                     // Render regular installment rows
                                                     <div key={installment.key} style={{ marginBottom: '16px' }}>
                                                         <Row gutter={16} align="middle">
-                                                            <Col span={6}>
+                                                            <Col span={10}>
                                                                 <Form.Item label="Amount (KES)" required>
                                                                     <InputNumber
                                                                         style={{ width: '100%' }}
@@ -952,7 +952,7 @@ export const AddSaleModal = ({
                                                                     />
                                                                 </Form.Item>
                                                             </Col>
-                                                            <Col span={6}>
+                                                            <Col span={10}>
                                                                 <Form.Item label="Due Date" required>
                                                                     <DatePicker
                                                                         style={{ width: '100%' }}
@@ -962,7 +962,7 @@ export const AddSaleModal = ({
                                                                     />
                                                                 </Form.Item>
                                                             </Col>
-                                                            <Col span={6}>
+                                                            <Col span={6} style={{ display: 'none' }}>
                                                                 <Form.Item label="Payment Method">
                                                                     <Select
                                                                         style={{ width: '100%' }}
@@ -977,7 +977,7 @@ export const AddSaleModal = ({
                                                                     </Select>
                                                                 </Form.Item>
                                                             </Col>
-                                                            <Col span={4}>
+                                                            <Col span={4} style={{ display: 'none' }}>
                                                                 <Form.Item label="Status">
                                                                     <Select
                                                                         style={{ width: '100%' }}

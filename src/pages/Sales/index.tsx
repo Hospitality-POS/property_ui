@@ -612,9 +612,20 @@ const SalesManagement = () => {
     const handleSaleFormSubmit = () => {
         form.validateFields()
             .then(values => {
-                // Attach installments to values as paymentPlanData
+                // Find the selected unit object
+                const selectedUnitId = values.unit;
+                const selectedProperty = propertiesData.find(p =>
+                    (p._id || p.id) === values.property
+                );
+
+                const selectedUnit = selectedProperty?.units?.find(u =>
+                    (u._id || u.id) === selectedUnitId
+                );
+
+                // Create the form data with modified unit field
                 const formDataWithInstallments = {
                     ...values,
+                    unit: selectedUnit, // Pass the entire unit object
                     paymentPlanData: installments
                 };
 
