@@ -72,6 +72,13 @@ export default defineConfig({
       component: './Profile',
     },
     {
+      name: 'Quick Access',
+      path: '/quick',
+      icon: 'UserOutlined',
+      hideInMenu: true,
+      component: './Quick',
+    },
+    {
       name: 'Valuations',
       path: '/valuation',
       icon: 'CalculatorOutlined',

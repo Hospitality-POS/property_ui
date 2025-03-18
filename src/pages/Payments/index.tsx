@@ -14,6 +14,7 @@ import {
   Table,
   Tag,
   Typography,
+  message,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -30,8 +31,10 @@ import {
   SearchOutlined,
   AreaChartOutlined,
   CalendarOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import PaymentDetailsDrawer from '../../components/drawers/payment'; // Import the drawer component
+import AddPaymentModal from '../../components/Modals/addPayment'; // Import the new payment modal
 import { fetchAllPayments } from '@/services/payments';
 import moment from 'moment';
 import { useQuery } from '@tanstack/react-query';
@@ -49,14 +52,14 @@ const PaymentsList = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
+  const [addPaymentModalVisible, setAddPaymentModalVisible] = useState(false);
 
   const { data: paymentsData = [], isLoading: isLoadingPayments, refetch: refetchPayments } = useQuery({
-    queryKey: ['sale', refreshKey],
+    queryKey: ['payments', refreshKey],
     queryFn: async () => {
       try {
         const response = await fetchAllPayments();
-        console.log('sales fetched successfully:', response);
+        console.log('Payments fetched successfully:', response);
 
         // Process data to use createdAt as dateJoined
         const processedData = Array.isArray(response.data)
@@ -68,17 +71,16 @@ const PaymentsList = () => {
 
         return processedData;
       } catch (error) {
-        message.error('Failed to fetch sales');
-        console.error('Error fetching sales:', error);
+        message.error('Failed to fetch payments');
+        console.error('Error fetching payments:', error);
         return [];
       }
     },
-
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnWindowFocus: false
   });
 
-  console.log('payment vasl', paymentsData);
+  console.log('payment vals', paymentsData);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -113,13 +115,25 @@ const PaymentsList = () => {
     setDateRange(dates);
   };
 
+  // Show add payment modal
+  const showAddPaymentModal = () => {
+    setAddPaymentModalVisible(true);
+  };
+
+  // Handle payment added successfully
+  const handlePaymentAdded = (newPayment) => {
+    // Refresh the payments list
+    setRefreshKey(prevKey => prevKey + 1);
+    message.success('Payment added successfully!');
+  };
+
   // Calculate updated statistics
   const getTotalTransactionsCount = () => {
     return paymentsData.length;
   };
 
   const getTotalPaymentsAmount = () => {
-    return paymentsData.reduce((total, payment) => total + payment.amount, 0);
+    return paymentsData.reduce((total, payment) => total + (payment.amount || 0), 0);
   };
 
   const getPaymentMethodStats = () => {
@@ -150,17 +164,17 @@ const PaymentsList = () => {
   // Get average payment amount
   const getAveragePaymentAmount = () => {
     if (paymentsData.length === 0) return 0;
-    const total = paymentsData.reduce((sum, payment) => sum + payment.amount, 0);
+    const total = paymentsData.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     return total / paymentsData.length;
   };
 
   // Filter data
   const filteredPayments = paymentsData.filter((payment) => {
     const matchesSearch =
-      payment._id.toLowerCase().includes(searchText.toLowerCase()) ||
-      payment.sale.property.title.toLowerCase().includes(searchText.toLowerCase()) ||
-      payment.customer.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      (payment?.receiptNumber && payment?.receiptNumber.toLowerCase().includes(searchText.toLowerCase()));
+      payment._id?.toLowerCase().includes(searchText.toLowerCase()) ||
+      (payment.sale?.property?.title || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (payment.customer?.name || '').toLowerCase().includes(searchText.toLowerCase()) ||
+      (payment?.receiptNumber || '').toLowerCase().includes(searchText.toLowerCase());
 
     const matchesStatus =
       statusFilter === 'all' || payment.status === statusFilter;
@@ -187,14 +201,24 @@ const PaymentsList = () => {
       key: 'property',
       fixed: true,
       width: 200,
-      sorter: (a, b) => a.sale.property.name.localeCompare(b.sale.property.name),
+      render: (text) => text || 'N/A',
+      sorter: (a, b) => {
+        const nameA = a.sale?.property?.name || '';
+        const nameB = b.sale?.property?.name || '';
+        return nameA.localeCompare(nameB);
+      },
     },
     {
       title: 'Customer',
       dataIndex: ['customer', 'name'],
       key: 'customer',
       width: 150,
-      sorter: (a, b) => a.customer.name.localeCompare(b.customer.name),
+      render: (text) => text || 'N/A',
+      sorter: (a, b) => {
+        const nameA = a.customer?.name || '';
+        const nameB = b.customer?.name || '';
+        return nameA.localeCompare(nameB);
+      },
     },
     {
       title: 'Payment Plan',
@@ -208,16 +232,20 @@ const PaymentsList = () => {
       dataIndex: 'amount',
       key: 'amount',
       width: 150,
-      render: (amount) => amount.toLocaleString(),
-      sorter: (a, b) => a.amount - b.amount,
+      render: (amount) => (amount || 0).toLocaleString(),
+      sorter: (a, b) => (a.amount || 0) - (b.amount || 0),
     },
     {
       title: 'Date',
       dataIndex: 'paymentDate',
       key: 'paymentDate',
       width: 120,
-      render: (date) => new Date(date).toLocaleDateString(),
-      sorter: (a, b) => new Date(a.paymentDate) - new Date(b.paymentDate),
+      render: (date) => date ? new Date(date).toLocaleDateString() : 'N/A',
+      sorter: (a, b) => {
+        if (!a.paymentDate) return -1;
+        if (!b.paymentDate) return 1;
+        return new Date(a.paymentDate) - new Date(b.paymentDate);
+      },
     },
     {
       title: 'Method',
@@ -256,7 +284,7 @@ const PaymentsList = () => {
       width: 120,
       render: (status) => {
         let color = 'gray';
-        let text = status.charAt(0).toUpperCase() + status.slice(1);
+        let text = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
 
         switch (status) {
           case 'pending':
@@ -289,13 +317,11 @@ const PaymentsList = () => {
       width: 160,
       render: (_, record) => (
         <div className="flex space-x-2">
-          <button
-            className="p-1 border border-gray-300 rounded"
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
             onClick={() => handleViewPayment(record)}
-            type="button"
-          >
-            <EyeOutlined />
-          </button>
+          />
         </div>
       ),
     },
@@ -317,6 +343,17 @@ const PaymentsList = () => {
 
   return (
     <div className="payments-list-container">
+      {/* Add Payment Button */}
+      <div style={{ marginBottom: 16 }}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={showAddPaymentModal}
+        >
+          Add Payment
+        </Button>
+      </div>
+
       {/* Updated Payment Statistics Cards */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
@@ -435,9 +472,10 @@ const PaymentsList = () => {
       <Table
         columns={paymentColumns}
         dataSource={filteredPayments}
-        rowKey="id"
+        rowKey="_id"
         pagination={{ pageSize: 10 }}
         scroll={{ x: 1300 }}
+        loading={isLoadingPayments}
         expandable={{
           expandedRowRender: (record) => (
             <p style={{ margin: 0 }}>
@@ -453,7 +491,7 @@ const PaymentsList = () => {
           let totalPenalty = 0;
 
           pageData.forEach(({ amount, penaltyAmount, includesPenalty }) => {
-            totalAmount += amount;
+            totalAmount += amount || 0;
             if (includesPenalty && penaltyAmount) {
               totalPenalty += penaltyAmount;
             }
@@ -487,6 +525,13 @@ const PaymentsList = () => {
         visible={drawerVisible}
         payment={selectedPayment}
         onClose={handleCloseDrawer}
+      />
+
+      {/* Add Payment Modal */}
+      <AddPaymentModal
+        visible={addPaymentModalVisible}
+        onCancel={() => setAddPaymentModalVisible(false)}
+        onSuccess={handlePaymentAdded}
       />
     </div>
   );
