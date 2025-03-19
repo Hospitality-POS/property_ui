@@ -74,7 +74,228 @@ const formatCurrency = (amount) => {
     })}`;
 };
 
-// PDF Generation Function
+// Helper function to get all payments from payment plans
+const getAllPaymentsFromPlans = (customer) => {
+    if (!customer || !customer.paymentPlans || !Array.isArray(customer.paymentPlans)) {
+        return [];
+    }
+
+    let allPayments = [];
+
+    customer.paymentPlans.forEach(plan => {
+        if (!plan) return;
+
+        const planId = plan._id || plan.id || "unknown-plan";
+        const totalAmount = safeNumber(plan.totalAmount);
+
+        // Check if payments array exists
+        if (Array.isArray(plan.payments) && plan.payments.length > 0) {
+            // Add each payment with plan reference
+            plan.payments.forEach(payment => {
+                if (!payment) return;
+
+                const paymentAmount = safeNumber(payment.amount);
+                if (paymentAmount <= 0) return;
+
+                allPayments.push({
+                    planId: planId,
+                    date: payment.date || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                    amount: paymentAmount,
+                    method: payment.method || "Unknown",
+                    reference: payment.reference || "",
+                    status: plan.status || "active"
+                });
+            });
+        } else {
+            // If no payments array but plan is completed, create an inferred payment
+            if (plan.status === "completed" && totalAmount > 0) {
+                allPayments.push({
+                    planId: planId,
+                    date: plan.lastPaymentDate || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                    amount: totalAmount,
+                    method: "Unknown",
+                    reference: "Full payment",
+                    status: "completed"
+                });
+            }
+            // If plan has partial payment (not zero, not total)
+            else if (typeof plan.outstandingBalance === 'number' &&
+                plan.outstandingBalance < totalAmount) {
+
+                const paidAmount = totalAmount - plan.outstandingBalance;
+
+                if (paidAmount > 0) {
+                    allPayments.push({
+                        planId: planId,
+                        date: plan.lastPaymentDate || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                        amount: paidAmount,
+                        method: "Unknown",
+                        reference: "Partial payment",
+                        status: plan.status || "active"
+                    });
+                }
+            }
+        }
+    });
+
+    // Sort by date
+    allPayments.sort((a, b) => {
+        const dateA = new Date(a.date || 0);
+        const dateB = new Date(b.date || 0);
+        return dateA - dateB;
+    });
+
+    return allPayments;
+};
+
+// Generate transaction data from customer data - FIXED VERSION
+const generateTransactionData = (customer) => {
+    const transactions = [];
+
+    // Add opening balance
+    transactions.push({
+        date: customer.createdAt || new Date().toISOString(),
+        type: 'Opening Balance',
+        details: '***Opening Balance***',
+        amount: 0,
+        payment: 0,
+        balance: 0
+    });
+
+    // Add data from purchases
+    if (Array.isArray(customer.purchases)) {
+        let runningBalance = 0;
+
+        // Sort purchases by date
+        const sortedPurchases = [...customer.purchases].sort((a, b) => {
+            const dateA = new Date(a.saleDate || 0);
+            const dateB = new Date(b.saleDate || 0);
+            return dateA - dateB;
+        });
+
+        sortedPurchases.forEach(purchase => {
+            const amount = safeNumber(purchase.salePrice);
+            runningBalance += amount;
+
+            transactions.push({
+                date: purchase.saleDate || new Date().toISOString(),
+                type: 'Invoice',
+                details: `Purchase - ${safeString(purchase.property?.name || 'Property')}`,
+                amount: amount,
+                payment: 0,
+                balance: runningBalance
+            });
+        });
+    }
+
+    // Add data from payment plans
+    if (Array.isArray(customer.paymentPlans)) {
+        let runningBalance = transactions.length > 0 ?
+            transactions[transactions.length - 1].balance : 0;
+
+        // Sort payment plans by date
+        const sortedPlans = [...customer.paymentPlans].sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0);
+            const dateB = new Date(b.createdAt || 0);
+            return dateA - dateB;
+        });
+
+        sortedPlans.forEach(plan => {
+            // Skip null or undefined plans
+            if (!plan) return;
+
+            // Add plan as invoice
+            const planId = safeString(plan._id || plan.id);
+            const amount = safeNumber(plan.totalAmount);
+
+            // Only add to balance if it's a valid amount
+            if (amount > 0) {
+                runningBalance += amount;
+
+                transactions.push({
+                    date: plan.createdAt || new Date().toISOString(),
+                    type: 'Invoice',
+                    details: `Payment Plan - ${planId.substring(0, 8)}...`,
+                    amount: amount,
+                    payment: 0,
+                    balance: runningBalance
+                });
+            }
+
+            // Add payments (if payments array exists)
+            if (Array.isArray(plan.payments) && plan.payments.length > 0) {
+                // Sort payments by date
+                const sortedPayments = [...plan.payments].sort((a, b) => {
+                    const dateA = new Date(a.date || 0);
+                    const dateB = new Date(b.date || 0);
+                    return dateA - dateB;
+                });
+
+                sortedPayments.forEach(payment => {
+                    if (!payment) return; // Skip null/undefined payments
+
+                    const paymentAmount = safeNumber(payment.amount);
+                    if (paymentAmount <= 0) return; // Skip zero or negative payments
+
+                    runningBalance -= paymentAmount;
+
+                    transactions.push({
+                        date: payment.date || new Date().toISOString(),
+                        type: 'Payment Received',
+                        details: `${payment.reference || 'Payment'}\nKES${paymentAmount.toLocaleString()} for payment of Plan ${planId.substring(0, 8)}...`,
+                        amount: 0,
+                        payment: paymentAmount,
+                        balance: runningBalance
+                    });
+                });
+            }
+            // Handle case where no payments array exists but plan is completed or has partial payment
+            else {
+                // For completed plans with no payments array
+                if (plan.status === "completed" && amount > 0) {
+                    runningBalance -= amount; // Full payment
+
+                    transactions.push({
+                        date: plan.updatedAt || plan.lastPaymentDate || plan.createdAt || new Date().toISOString(),
+                        type: 'Payment Received',
+                        details: `Full Payment\nKES${amount.toLocaleString()} for payment of Plan ${planId.substring(0, 8)}...`,
+                        amount: 0,
+                        payment: amount,
+                        balance: runningBalance
+                    });
+                }
+                // For active plans with partial payment
+                else if (typeof plan.outstandingBalance === 'number' &&
+                    plan.outstandingBalance < amount) {
+
+                    const paidAmount = amount - plan.outstandingBalance;
+
+                    if (paidAmount > 0) {
+                        runningBalance -= paidAmount;
+
+                        transactions.push({
+                            date: plan.lastPaymentDate || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                            type: 'Payment Received',
+                            details: `Partial Payment\nKES${paidAmount.toLocaleString()} for payment of Plan ${planId.substring(0, 8)}...`,
+                            amount: 0,
+                            payment: paidAmount,
+                            balance: runningBalance
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    // Sort all transactions by date
+    return transactions.sort((a, b) => {
+        const dateA = new Date(a.date || 0);
+        const dateB = new Date(b.date || 0);
+        return dateA - dateB;
+    });
+};
+
+// PDF Generation Function - FIXED VERSION
 const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId = null) => {
     return new Promise((resolve, reject) => {
         try {
@@ -137,11 +358,11 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
             doc.text('To', 14, 75);
             doc.text(`${customer.name}`, 14, 85);
             doc.setFontSize(9);
-            doc.text(`Email:${customer.email || 'N/A'}`, 14, 92);
-            doc.text(`ID:${customer.idNumber || 'N/A'}`, 14, 99);
-            doc.text(`Contacts:${customer.phone || 'N/A'}`, 14, 106);
+            doc.text(`Email: ${customer.email || 'N/A'}`, 14, 92);
+            doc.text(`ID: ${customer.idNumber || 'N/A'}`, 14, 99);
+            doc.text(`Contacts: ${customer.phone || 'N/A'}`, 14, 106);
 
-            // Calculate summary data from transactions
+            // Calculate summary data
             let totalInvoiced = 0;
             let totalPaid = 0;
             let creditNotes = 0;
@@ -149,40 +370,48 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
             if (transactions.length > 0) {
                 // Use provided transactions
                 totalInvoiced = transactions.reduce((sum, t) => {
-                    return t.type === 'Invoice' ? sum + t.amount : sum;
+                    return t.type === 'Invoice' ? sum + safeNumber(t.amount) : sum;
                 }, 0);
 
                 totalPaid = transactions.reduce((sum, t) => {
-                    return t.type === 'Payment Received' ? sum + t.payment : sum;
+                    return t.type === 'Payment Received' ? sum + safeNumber(t.payment) : sum;
                 }, 0);
 
                 creditNotes = transactions.reduce((sum, t) => {
-                    return t.type === 'Credit Note' ? sum + t.amount : sum;
+                    return t.type === 'Credit Note' ? sum + safeNumber(t.amount) : sum;
                 }, 0);
             } else {
-                // If no transactions, try to calculate from payment plans and purchases
-                // Filter payment plans if a specific ID is provided
-                const paymentPlans = paymentPlanId
-                    ? (customer.paymentPlans || []).filter(plan => plan._id === paymentPlanId || plan.id === paymentPlanId)
-                    : (customer.paymentPlans || []);
-
-                // Get sales/purchases
+                // Calculate from data directly
+                // Get all purchases
                 const purchases = paymentPlanId
-                    ? []  // If viewing specific payment plan, don't show purchases
-                    : (customer.purchases || []);
+                    ? [] // Don't include purchases for specific payment plan
+                    : Array.isArray(customer.purchases) ? customer.purchases : [];
 
-                const purchaseTotal = purchases.reduce((sum, purchase) =>
-                    sum + (typeof purchase.salePrice === 'number' ? purchase.salePrice : 0), 0);
+                // Get filtered payment plans
+                const paymentPlans = paymentPlanId
+                    ? (Array.isArray(customer.paymentPlans) ? customer.paymentPlans.filter(p =>
+                        (p && (p._id === paymentPlanId || p.id === paymentPlanId))) : [])
+                    : (Array.isArray(customer.paymentPlans) ? customer.paymentPlans : []);
 
-                // Calculate totals for payment plans
-                totalInvoiced = paymentPlans.reduce((sum, plan) =>
-                    sum + (typeof plan.totalAmount === 'number' ? plan.totalAmount : 0), 0) + purchaseTotal;
+                // Calculate purchase total
+                totalInvoiced = purchases.reduce((sum, p) =>
+                    sum + safeNumber(p?.salePrice), 0);
 
-                totalPaid = paymentPlans.reduce((sum, plan) => {
-                    const planTotal = typeof plan.totalAmount === 'number' ? plan.totalAmount : 0;
-                    const outstanding = typeof plan.outstandingBalance === 'number' ? plan.outstandingBalance : 0;
-                    return sum + (planTotal - outstanding);
-                }, 0);
+                // Add payment plan totals
+                totalInvoiced += paymentPlans.reduce((sum, p) =>
+                    sum + safeNumber(p?.totalAmount), 0);
+
+                // Get all payments
+                const allPayments = getAllPaymentsFromPlans(customer);
+
+                // Filter by plan ID if needed
+                const filteredPayments = paymentPlanId
+                    ? allPayments.filter(p => p.planId === paymentPlanId)
+                    : allPayments;
+
+                // Calculate total paid
+                totalPaid = filteredPayments.reduce((sum, p) =>
+                    sum + safeNumber(p.amount), 0);
             }
 
             const balanceDue = totalInvoiced - totalPaid - Math.abs(creditNotes);
@@ -226,9 +455,9 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                         formatDate(t.date),
                         t.type,
                         t.details,
-                        t.type !== 'Payment Received' ? (t.amount || 0).toLocaleString() : '',
-                        t.type === 'Payment Received' ? (t.payment || 0).toLocaleString() : '',
-                        (t.balance || 0).toLocaleString()
+                        t.type !== 'Payment Received' ? (safeNumber(t.amount)).toLocaleString() : '',
+                        t.type === 'Payment Received' ? (safeNumber(t.payment)).toLocaleString() : '',
+                        (safeNumber(t.balance)).toLocaleString()
                     ];
                 });
 
@@ -270,8 +499,10 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
 
                 // Filter payment plans if a specific ID is provided
                 const paymentPlans = paymentPlanId
-                    ? (customer.paymentPlans || []).filter(plan => plan._id === paymentPlanId || plan.id === paymentPlanId)
-                    : (customer.paymentPlans || []);
+                    ? (Array.isArray(customer.paymentPlans)
+                        ? customer.paymentPlans.filter(p => p && (p._id === paymentPlanId || p.id === paymentPlanId))
+                        : [])
+                    : (Array.isArray(customer.paymentPlans) ? customer.paymentPlans : []);
 
                 if (paymentPlans.length > 0) {
                     // Add payment plans table
@@ -287,11 +518,32 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                     // Add plan data
                     doc.setTextColor(0, 0, 0);
                     paymentPlans.forEach(plan => {
-                        const planId = (plan._id || plan.id || '').substring(0, 8) + '...';
-                        const totalAmount = plan.totalAmount || 0;
+                        if (!plan) return;
+
+                        const planId = safeString(plan._id || plan.id).substring(0, 8) + '...';
+                        const totalAmount = safeNumber(plan.totalAmount);
+
+                        // Get paid amount
+                        let paidAmount = 0;
+
+                        // Calculate from payments array if available
+                        if (Array.isArray(plan.payments) && plan.payments.length > 0) {
+                            paidAmount = plan.payments.reduce((sum, payment) =>
+                                sum + safeNumber(payment?.amount), 0);
+                        }
+                        // Calculate from status and outstanding balance
+                        else {
+                            if (safeString(plan.status).toLowerCase() === 'completed') {
+                                paidAmount = totalAmount;
+                            } else if (typeof plan.outstandingBalance === 'number') {
+                                const calculatedPaid = totalAmount - plan.outstandingBalance;
+                                paidAmount = calculatedPaid > 0 ? calculatedPaid : 0;
+                            }
+                        }
+
+                        // Calculate outstanding balance
                         const outstandingBalance = safeString(plan.status).toLowerCase() === 'completed' ?
-                            0 : (plan.outstandingBalance || 0);
-                        const paidAmount = totalAmount - outstandingBalance;
+                            0 : (typeof plan.outstandingBalance === 'number' ? plan.outstandingBalance : (totalAmount - paidAmount));
 
                         doc.text(planId, 20, yPos);
                         doc.text(formatCurrency(totalAmount), 80, yPos);
@@ -305,18 +557,13 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                     doc.line(14, yPos, 196, yPos);
                     yPos += 15;
 
-                    // Add payment history if available
-                    let paymentHistory = [];
-                    paymentPlans.forEach(plan => {
-                        if (plan.payments && Array.isArray(plan.payments)) {
-                            plan.payments.forEach(payment => {
-                                paymentHistory.push({
-                                    ...payment,
-                                    planId: plan._id || plan.id
-                                });
-                            });
-                        }
-                    });
+                    // Add payment history
+                    const allPayments = getAllPaymentsFromPlans(customer);
+
+                    // Filter by plan ID if necessary
+                    const paymentHistory = paymentPlanId
+                        ? allPayments.filter(p => p.planId === paymentPlanId)
+                        : allPayments;
 
                     if (paymentHistory.length > 0) {
                         doc.setFontSize(12);
@@ -334,10 +581,10 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
 
                         const paymentRows = paymentHistory.map(payment => [
                             formatDate(payment.date),
-                            formatCurrency(payment.amount || 0),
-                            payment.method || 'N/A',
-                            payment.reference || 'N/A',
-                            (payment.planId || '').substring(0, 8) + '...'
+                            formatCurrency(safeNumber(payment.amount)),
+                            safeString(payment.method) || 'N/A',
+                            safeString(payment.reference) || 'N/A',
+                            safeString(payment.planId).substring(0, 8) + '...'
                         ]);
 
                         // Add the payment history table
@@ -397,15 +644,15 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
 
     // Calculate summary data from transactions
     const totalInvoiced = transactions.reduce((sum, t) => {
-        return t.type === 'Invoice' ? sum + t.amount : sum;
+        return t.type === 'Invoice' ? sum + safeNumber(t.amount) : sum;
     }, 0);
 
     const totalPaid = transactions.reduce((sum, t) => {
-        return t.type === 'Payment Received' ? sum + t.payment : sum;
+        return t.type === 'Payment Received' ? sum + safeNumber(t.payment) : sum;
     }, 0);
 
     const creditNotes = transactions.reduce((sum, t) => {
-        return t.type === 'Credit Note' ? sum + t.amount : sum;
+        return t.type === 'Credit Note' ? sum + safeNumber(t.amount) : sum;
     }, 0);
 
     const balanceDue = totalInvoiced - totalPaid - Math.abs(creditNotes);
@@ -438,7 +685,7 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
             align: 'right',
             render: (amount, record) => {
                 if (record.type === 'Payment Received') return '';
-                return amount !== 0 ? amount.toLocaleString() : '';
+                return safeNumber(amount) !== 0 ? safeNumber(amount).toLocaleString() : '';
             }
         },
         {
@@ -448,7 +695,7 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
             align: 'right',
             render: (payment, record) => {
                 if (record.type !== 'Payment Received') return '';
-                return payment !== 0 ? payment.toLocaleString() : '';
+                return safeNumber(payment) !== 0 ? safeNumber(payment).toLocaleString() : '';
             }
         },
         {
@@ -456,7 +703,7 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
             dataIndex: 'balance',
             key: 'balance',
             align: 'right',
-            render: (balance) => balance.toLocaleString()
+            render: (balance) => safeNumber(balance).toLocaleString()
         }
     ];
 
@@ -501,11 +748,11 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <div>
+                    {/* <div>
                         <Title level={4}>Company Name</Title>
                         <Text>P.O.BOX 12345-00100, PIN: P0123456789X</Text><br />
                         <Text>Physical Address: Company Street, City</Text>
-                    </div>
+                    </div> */}
                     <div style={{ textAlign: 'right' }}>
                         <Title level={5}>Statement Period</Title>
                         <Text>01/01/2024 To {formatDate(new Date())}</Text>
@@ -695,12 +942,33 @@ export const CustomerDetailsDrawer = ({
         if (!plan || typeof plan !== 'object') return null;
 
         try {
+            // Calculate paid amount
+            let paidAmount = 0;
+
+            // If there's a payments array, sum the amounts
+            if (Array.isArray(plan.payments) && plan.payments.length > 0) {
+                paidAmount = plan.payments.reduce((sum, payment) =>
+                    sum + safeNumber(payment?.amount), 0);
+            }
+            // Otherwise infer from status or outstanding balance
+            else {
+                const totalAmount = safeNumber(plan.totalAmount);
+                if (safeString(plan.status).toLowerCase() === 'completed') {
+                    paidAmount = totalAmount;
+                } else if (typeof plan.outstandingBalance === 'number') {
+                    const calculatedPaid = totalAmount - plan.outstandingBalance;
+                    paidAmount = calculatedPaid > 0 ? calculatedPaid : 0;
+                }
+            }
+
             return {
                 key: safeString(plan._id || Math.random()),
-                id: safeString(plan._id),
+                id: safeString(plan._id || plan.id),
                 totalAmount: safeNumber(plan.totalAmount),
                 initialDeposit: safeNumber(plan.initialDeposit),
-                outstandingBalance: safeNumber(plan.outstandingBalance),
+                outstandingBalance: safeString(plan.status).toLowerCase() === 'completed' ?
+                    0 : safeNumber(plan.outstandingBalance),
+                paidAmount: paidAmount,
                 status: safeString(plan.status)
             };
         } catch (err) {
@@ -713,113 +981,13 @@ export const CustomerDetailsDrawer = ({
     const purchasesData = safelyProcessArray(customer.purchases, processPurchase);
     const paymentPlansData = safelyProcessArray(customer.paymentPlans, processPaymentPlan);
 
-    // Generate transaction data from customer data
-    const generateTransactionData = () => {
-        const transactions = [];
-
-        // Add opening balance
-        transactions.push({
-            date: customer.createdAt || new Date().toISOString(),
-            type: 'Opening Balance',
-            details: '***Opening Balance***',
-            amount: 0,
-            payment: 0,
-            balance: 0
-        });
-
-        // Add data from purchases
-        if (Array.isArray(customer.purchases)) {
-            let runningBalance = 0;
-
-            // Sort purchases by date
-            const sortedPurchases = [...customer.purchases].sort((a, b) => {
-                const dateA = new Date(a.saleDate || 0);
-                const dateB = new Date(b.saleDate || 0);
-                return dateA - dateB;
-            });
-
-            sortedPurchases.forEach(purchase => {
-                const amount = safeNumber(purchase.salePrice);
-                runningBalance += amount;
-
-                transactions.push({
-                    date: purchase.saleDate,
-                    type: 'Invoice',
-                    details: `Purchase - ${safeString(purchase.property?.name || 'Property')}`,
-                    amount: amount,
-                    payment: 0,
-                    balance: runningBalance
-                });
-            });
-        }
-
-        // Add data from payment plans
-        if (Array.isArray(customer.paymentPlans)) {
-            let runningBalance = transactions.length > 0 ?
-                transactions[transactions.length - 1].balance : 0;
-
-            // Sort payment plans by date
-            const sortedPlans = [...customer.paymentPlans].sort((a, b) => {
-                const dateA = new Date(a.createdAt || 0);
-                const dateB = new Date(b.createdAt || 0);
-                return dateA - dateB;
-            });
-
-            sortedPlans.forEach(plan => {
-                // Add plan as invoice
-                const amount = safeNumber(plan.totalAmount);
-                runningBalance += amount;
-
-                transactions.push({
-                    date: plan.createdAt,
-                    type: 'Invoice',
-                    details: `Payment Plan - ${safeString(plan._id).substring(0, 8)}...`,
-                    amount: amount,
-                    payment: 0,
-                    balance: runningBalance
-                });
-
-                // Add payments
-                if (Array.isArray(plan.payments)) {
-                    // Sort payments by date
-                    const sortedPayments = [...plan.payments].sort((a, b) => {
-                        const dateA = new Date(a.date || 0);
-                        const dateB = new Date(b.date || 0);
-                        return dateA - dateB;
-                    });
-
-                    sortedPayments.forEach(payment => {
-                        const paymentAmount = safeNumber(payment.amount);
-                        runningBalance -= paymentAmount;
-
-                        transactions.push({
-                            date: payment.date,
-                            type: 'Payment Received',
-                            details: `${payment.reference || 'Payment'}\nKES${paymentAmount.toLocaleString()} for payment of Plan ${safeString(plan._id).substring(0, 8)}...`,
-                            amount: 0,
-                            payment: paymentAmount,
-                            balance: runningBalance
-                        });
-                    });
-                }
-            });
-        }
-
-        // Sort all transactions by date
-        return transactions.sort((a, b) => {
-            const dateA = new Date(a.date || 0);
-            const dateB = new Date(b.date || 0);
-            return dateA - dateB;
-        });
-    };
-
     // Function to handle statement extraction
     const handleExtractStatement = async (planId = null) => {
         try {
             message.loading({ content: 'Generating statement...', key: 'pdfGeneration' });
 
             // Generate transaction data
-            const transactions = generateTransactionData();
+            const transactions = generateTransactionData(customer);
 
             // Generate the PDF
             const pdfBlob = await generateCustomerStatementPDF(customer, transactions, planId);
@@ -831,7 +999,7 @@ export const CustomerDetailsDrawer = ({
             const link = document.createElement('a');
             link.href = url;
             link.download = planId
-                ? `${customer.name.replace(/\s+/g, '-')}-plan-statement-${planId.substring(0, 8)}.pdf`
+                ? `${customer.name.replace(/\s+/g, '-')}-plan-statement-${String(planId).substring(0, 8)}.pdf`
                 : `${customer.name.replace(/\s+/g, '-')}-customer-statement.pdf`;
             document.body.appendChild(link);
             link.click();
@@ -852,7 +1020,7 @@ export const CustomerDetailsDrawer = ({
         if (activeTab === "7") { // Statement tab
             return <CustomerStatementView
                 customer={customer}
-                transactions={generateTransactionData()}
+                transactions={generateTransactionData(customer)}
                 activeTab={activeTab}
                 onTabChange={onTabChange}
             />;
@@ -1205,6 +1373,14 @@ export const CustomerDetailsDrawer = ({
                                             title: 'Total Amount (KES)',
                                             dataIndex: 'totalAmount',
                                             key: 'totalAmount',
+                                            render: (amount) => {
+                                                return typeof amount === 'number' ? amount.toLocaleString() : 'N/A';
+                                            }
+                                        },
+                                        {
+                                            title: 'Paid Amount (KES)',
+                                            dataIndex: 'paidAmount',
+                                            key: 'paidAmount',
                                             render: (amount) => {
                                                 return typeof amount === 'number' ? amount.toLocaleString() : 'N/A';
                                             }

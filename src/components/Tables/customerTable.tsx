@@ -332,67 +332,75 @@ export const CustomersTable = ({
             key: 'actions',
             fixed: 'right',
             width: 130,
-            render: (_, record) => (
-                <Space>
-                    <Tooltip title="View Details">
-                        <Button
-                            icon={<FileSearchOutlined />}
-                            size="small"
-                            onClick={() => onView(record)}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Quick Contact">
-                        <Dropdown
-                            overlay={
-                                <Menu>
-                                    <Menu.Item
-                                        key="1"
-                                        icon={<PhoneOutlined />}
-                                        onClick={() => window.open(`tel:${safeString(record.phone)}`)}
-                                    >
-                                        Call
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        key="2"
-                                        icon={<MailOutlined />}
-                                        onClick={() => window.open(`mailto:${safeString(record.email)}`)}
-                                    >
-                                        Email
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        key="3"
-                                        icon={<MessageOutlined />}
-                                        onClick={() => onContact(record)}
-                                    >
-                                        Log Communication
-                                    </Menu.Item>
-                                </Menu>
-                            }
-                            trigger={['click']}
-                        >
+            render: (_, record) => {
+                // Check if customer has purchases
+                const hasSales = record.purchases &&
+                    Array.isArray(record.purchases) &&
+                    record.purchases.length > 0;
+
+                return (
+                    <Space>
+                        <Tooltip title="View Details">
                             <Button
-                                icon={<MessageOutlined />}
+                                icon={<FileSearchOutlined />}
                                 size="small"
+                                onClick={() => onView(record)}
                             />
-                        </Dropdown>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                        <Button
-                            icon={<EditOutlined />}
-                            size="small"
-                            onClick={() => onEdit(record)}
-                        />
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                        <Button
-                            icon={<DeleteOutlined />}
-                            size="small"
-                            danger
-                            onClick={() => onDelete(record)}
-                        />
-                    </Tooltip>
-                </Space>
-            ),
+                        </Tooltip>
+                        <Tooltip title="Quick Contact">
+                            <Dropdown
+                                overlay={
+                                    <Menu>
+                                        <Menu.Item
+                                            key="1"
+                                            icon={<PhoneOutlined />}
+                                            onClick={() => window.open(`tel:${safeString(record.phone)}`)}
+                                        >
+                                            Call
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            key="2"
+                                            icon={<MailOutlined />}
+                                            onClick={() => window.open(`mailto:${safeString(record.email)}`)}
+                                        >
+                                            Email
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            key="3"
+                                            icon={<MessageOutlined />}
+                                            onClick={() => onContact(record)}
+                                        >
+                                            Log Communication
+                                        </Menu.Item>
+                                    </Menu>
+                                }
+                                trigger={['click']}
+                            >
+                                <Button
+                                    icon={<MessageOutlined />}
+                                    size="small"
+                                />
+                            </Dropdown>
+                        </Tooltip>
+                        <Tooltip title="Edit">
+                            <Button
+                                icon={<EditOutlined />}
+                                size="small"
+                                onClick={() => onEdit(record)}
+                            />
+                        </Tooltip>
+                        <Tooltip title={hasSales ? "Cannot delete customer with sales" : "Delete"}>
+                            <Button
+                                icon={<DeleteOutlined />}
+                                size="small"
+                                danger
+                                onClick={() => onDelete(record)}
+                                disabled={hasSales}
+                            />
+                        </Tooltip>
+                    </Space>
+                );
+            },
         },
     ];
 

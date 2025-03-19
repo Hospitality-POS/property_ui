@@ -12,6 +12,10 @@ import {
 import moment from 'moment';
 import { fetchAllSales } from '@/services/sales';
 import { fetchAllUsers } from '@/services/auth.api';
+import { Bar, Line, Pie, Column } from '@ant-design/charts';;
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -29,7 +33,12 @@ const ReportsPage = () => {
     const [sortedInfo, setSortedInfo] = useState({});
     const [filterType, setFilterType] = useState('all'); // 'all', 'paid', 'unpaid'
     const [salesAnalysisData, setSalesAnalysisData] = useState([]);
-    const [performanceTrendsData, setPerformanceTrendsData] = useState([]);
+    const [performanceTrendsData, setPerformanceTrendsData] = useState({
+        monthlyData: [],
+        agentData: []
+    });
+    const [printLoading, setPrintLoading] = useState(false);
+    const [exportLoading, setExportLoading] = useState(false);
 
     // Format helpers
     const formatCurrency = (amount) => {
@@ -404,6 +413,214 @@ const ReportsPage = () => {
         setSortedInfo(sorter);
     };
 
+    // Export to CSV function - Replaced with a native solution
+    const exportToCSV = (data, filename) => {
+        setExportLoading(true);
+        try {
+            // Convert JSON to CSV
+            const replacer = (key, value) => value === null ? '' : value;
+            const header = Object.keys(data[0]);
+            let csv = data.map(row => header.map(fieldName =>
+                JSON.stringify(row[fieldName], replacer)).join(','));
+            csv.unshift(header.join(','));
+            const csvArray = csv.join('\r\n');
+
+            // Create a blob and download
+            const blob = new Blob([csvArray], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${filename}.csv`;
+            link.click();
+            window.URL.revokeObjectURL(url);
+
+            message.success('Export successful');
+        } catch (error) {
+            console.error('Export error:', error);
+            message.error('Failed to export data');
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
+    // Export to Excel function
+    const exportToExcel = (data, filename) => {
+        setExportLoading(true);
+        try {
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+            XLSX.writeFile(workbook, `${filename}.xlsx`);
+            message.success('Export to Excel successful');
+        } catch (error) {
+            console.error('Excel export error:', error);
+            message.error('Failed to export to Excel');
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
+    // Print function for agent commissions
+    const printAgentCommission = (record) => {
+        setPrintLoading(true);
+
+        // Create printable content
+        const printContent = document.createElement('div');
+        printContent.innerHTML = `
+            <div style="padding: 20px; font-family: Arial, sans-serif;">
+                <h1 style="text-align: center;">Agent Commission Report</h1>
+                <h2 style="text-align: center;">${record.agentName}</h2>
+                <p style="text-align: center;">${formatDate(dateRange[0])} to ${formatDate(dateRange[1])}</p>
+                <hr />
+                <div style="margin-top: 20px;">
+                    <h3>Summary</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Agent:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${record.agentName}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Email:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${record.agentEmail}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Total Sales:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${record.totalSales}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Total Commission:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${formatCurrency(record.totalCommission)}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Paid Commission:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${formatCurrency(record.totalCommissionPaid)}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Pending Commission:</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">${formatCurrency(record.totalCommissionPending)}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h3>Sales Details</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #f2f2f2;">
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Property</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Unit</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Customer</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Date</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Sale Price</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Commission</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${record.sales.map(sale => `
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${sale.property}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${sale.unit}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${sale.customer}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(sale.saleDate)}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(sale.salePrice)}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(sale.commissionAmount)}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                                        <span style="padding: 3px 8px; border-radius: 4px; background-color: ${sale.commissionStatus === 'paid' ? '#52c41a' : '#faad14'}; color: white;">
+                                            ${sale.commissionStatus === 'paid' ? 'Paid' : 'Pending'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 40px; text-align: center;">
+                    <p>Generated on ${formatDate(new Date())}</p>
+                </div>
+            </div>
+        `;
+
+        // Append to body, print, and remove
+        document.body.appendChild(printContent);
+        window.print();
+        document.body.removeChild(printContent);
+        setPrintLoading(false);
+    };
+
+    // Export agent commission to PDF
+    const exportAgentCommissionToPDF = async (record) => {
+        setExportLoading(true);
+        try {
+            // Create a temporary div for PDF generation
+            const pdfContent = document.createElement('div');
+            pdfContent.style.width = '800px';
+            pdfContent.style.padding = '20px';
+            pdfContent.innerHTML = `
+                <div style="padding: 20px; font-family: Arial, sans-serif;">
+                    <h1 style="text-align: center;">Agent Commission Report</h1>
+                    <h2 style="text-align: center;">${record.agentName}</h2>
+                    <p style="text-align: center;">${formatDate(dateRange[0])} to ${formatDate(dateRange[1])}</p>
+                    <hr />
+                    <div style="margin-top: 20px;">
+                        <h3>Summary</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Agent:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${record.agentName}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Email:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${record.agentEmail}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Total Sales:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${record.totalSales}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>Total Commission:</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">${formatCurrency(record.totalCommission)}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <h3>Sales Details</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #f2f2f2;">
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Property</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Date</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Sale Price</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Commission</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${record.sales.map(sale => `
+                                    <tr>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${sale.property}</td>
+                                        <td style="padding: 8px; border: 1px solid #ddd;">${formatDate(sale.saleDate)}</td>
+                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(sale.salePrice)}</td>
+                                        <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${formatCurrency(sale.commissionAmount)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(pdfContent);
+
+            // Generate PDF using html2canvas and jsPDF
+            const canvas = await html2canvas(pdfContent, { scale: 1 });
+            const imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Commission_Report_${record.agentName.replace(/\s+/g, '_')}.pdf`);
+
+            document.body.removeChild(pdfContent);
+            message.success('PDF export successful');
+        } catch (error) {
+            console.error('PDF export error:', error);
+            message.error('Failed to export PDF');
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
     // Agent commissions report columns
     const agentColumns = [
         {
@@ -463,8 +680,34 @@ const ReportsPage = () => {
             align: 'center',
             render: (_, record) => (
                 <Space>
-                    <Button size="small" icon={<PrinterOutlined />}>Print</Button>
-                    <Button size="small" icon={<FileExcelOutlined />}>Export</Button>
+                    <Button
+                        size="small"
+                        icon={<PrinterOutlined />}
+                        onClick={() => printAgentCommission(record)}
+                        loading={printLoading}
+                    >
+                        Print
+                    </Button>
+                    <Dropdown overlay={
+                        <Menu>
+                            <Menu.Item key="1" onClick={() => exportToExcel(record.sales, `${record.agentName}_Commission`)}>
+                                <FileExcelOutlined /> Excel
+                            </Menu.Item>
+                            <Menu.Item key="2" onClick={() => exportToCSV(record.sales, `${record.agentName}_Commission`)}>
+                                <DownloadOutlined /> CSV
+                            </Menu.Item>
+                            <Menu.Item key="3" onClick={() => exportAgentCommissionToPDF(record)}>
+                                <DownloadOutlined /> PDF
+                            </Menu.Item>
+                        </Menu>
+                    }>
+                        <Button
+                            size="small"
+                            loading={exportLoading}
+                        >
+                            <DownloadOutlined /> Export <DownOutlined />
+                        </Button>
+                    </Dropdown>
                 </Space>
             )
         }
@@ -620,6 +863,42 @@ const ReportsPage = () => {
 
     const totals = calculateTotals();
 
+    // Prepare data for agent commission charts
+    const getAgentCommissionChartData = () => {
+        return reportData.slice(0, 5).map(agent => ({
+            agent: agent.agentName,
+            commission: agent.totalCommission,
+            paid: agent.totalCommissionPaid,
+            pending: agent.totalCommissionPending
+        }));
+    };
+
+    // Prepare data for property distribution pie chart
+    const getPropertyDistributionData = () => {
+        return salesAnalysisData.slice(0, 5).map(property => ({
+            type: property.propertyName,
+            value: property.totalValue
+        }));
+    };
+
+    // Prepare data for monthly sales trend chart
+    const getMonthlySalesTrendData = () => {
+        return performanceTrendsData.monthlyData.map(month => ({
+            month: month.monthName,
+            sales: month.salesCount,
+            value: month.salesValue
+        }));
+    };
+
+    // Prepare data for agent comparison chart
+    const getAgentComparisonData = () => {
+        return performanceTrendsData.agentData.slice(0, 5).map(agent => ({
+            agent: agent.agentName,
+            sales: agent.totalSales,
+            value: agent.totalValue
+        }));
+    };
+
     // Expanded row render function
     const expandedRowRender = (record) => {
         return (
@@ -720,6 +999,108 @@ const ReportsPage = () => {
         );
     };
 
+    // Configuration for charts
+    const agentCommissionBarConfig = {
+        data: getAgentCommissionChartData(),
+        isStack: true,
+        xField: 'agent',
+        yField: 'commission',
+        seriesField: 'agent',
+        label: {
+            position: 'middle',
+            layout: [
+                { type: 'interval-adjust-position' },
+                { type: 'interval-hide-overlap' },
+                { type: 'adjust-color' },
+            ],
+        },
+        meta: {
+            commission: {
+                formatter: (val) => formatCurrency(val),
+            },
+        },
+        tooltip: {
+            formatter: (datum) => {
+                return { name: datum.agent, value: formatCurrency(datum.commission) };
+            },
+        },
+        color: ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1']
+    };
+
+    const propertySalesPieConfig = {
+        appendPadding: 10,
+        data: getPropertyDistributionData(),
+        angleField: 'value',
+        colorField: 'type',
+        radius: 0.8,
+        label: {
+            type: 'outer',
+            content: '{name} {percentage}',
+        },
+        interactions: [{ type: 'pie-legend-active' }, { type: 'element-active' }],
+        tooltip: {
+            formatter: (datum) => {
+                return { name: datum.type, value: formatCurrency(datum.value) };
+            },
+        },
+    };
+
+    const monthlySalesLineConfig = {
+        data: getMonthlySalesTrendData(),
+        xField: 'month',
+        yField: 'value',
+        seriesField: 'month',
+        point: {
+            size: 5,
+            shape: 'diamond',
+        },
+        label: {
+            style: {
+                fill: '#aaa',
+            },
+        },
+        tooltip: {
+            formatter: (datum) => {
+                return { name: datum.month, value: formatCurrency(datum.value) };
+            },
+        },
+    };
+
+    const agentComparisonColumnConfig = {
+        data: getAgentComparisonData(),
+        xField: 'agent',
+        yField: 'value',
+        meta: {
+            value: {
+                formatter: (val) => formatCurrency(val),
+            },
+        },
+        label: {
+            position: 'middle',
+            style: {
+                fill: '#FFFFFF',
+                opacity: 0.6,
+            },
+        },
+        tooltip: {
+            formatter: (datum) => {
+                return { name: datum.agent, value: formatCurrency(datum.value) };
+            },
+        },
+        color: ({ agent }) => {
+            // Assign different colors to different agents
+            const agentColorMap = {
+                0: '#1890ff',
+                1: '#52c41a',
+                2: '#faad14',
+                3: '#f5222d',
+                4: '#722ed1'
+            };
+            const index = getAgentComparisonData().findIndex(d => d.agent === agent);
+            return agentColorMap[index % 5];
+        }
+    };
+
     return (
         <div className="reports-page">
             <Row gutter={[16, 16]}>
@@ -739,10 +1120,32 @@ const ReportsPage = () => {
                                     </Button>
                                     <Dropdown overlay={
                                         <Menu>
-                                            <Menu.Item key="1" icon={<FileExcelOutlined />}>Export to Excel</Menu.Item>
-                                            <Menu.Item key="2" icon={<PrinterOutlined />}>Print Report</Menu.Item>
-                                            <Menu.Divider />
-                                            <Menu.Item key="3" icon={<BarChartOutlined />}>Customize Report</Menu.Item>
+                                            <Menu.Item key="1" onClick={() => exportToExcel(reportData, 'Commission_Report')}>
+                                                <FileExcelOutlined /> Export to Excel
+                                            </Menu.Item>
+                                            <Menu.Item key="2" onClick={() => {
+                                                const printWindow = window.open('', '_blank');
+                                                printWindow.document.write('<html><head><title>Commission Report</title>');
+                                                printWindow.document.write('</head><body>');
+                                                printWindow.document.write('<h1 style="text-align:center">Commission Report</h1>');
+                                                printWindow.document.write('<table border="1" style="width:100%; border-collapse: collapse;">');
+                                                printWindow.document.write('<tr><th>Agent</th><th>Sales</th><th>Total Commission</th><th>Paid</th><th>Pending</th></tr>');
+                                                reportData.forEach(agent => {
+                                                    printWindow.document.write(`<tr>
+                                                            <td>${agent.agentName}</td>
+                                                            <td style="text-align:center">${agent.totalSales}</td>
+                                                            <td style="text-align:right">${formatCurrency(agent.totalCommission)}</td>
+                                                            <td style="text-align:right">${formatCurrency(agent.totalCommissionPaid)}</td>
+                                                            <td style="text-align:right">${formatCurrency(agent.totalCommissionPending)}</td>
+                                                        </tr>`);
+                                                });
+                                                printWindow.document.write('</table>');
+                                                printWindow.document.write('</body></html>');
+                                                printWindow.document.close();
+                                                printWindow.print();
+                                            }}>
+                                                <PrinterOutlined /> Print Report
+                                            </Menu.Item>
                                         </Menu>
                                     }>
                                         <Button>
@@ -844,6 +1247,18 @@ const ReportsPage = () => {
                                 </Col>
                             </Row>
 
+                            {/* Agent Commission Chart */}
+                            <Card style={{ marginTop: 16 }}>
+                                <Title level={5}>Top 5 Agent Commissions</Title>
+                                {reportData.length > 0 ? (
+                                    <div style={{ height: 350 }}>
+                                        <Bar {...agentCommissionBarConfig} />
+                                    </div>
+                                ) : (
+                                    <Empty description="No data available" />
+                                )}
+                            </Card>
+
                             {/* Agent Commissions Table */}
                             <Card style={{ marginTop: 16 }}>
                                 {isLoadingSales ? (
@@ -872,7 +1287,7 @@ const ReportsPage = () => {
                             </Card>
                         </TabPane>
 
-                        {/* Sales Analysis Tab - Now Activated */}
+                        {/* Sales Analysis Tab - Now with Charts */}
                         <TabPane
                             tab={
                                 <span>
@@ -937,32 +1352,20 @@ const ReportsPage = () => {
                                 )}
                             </Card>
 
-                            {/* Sales by Period Chart (Placeholder) */}
-                            <Card style={{ marginTop: 16 }}>
-                                <Title level={5}>Sales by Period</Title>
-                                <div style={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <BarChartOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                                        <p>Bar chart visualization showing monthly sales trend would appear here</p>
-                                        <Button type="primary">Generate Chart</Button>
-                                    </div>
-                                </div>
-                            </Card>
-
-                            {/* Top Performing Properties Chart (Placeholder) */}
+                            {/* Top Performing Properties Pie Chart */}
                             <Card style={{ marginTop: 16 }}>
                                 <Title level={5}>Top Performing Properties</Title>
-                                <div style={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <PieChartOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                                        <p>Pie chart visualization showing property distribution would appear here</p>
-                                        <Button type="primary">Generate Chart</Button>
+                                {salesAnalysisData.length > 0 ? (
+                                    <div style={{ height: 400 }}>
+                                        <Pie {...propertySalesPieConfig} />
                                     </div>
-                                </div>
+                                ) : (
+                                    <Empty description="No data available" />
+                                )}
                             </Card>
                         </TabPane>
 
-                        {/* Performance Trends Tab - Now Activated */}
+                        {/* Performance Trends Tab - Now with Charts */}
                         <TabPane
                             tab={
                                 <span>
@@ -1012,16 +1415,16 @@ const ReportsPage = () => {
                                 </Col>
                             </Row>
 
-                            {/* Monthly Sales Trend Chart (Placeholder) */}
+                            {/* Monthly Sales Trend Chart */}
                             <Card style={{ marginTop: 16 }}>
                                 <Title level={5}>Monthly Sales Trend</Title>
-                                <div style={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <LineChartOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                                        <p>Line chart visualization showing monthly sales trend would appear here</p>
-                                        <Button type="primary">Generate Chart</Button>
+                                {performanceTrendsData.monthlyData?.length > 0 ? (
+                                    <div style={{ height: 350 }}>
+                                        <Line {...monthlySalesLineConfig} />
                                     </div>
-                                </div>
+                                ) : (
+                                    <Empty description="No data available" />
+                                )}
                             </Card>
 
                             {/* Agent Performance Table */}
@@ -1049,16 +1452,16 @@ const ReportsPage = () => {
                                 )}
                             </Card>
 
-                            {/* Agent Comparison Chart (Placeholder) */}
+                            {/* Agent Comparison Chart */}
                             <Card style={{ marginTop: 16 }}>
                                 <Title level={5}>Agent Comparison</Title>
-                                <div style={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <BarChartOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                                        <p>Bar chart comparing top agents would appear here</p>
-                                        <Button type="primary">Generate Chart</Button>
+                                {performanceTrendsData.agentData?.length > 0 ? (
+                                    <div style={{ height: 350 }}>
+                                        <Column {...agentComparisonColumnConfig} />
                                     </div>
-                                </div>
+                                ) : (
+                                    <Empty description="No data available" />
+                                )}
                             </Card>
                         </TabPane>
                     </Tabs>
