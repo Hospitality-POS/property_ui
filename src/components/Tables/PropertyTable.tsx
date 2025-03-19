@@ -4,6 +4,7 @@ import {
     EditOutlined,
     DeleteOutlined,
     EnvironmentOutlined,
+    TagOutlined
 } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -15,7 +16,9 @@ export const PropertyTable = ({
     onDelete,
     formatPropertyType,
     formatStatus,
-    formatDate
+    formatDate,
+    getCustomColumns,
+    getUnitPriceForPhase
 }) => {
     // Calculate total units and value for a property
     const calculatePropertyUnits = (property) => {
@@ -28,10 +31,16 @@ export const PropertyTable = ({
         return property.units.reduce((total, unit) => total + (unit.availableUnits || 0), 0);
     };
 
+    // Calculate property value using phase-specific pricing
     const calculatePropertyValue = (property) => {
         if (!property.units || !Array.isArray(property.units)) return 0;
         return property.units.reduce((total, unit) => {
-            return total + ((unit.price || 0) * (unit.totalUnits || 0));
+            // Get the price based on the current phase
+            const price = getUnitPriceForPhase
+                ? getUnitPriceForPhase(unit, property.currentPhase)
+                : (unit.price || unit.basePrice || 0);
+
+            return total + (price * (unit.totalUnits || 0));
         }, 0);
     };
 
@@ -61,7 +70,7 @@ export const PropertyTable = ({
     };
 
     // Table columns definition
-    const columns = [
+    const defaultColumns = [
         {
             title: 'Name',
             dataIndex: 'name',
@@ -77,7 +86,7 @@ export const PropertyTable = ({
             title: 'Type',
             dataIndex: 'propertyType',
             key: 'propertyType',
-            width: 120,
+            width: 100,
             render: (type) => {
                 let color = type === 'land' ? 'green' : 'blue';
                 return <Tag color={color}>{formatPropertyType(type)}</Tag>;
@@ -89,9 +98,35 @@ export const PropertyTable = ({
             onFilter: (value, record) => record.propertyType === value,
         },
         {
+            title: 'Current Phase 7',
+            dataIndex: 'currentPhase',
+            key: 'currentPhase',
+            width: 130,
+            render: (phase, record) => {
+                if (!phase) return <span>-</span>;
+
+                // Find the phase in the property's phases array to get more details
+                const phaseDetails = record.phases?.find(p => p.name === phase);
+                const isActive = phaseDetails?.active;
+
+                return (
+                    <Tooltip title={isActive ? 'Active phase' : 'Phase set but not active'}>
+                        <Tag color={isActive ? 'blue' : 'default'} icon={<TagOutlined />}>
+                            {phase}
+                        </Tag>
+                    </Tooltip>
+                );
+            },
+            filters: Array.from(new Set(properties
+                .filter(p => p.currentPhase)
+                .map(p => p.currentPhase)))
+                .map(phase => ({ text: phase, value: phase })),
+            onFilter: (value, record) => record.currentPhase === value,
+        },
+        {
             title: 'Location',
             key: 'location',
-            width: 150,
+            width: 140,
             render: (_, record) => (
                 <span>
                     <EnvironmentOutlined style={{ marginRight: 5 }} /> {record.location?.address || 'N/A'}
@@ -101,7 +136,7 @@ export const PropertyTable = ({
         {
             title: 'Units Info',
             key: 'units',
-            width: 140,
+            width: 130,
             render: (_, record) => {
                 const totalUnits = calculatePropertyUnits(record);
                 const availableUnits = calculateAvailableUnits(record);
@@ -119,7 +154,7 @@ export const PropertyTable = ({
         {
             title: 'Total Value (KES)',
             key: 'value',
-            width: 160,
+            width: 150,
             render: (_, record) => {
                 const value = calculatePropertyValue(record);
                 return value > 0 ? value.toLocaleString() : <Text>N/A</Text>;
@@ -130,7 +165,7 @@ export const PropertyTable = ({
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            width: 150,
+            width: 140,
             render: (status) => {
                 let color = 'green';
                 if (status === 'reserved') color = 'orange';
@@ -149,7 +184,7 @@ export const PropertyTable = ({
         {
             title: 'Manager',
             key: 'manager',
-            width: 130,
+            width: 120,
             render: (_, record) => record.propertyManager?.name || 'N/A',
             filters: Array.from(new Set(properties
                 .filter(p => p.propertyManager?.name)
@@ -168,7 +203,7 @@ export const PropertyTable = ({
         {
             title: 'Sale Progress',
             key: 'salesProgress',
-            width: 160,
+            width: 150,
             render: (_, record) => {
                 const progress = calculateSaleProgress(record);
 
@@ -217,34 +252,80 @@ export const PropertyTable = ({
         },
     ];
 
+    // Use custom columns if provided, otherwise use default
+    const columns = getCustomColumns ? getCustomColumns(defaultColumns) : defaultColumns;
+
     return (
         <Table
             columns={columns}
             dataSource={properties}
             rowKey="_id"
             pagination={{ pageSize: 10 }}
-            scroll={{ x: 1500 }}
-            expandable={{
-                expandedRowRender: (record) => (
-                    <div style={{ margin: 0 }}>
-                        <p><strong>Description:</strong> {record.description}</p>
-                        {record.units && record.units.length > 0 && (
-                            <div>
-                                <strong>Unit Types:</strong>
-                                <ul>
-                                    {record.units.map((unit, index) => (
-                                        <li key={index}>
-                                            {unit.unitType}: {unit.availableUnits}/{unit.totalUnits} units available
-                                            ({unit.propertyType === 'land' ? unit.plotSize : ''}) -
-                                            KES {unit.price?.toLocaleString()}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-                ),
-            }}
+            scroll={{ x: 1600 }}
+            // expandable={{
+            //     expandedRowRender: (record) => (
+            //         <div style={{ margin: 0 }}>
+            //             <p><strong>Description:</strong> {record.description}</p>
+            //             {record.currentPhase && (
+            //                 <p><strong>Current Phase:</strong> {record.currentPhase}</p>
+            //             )}
+            //             {record.phases && record.phases.length > 0 && (
+            //                 <div>
+            //                     <strong>Available Phases:</strong>
+            //                     <ul>
+            //                         {record.phases.map((phase, index) => (
+            //                             <li key={index}>
+            //                                 {phase.name} {phase.active ? '(Active)' : ''}
+            //                                 {phase.startDate ? ` - Started: ${formatDate(phase.startDate)}` : ''}
+            //                                 {phase.endDate ? ` - Ends: ${formatDate(phase.endDate)}` : ''}
+            //                             </li>
+            //                         ))}
+            //                     </ul>
+            //                 </div>
+            //             )}
+            //             {record.units && record.units.length > 0 && (
+            //                 <div>
+            //                     <strong>Unit Types:</strong>
+            //                     <ul>
+            //                         {record.units.map((unit, index) => {
+            //                             // Get the current price for this unit based on the phase
+            //                             const currentPrice = getUnitPriceForPhase
+            //                                 ? getUnitPriceForPhase(unit, record.currentPhase)
+            //                                 : (unit.price || unit.basePrice || 0);
+
+            //                             // Format the unit type name for display
+            //                             const unitTypeDisplay = unit.unitType === 'plot' || unit.unitType === 'parcel'
+            //                                 ? `${unit.unitType} ${unit.plotSize || ''}`
+            //                                 : unit.unitType;
+
+            //                             // Show base price and current phase price if they differ
+            //                             const basePriceDisplay = unit.basePrice && unit.basePrice !== currentPrice
+            //                                 ? ` (Base: KES ${unit.basePrice.toLocaleString()})`
+            //                                 : '';
+
+            //                             return (
+            //                                 <li key={index}>
+            //                                     {unitTypeDisplay}: {unit.availableUnits}/{unit.totalUnits} units available
+            //                                     - KES {currentPrice.toLocaleString()}{basePriceDisplay}
+            //                                     {unit.phasePricing && unit.phasePricing.length > 0 && (
+            //                                         <ul>
+            //                                             {unit.phasePricing.map((phasePrice, i) => (
+            //                                                 <li key={i} style={{ fontSize: '0.9em' }}>
+            //                                                     Phase "{phasePrice.phaseName}": KES {phasePrice.price.toLocaleString()}
+            //                                                     {phasePrice.active && ' (Active)'}
+            //                                                 </li>
+            //                                             ))}
+            //                                         </ul>
+            //                                     )}
+            //                                 </li>
+            //                             );
+            //                         })}
+            //                     </ul>
+            //                 </div>
+            //             )}
+            //         </div>
+            //     ),
+            // }}
             summary={(pageData) => {
                 if (pageData.length === 0) return null;
 
@@ -256,13 +337,13 @@ export const PropertyTable = ({
                 return (
                     <Table.Summary fixed>
                         <Table.Summary.Row>
-                            <Table.Summary.Cell index={0} colSpan={4}>
+                            <Table.Summary.Cell index={0} colSpan={5}>
                                 <strong>Page Total</strong>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={4}>
+                            <Table.Summary.Cell index={5}>
                                 <Text type="danger">KES {pageTotal.toLocaleString()}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={5} colSpan={5}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={6} colSpan={5}></Table.Summary.Cell>
                         </Table.Summary.Row>
                     </Table.Summary>
                 );

@@ -11,13 +11,17 @@ import {
     Card,
     Tabs,
     Descriptions,
-    Table
+    Table,
+    Tooltip,
+    Badge
 } from 'antd';
 import {
     FileTextOutlined,
     HomeOutlined,
     EnvironmentOutlined,
-    UserOutlined
+    UserOutlined,
+    TagOutlined,
+    CalendarOutlined
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -32,13 +36,14 @@ export const PropertyDetailsDrawer = ({
     onClose,
     formatPropertyType,
     formatStatus,
-    formatDate
+    formatDate,
+    getUnitPriceForPhase
 }) => {
     if (!property) {
         return null;
     }
 
-    // Calculate total units and value
+    // Calculate total units and value based on phase pricing
     const calculateTotalUnits = () => {
         if (!property.units || !Array.isArray(property.units)) return 0;
         return property.units.reduce((total, unit) => total + (unit.totalUnits || 0), 0);
@@ -52,11 +57,16 @@ export const PropertyDetailsDrawer = ({
     const calculateTotalValue = () => {
         if (!property.units || !Array.isArray(property.units)) return 0;
         return property.units.reduce((total, unit) => {
-            return total + ((unit.price || 0) * (unit.totalUnits || 0));
+            // Use getUnitPriceForPhase if available to get correct phase price
+            const unitPrice = getUnitPriceForPhase
+                ? getUnitPriceForPhase(unit, property.currentPhase)
+                : (unit.price || 0);
+
+            return total + (unitPrice * (unit.totalUnits || 0));
         }, 0);
     };
 
-    // Unit table columns
+    // Unit table columns with phase pricing
     const unitColumns = [
         {
             title: 'Type',
@@ -68,6 +78,7 @@ export const PropertyDetailsDrawer = ({
                     'one_bedroom': 'One Bedroom',
                     'two_bedroom': 'Two Bedroom',
                     'three_bedroom': 'Three Bedroom',
+                    'shops': 'Shops',
                     'penthouse': 'Penthouse',
                     'plot': 'Plot',
                     'parcel': 'Parcel',
@@ -77,10 +88,32 @@ export const PropertyDetailsDrawer = ({
             }
         },
         {
-            title: 'Price (KES)',
+            title: 'Base Price',
+            dataIndex: 'basePrice',
+            key: 'basePrice',
+            render: (basePrice) => `KES ${basePrice?.toLocaleString() || 0}`
+        },
+        {
+            title: () => (
+                <span>
+                    Current Price {property.currentPhase && (
+                        <Tooltip title={`Based on current phase: ${property.currentPhase}`}>
+                            <Tag color="blue">{property.currentPhase}</Tag>
+                        </Tooltip>
+                    )}
+                </span>
+            ),
             dataIndex: 'price',
             key: 'price',
-            render: (price) => price?.toLocaleString() || 'N/A'
+            render: (price, record) => {
+                // Get current phase price if available
+                const phasePrice = property.currentPhase && record.phasePricing
+                    ? record.phasePricing.find(p => p.phaseName === property.currentPhase)
+                    : null;
+
+                const displayPrice = phasePrice ? phasePrice.price : price;
+                return `KES ${displayPrice?.toLocaleString() || 0}`;
+            }
         },
         {
             title: 'Total Units',
@@ -122,6 +155,113 @@ export const PropertyDetailsDrawer = ({
         ...unitColumns.slice(1)
     ];
 
+    // Columns for the phases table
+    const phaseColumns = [
+        {
+            title: 'Phase Name',
+            dataIndex: 'name',
+            key: 'name',
+            render: (name, record) => (
+                <Space>
+                    {name}
+                    {record.active && <Tag color="green">Active</Tag>}
+                    {property.currentPhase === name && <Tag color="blue">Current</Tag>}
+                </Space>
+            )
+        },
+        {
+            title: 'Start Date',
+            dataIndex: 'startDate',
+            key: 'startDate',
+            render: date => formatDate(date)
+        },
+        {
+            title: 'End Date',
+            dataIndex: 'endDate',
+            key: 'endDate',
+            render: date => date ? formatDate(date) : 'Not set'
+        },
+        {
+            title: 'Description',
+            dataIndex: 'description',
+            key: 'description',
+            render: description => description || 'No description'
+        }
+    ];
+
+    // Unit pricing details for each phase
+    const renderUnitPhasePricing = () => {
+        if (!property.units || !property.phases ||
+            !Array.isArray(property.units) || !Array.isArray(property.phases) ||
+            property.units.length === 0 || property.phases.length === 0) {
+            return <Text>No phase pricing information available</Text>;
+        }
+
+        // Create columns: unit type and one column per phase
+        const columns = [
+            {
+                title: 'Unit Type',
+                dataIndex: 'unitType',
+                key: 'unitType',
+                fixed: 'left',
+                width: 150,
+                render: (text) => {
+                    const typeMap = {
+                        'studio': 'Studio',
+                        'one_bedroom': 'One Bedroom',
+                        'two_bedroom': 'Two Bedroom',
+                        'three_bedroom': 'Three Bedroom',
+                        'penthouse': 'Penthouse',
+                        'shops': 'Shops',
+                        'plot': 'Plot',
+                        'parcel': 'Parcel',
+                        'other': 'Other'
+                    };
+                    return typeMap[text] || text;
+                }
+            },
+            {
+                title: 'Base Price',
+                dataIndex: 'basePrice',
+                key: 'basePrice',
+                fixed: 'left',
+                width: 120,
+                render: price => `KES ${price?.toLocaleString() || 0}`
+            },
+            ...property.phases.map(phase => ({
+                title: (
+                    <div>
+                        {phase.name}
+                        {phase.name === property.currentPhase &&
+                            <Badge status="processing" style={{ marginLeft: 5 }} />
+                        }
+                    </div>
+                ),
+                dataIndex: phase.name,
+                key: phase.name,
+                width: 120,
+                render: (_, record) => {
+                    const phasePrice = record.phasePricing?.find(p => p.phaseName === phase.name);
+                    if (phasePrice) {
+                        return `KES ${phasePrice.price?.toLocaleString() || 0}`;
+                    }
+                    return `KES ${record.basePrice?.toLocaleString() || 0}`;
+                }
+            }))
+        ];
+
+        return (
+            <Table
+                dataSource={property.units}
+                columns={columns}
+                rowKey={record => record._id}
+                pagination={false}
+                size="small"
+                scroll={{ x: 'max-content' }}
+            />
+        );
+    };
+
     return (
         <Drawer
             title={`Property Details`}
@@ -155,6 +295,12 @@ export const PropertyDetailsDrawer = ({
                                 <UserOutlined style={{ marginRight: 8 }} />
                                 Manager: {property.propertyManager?.name}
                             </Text>
+                            {property.currentPhase && (
+                                <Text>
+                                    <TagOutlined style={{ marginRight: 8 }} />
+                                    Current Phase: <Tag color="blue">{property.currentPhase}</Tag>
+                                </Text>
+                            )}
                         </Space>
                     </Col>
                     <Col span={8} style={{ textAlign: 'right' }}>
@@ -243,8 +389,8 @@ export const PropertyDetailsDrawer = ({
                                     <Descriptions.Item label="Constituency">
                                         {property.location?.constituency || 'N/A'}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Date Added">
-                                        {property.createdAt}
+                                    <Descriptions.Item label="Current Phase">
+                                        {property.currentPhase || 'None'}
                                     </Descriptions.Item>
                                 </Descriptions>
                             </Col>
@@ -263,6 +409,26 @@ export const PropertyDetailsDrawer = ({
                             pagination={false}
                             size="small"
                         />
+                    </Card>
+                </TabPane>
+
+                <TabPane tab="Pricing Phases" key="2">
+                    <Card title="Property Phases" style={{ marginBottom: 16 }}>
+                        {property.phases && property.phases.length > 0 ? (
+                            <Table
+                                dataSource={property.phases}
+                                columns={phaseColumns}
+                                rowKey={(record) => record._id || record.name}
+                                pagination={false}
+                                size="small"
+                            />
+                        ) : (
+                            <Text>No phases defined for this property</Text>
+                        )}
+                    </Card>
+
+                    <Card title="Unit Pricing by Phase" style={{ marginBottom: 16 }}>
+                        {renderUnitPhasePricing()}
                     </Card>
                 </TabPane>
 

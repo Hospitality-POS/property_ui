@@ -8,8 +8,8 @@ export default defineConfig({
   },
   esbuildMinifyIIFE: true,
   define: {
-    BASE_URL: 'https://api.property.reliatech.co.ke',
-    //BASE_URL: 'http://localhost:5000',
+    //BASE_URL: 'https://api.property.reliatech.co.ke',
+    BASE_URL: 'http://localhost:5000',
   },
   access: {},
   model: {},
@@ -140,6 +140,12 @@ export default defineConfig({
     //     },
     //   ],
     // },
+    {
+      name: 'Reports',
+      path: '/reports',
+      icon: 'BarChartOutlined',
+      component: './Reports',
+    },
     {
       name: 'User Management',
       path: '/user-management',

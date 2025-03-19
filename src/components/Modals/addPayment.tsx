@@ -26,9 +26,11 @@ const { Text } = Typography;
 const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
     const [form] = Form.useForm();
     const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [selectedSale, setSelectedSale] = useState(null);
     const [selectedPaymentPlan, setSelectedPaymentPlan] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [customerPaymentPlans, setCustomerPaymentPlans] = useState([]);
+    const [customerSales, setCustomerSales] = useState([]);
+    const [salePaymentPlans, setSalePaymentPlans] = useState([]);
 
     // Fetch customers
     const {
@@ -56,8 +58,10 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
         if (visible) {
             form.resetFields();
             setSelectedCustomer(null);
+            setSelectedSale(null);
             setSelectedPaymentPlan(null);
-            setCustomerPaymentPlans([]); // Clear payment plans when modal is opened/closed
+            setCustomerSales([]);
+            setSalePaymentPlans([]);
         }
     }, [visible, form]);
 
@@ -66,38 +70,55 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
         const customer = customersData.find(c => c._id === customerId);
         setSelectedCustomer(customer);
 
+        // Clear previous selections
+        setSelectedSale(null);
+        setSelectedPaymentPlan(null);
+        form.setFieldsValue({
+            sale: undefined,
+            paymentPlan: undefined,
+            amount: undefined
+        });
+
+        // Extract sales from the selected customer
+        if (customer && customer.purchases && Array.isArray(customer.purchases)) {
+            const sales = customer.purchases.map(sale => ({
+                ...sale,
+                propertyName: sale.property?.name || 'Unnamed Property',
+                // Ensure these properties are available for display
+                price: sale.price || sale.totalAmount || 0,
+                unitType: sale.unitType || sale.property?.unitType || 'N/A'
+            }));
+            setCustomerSales(sales);
+        } else {
+            setCustomerSales([]);
+        }
+    };
+
+    // Handle sale selection
+    const handleSaleChange = (saleId) => {
+        const sale = customerSales.find(s => s._id === saleId);
+
+        setSelectedSale(sale);
+
         // Clear previous payment plan selection
         setSelectedPaymentPlan(null);
         form.setFieldsValue({ paymentPlan: undefined, amount: undefined });
 
-        // Get active payment plans from sales associated with this customer
-        if (customer && customer.purchases) {
-            // Extract payment plans from customer's sales
-            const paymentPlans = [];
-            customer.purchases.forEach(sale => {
-                console.log('ooooh god', sale);
-                if (sale.paymentPlans && Array.isArray(sale.paymentPlans)) {
-                    sale.paymentPlans.forEach(plan => {
-                        if (plan.status !== 'completed') {
-                            paymentPlans.push({
-                                ...plan,
-                                saleName: sale.property?.name || 'Unnamed Property',
-                                saleId: sale._id
-                            });
-                        }
-                    });
-                }
-            });
-
-            setCustomerPaymentPlans(paymentPlans);
+        // Extract active payment plans from the selected sale
+        if (sale && sale.paymentPlans && Array.isArray(sale.paymentPlans)) {
+            const activePlans = sale.paymentPlans.filter(plan => plan.status !== 'completed').map(plan => ({
+                ...plan,
+                saleName: sale.propertyName
+            }));
+            setSalePaymentPlans(activePlans);
         } else {
-            setCustomerPaymentPlans([]);
+            setSalePaymentPlans([]);
         }
     };
 
     // Handle payment plan selection
     const handlePaymentPlanChange = (paymentPlanId) => {
-        const plan = customerPaymentPlans.find(p => p._id === paymentPlanId);
+        const plan = salePaymentPlans.find(p => p._id === paymentPlanId);
         setSelectedPaymentPlan(plan);
 
         // Pre-fill the amount with the remaining balance
@@ -117,7 +138,7 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                 ...values,
                 paymentDate: values.paymentDate.format('YYYY-MM-DD'),
                 status: 'completed',
-                saleId: selectedPaymentPlan?.saleId, // Include saleId in the payment data
+                saleId: selectedSale?._id, // Include saleId in the payment data
                 paymentPlanId: selectedPaymentPlan?._id // Include paymentPlanId in the payment data
             };
 
@@ -192,6 +213,25 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                     </Select>
                 </Form.Item>
 
+                {/* Sale Selection */}
+                <Form.Item
+                    name="sale"
+                    label="Sale"
+                    rules={[{ required: true, message: 'Please select a sale' }]}
+                >
+                    <Select
+                        placeholder="Select sale"
+                        onChange={handleSaleChange}
+                        disabled={!selectedCustomer || customerSales.length === 0}
+                    >
+                        {customerSales.map(sale => (
+                            <Option key={sale._id} value={sale._id}>
+                                {sale.propertyName} - {sale.salePrice ? `KES ${sale.salePrice.toLocaleString()}` : 'No price'}
+                            </Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+
                 {/* Payment Plan Selection */}
                 <Form.Item
                     name="paymentPlan"
@@ -201,11 +241,11 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                     <Select
                         placeholder="Select payment plan"
                         onChange={handlePaymentPlanChange}
-                        disabled={!selectedCustomer || customerPaymentPlans.length === 0}
+                        disabled={!selectedSale || salePaymentPlans.length === 0}
                     >
-                        {customerPaymentPlans.map(plan => (
+                        {salePaymentPlans.map(plan => (
                             <Option key={plan._id} value={plan._id}>
-                                {plan.saleName} - KES {plan.installmentAmount?.toLocaleString() || '0'} outstanding
+                                KES {plan.installmentAmount?.toLocaleString() || '0'} outstanding
                             </Option>
                         ))}
                     </Select>
@@ -265,6 +305,12 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                     </Form.Item>
                 </Space>
 
+                <Form.Item
+                    name="includesPenalty"
+                    valuePropName="checked"
+                >
+                    <Checkbox>Includes Penalty</Checkbox>
+                </Form.Item>
 
                 {/* Conditionally show penalty amount if includes penalty is checked */}
                 <Form.Item

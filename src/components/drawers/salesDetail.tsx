@@ -18,7 +18,8 @@ import {
     Descriptions,
     Space,
     Empty,
-    Alert
+    Alert,
+    Tooltip
 } from 'antd';
 import {
     HomeOutlined,
@@ -29,7 +30,9 @@ import {
     MailOutlined,
     PhoneOutlined,
     DollarOutlined,
-    CalendarOutlined
+    CalendarOutlined,
+    WarningOutlined,
+    ClockCircleOutlined
 } from '@ant-design/icons';
 import React, { useEffect } from 'react';
 
@@ -108,6 +111,53 @@ export const SaleDetailsDrawer = ({
                 refreshData();
             }
         });
+    };
+
+    // Function to check if a payment plan is overdue
+    const isPaymentPlanOverdue = (plan) => {
+        if (!plan || plan.status === 'completed') return false;
+
+        // Check if the plan has a due date
+        if (plan.nextPaymentDue) {
+            const dueDate = new Date(plan.nextPaymentDue);
+            const today = new Date();
+            return dueDate < today;
+        }
+
+        // Alternative: check if last payment was more than 30 days ago
+        if (plan.payments && plan.payments.length > 0) {
+            const lastPayment = plan.payments.sort((a, b) =>
+                new Date(b.paymentDate) - new Date(a.paymentDate)
+            )[0];
+
+            const lastPaymentDate = new Date(lastPayment.paymentDate);
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+
+            return lastPaymentDate < thirtyDaysAgo && plan.outstandingBalance > 0;
+        }
+
+        return false;
+    };
+
+    // Function to get the payment plan status display with overdue consideration
+    const getPaymentPlanStatusDisplay = (plan) => {
+        if (isPaymentPlanOverdue(plan)) {
+            return {
+                text: 'Overdue',
+                color: 'red',
+                icon: <WarningOutlined />
+            };
+        }
+
+        const statusMap = {
+            'active': { text: 'Active', color: 'green', icon: null },
+            'completed': { text: 'Completed', color: 'blue', icon: null },
+            'pending': { text: 'Pending', color: 'orange', icon: <ClockCircleOutlined /> }
+        };
+
+        return statusMap[plan.status] || { text: plan.status ? plan.status.charAt(0).toUpperCase() + plan.status.slice(1) : 'Unknown', color: 'default', icon: null };
     };
 
     const unitInfo = getUnitInfo();
@@ -375,6 +425,10 @@ export const SaleDetailsDrawer = ({
                             <Card style={{ marginBottom: 16 }}>
                                 {(() => {
                                     const stats = calculatePaymentStats(sale);
+
+                                    // Check if any payment plans are overdue
+                                    const hasOverduePlans = sale.paymentPlans.some(plan => isPaymentPlanOverdue(plan));
+
                                     return (
                                         <>
                                             <Row gutter={16}>
@@ -403,7 +457,19 @@ export const SaleDetailsDrawer = ({
                                                 </Col>
                                             </Row>
                                             <div style={{ marginTop: 16 }}>
-                                                <Progress percent={Math.round(stats.paidPercentage)} status="active" />
+                                                <Progress
+                                                    percent={Math.round(stats.paidPercentage)}
+                                                    status={hasOverduePlans ? "exception" : "active"}
+                                                />
+                                                {hasOverduePlans && (
+                                                    <Alert
+                                                        message="Payment Overdue"
+                                                        description="One or more payment plans have overdue payments."
+                                                        type="warning"
+                                                        showIcon
+                                                        style={{ marginTop: 8 }}
+                                                    />
+                                                )}
                                             </div>
                                         </>
                                     );
@@ -413,6 +479,7 @@ export const SaleDetailsDrawer = ({
                             <Table
                                 dataSource={sale.paymentPlans}
                                 rowKey={record => record._id || Math.random().toString()}
+                                rowClassName={record => isPaymentPlanOverdue(record) ? 'ant-table-row-overdue' : ''}
                                 expandable={{
                                     expandedRowRender: (plan) => {
                                         return (
@@ -429,6 +496,19 @@ export const SaleDetailsDrawer = ({
                                                             <Descriptions.Item label="Total Amount">
                                                                 {formatCurrency(plan.totalAmount)}
                                                             </Descriptions.Item>
+                                                            {plan.endDate && (
+                                                                <Descriptions.Item label="Next Payment Due">
+                                                                    <span style={{
+                                                                        color: isPaymentPlanOverdue(plan) ? '#cf1322' : 'inherit',
+                                                                        fontWeight: isPaymentPlanOverdue(plan) ? 'bold' : 'normal'
+                                                                    }}>
+                                                                        {formatDate(plan.endDate)}
+                                                                        {isPaymentPlanOverdue(plan) && (
+                                                                            <WarningOutlined style={{ marginLeft: 8, color: '#cf1322' }} />
+                                                                        )}
+                                                                    </span>
+                                                                </Descriptions.Item>
+                                                            )}
                                                         </Descriptions>
                                                     </Col>
                                                     <Col span={12}>
@@ -448,7 +528,10 @@ export const SaleDetailsDrawer = ({
                                                                             <Progress
                                                                                 percent={Math.round(paidPercentage)}
                                                                                 size="small"
-                                                                                status={paidPercentage === 100 ? "success" : "active"}
+                                                                                status={
+                                                                                    isPaymentPlanOverdue(plan) ? "exception" :
+                                                                                        paidPercentage === 100 ? "success" : "active"
+                                                                                }
                                                                             />
                                                                         </Descriptions.Item>
                                                                     </>
@@ -556,40 +639,54 @@ export const SaleDetailsDrawer = ({
                                         render: amount => formatCurrency(amount)
                                     },
                                     {
-                                        title: 'Start Date',
-                                        dataIndex: 'startDate',
-                                        key: 'startDate',
-                                        render: date => formatDate(date)
+                                        title: 'Next Payment',
+                                        dataIndex: 'endDate',
+                                        key: 'endDate',
+                                        render: (date, record) => {
+                                            if (!date) return 'N/A';
+                                            const isOverdue = isPaymentPlanOverdue(record);
+                                            return (
+                                                <span style={{ color: isOverdue ? '#cf1322' : 'inherit' }}>
+                                                    {formatDate(date)}
+                                                    {isOverdue && (
+                                                        <Tooltip title="Payment overdue">
+                                                            <WarningOutlined style={{ marginLeft: 8, color: '#cf1322' }} />
+                                                        </Tooltip>
+                                                    )}
+                                                </span>
+                                            );
+                                        }
                                     },
                                     {
                                         title: 'Status',
                                         dataIndex: 'status',
                                         key: 'status',
-                                        render: status => (
-                                            <Tag color={
-                                                status === 'active' ? 'green' :
-                                                    status === 'completed' ? 'blue' :
-                                                        status === 'pending' ? 'orange' : 'red'
-                                            }>
-                                                {status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
-                                            </Tag>
-                                        )
+                                        render: (status, record) => {
+                                            const statusDisplay = getPaymentPlanStatusDisplay(record);
+                                            return (
+                                                <Tag color={statusDisplay.color}>
+                                                    {statusDisplay.icon && <span style={{ marginRight: 4 }}>{statusDisplay.icon}</span>}
+                                                    {statusDisplay.text}
+                                                </Tag>
+                                            );
+                                        }
                                     },
                                     {
                                         title: 'Actions',
                                         key: 'actions',
                                         render: (text, record) => (
                                             <Space>
-                                                {record.status === 'active' && sale.status !== 'completed' && sale.status !== 'cancelled' && (
-                                                    <Button
-                                                        type="primary"
-                                                        onClick={() => handleAddPayment(sale, record)}
-                                                        icon={<DollarOutlined />}
-                                                        size="small"
-                                                    >
-                                                        Make Payment
-                                                    </Button>
-                                                )}
+                                                {(record.status === 'active' || isPaymentPlanOverdue(record)) &&
+                                                    sale.status !== 'completed' && sale.status !== 'cancelled' && (
+                                                        <Button
+                                                            type={isPaymentPlanOverdue(record) ? "danger" : "primary"}
+                                                            onClick={() => handleAddPayment(sale, record)}
+                                                            icon={<DollarOutlined />}
+                                                            size="small"
+                                                        >
+                                                            {isPaymentPlanOverdue(record) ? "Pay Overdue" : "Make Payment"}
+                                                        </Button>
+                                                    )}
                                                 <Button size="small" icon={<FileTextOutlined />}>
                                                     Details
                                                 </Button>
@@ -617,6 +714,9 @@ export const SaleDetailsDrawer = ({
                         <Card style={{ marginBottom: 16 }}>
                             {(() => {
                                 const stats = calculatePaymentStats(sale);
+                                const hasOverduePlans = sale.paymentPlans &&
+                                    sale.paymentPlans.some(plan => isPaymentPlanOverdue(plan));
+
                                 return (
                                     <>
                                         <Row gutter={16}>
@@ -645,7 +745,18 @@ export const SaleDetailsDrawer = ({
                                             </Col>
                                         </Row>
                                         <div style={{ marginTop: 16 }}>
-                                            <Progress percent={Math.round(stats.paidPercentage)} status="active" />
+                                            <Progress
+                                                percent={Math.round(stats.paidPercentage)}
+                                                status={hasOverduePlans ? "exception" : "active"}
+                                            />
+                                            {hasOverduePlans && (
+                                                <Alert
+                                                    message="Payment Overdue"
+                                                    description="One or more payment plans have overdue payments."
+                                                    type="warning"
+                                                    showIcon
+                                                    style={{ marginTop: 8 }} />
+                                            )}
                                         </div>
                                     </>
                                 );
@@ -909,6 +1020,13 @@ export const SaleDetailsDrawer = ({
                         <div style={{ marginTop: 8 }}>
                             <Text strong>Sale Date:</Text> {formatDate(sale.saleDate)}
                         </div>
+
+                        {/* Show overdue badge if any payment plan is overdue */}
+                        {sale.paymentPlans && sale.paymentPlans.some(plan => isPaymentPlanOverdue(plan)) && (
+                            <Tag color="red" style={{ marginTop: 8, fontSize: '14px', padding: '4px 8px' }}>
+                                <WarningOutlined /> Payment Overdue
+                            </Tag>
+                        )}
                     </Col>
                 </Row>
             </div>
@@ -972,6 +1090,32 @@ export const SaleDetailsDrawer = ({
                         </Descriptions>
                     </Col>
                 </Row>
+
+                {/* Add a warning if there's an overdue payment */}
+                {sale.paymentPlans && sale.paymentPlans.some(plan => isPaymentPlanOverdue(plan)) && (
+                    <Alert
+                        message="Payment Attention Required"
+                        description="This sale has overdue payments that require immediate attention."
+                        type="warning"
+                        showIcon
+                        style={{ marginTop: 16 }}
+                        action={
+                            <Button
+                                size="small"
+                                danger
+                                onClick={() => {
+                                    // Find the first overdue plan
+                                    const overduePlan = sale.paymentPlans.find(plan => isPaymentPlanOverdue(plan));
+                                    if (overduePlan) {
+                                        handleAddPayment(sale, overduePlan);
+                                    }
+                                }}
+                            >
+                                Process Payment
+                            </Button>
+                        }
+                    />
+                )}
             </Card>
 
             {/* This is the key part that fixes the issue */}

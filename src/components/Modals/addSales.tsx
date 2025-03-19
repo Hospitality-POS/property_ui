@@ -61,6 +61,10 @@ export const AddSaleModal = ({
     const [availableUnits, setAvailableUnits] = useState([]);
     const [quantity, setQuantity] = useState(1);
 
+    // New state for phase selection
+    const [availablePhases, setAvailablePhases] = useState([]);
+    const [selectedPhase, setSelectedPhase] = useState(null);
+
     // Refs for user modals
     const agentModalActionRef = useRef();
     const managerModalActionRef = useRef();
@@ -71,35 +75,91 @@ export const AddSaleModal = ({
         if (property) {
             setSelectedProperty(property);
 
-            // Find all available units
-            const units = property.units ? property.units.filter(unit =>
-                unit.status !== 'sold' && unit.availableUnits > 0
-            ) : [];
+            // Get available phases from the property
+            const phases = property.phases ? property.phases.filter(phase => phase) : [];
+            setAvailablePhases(phases);
 
-            setAvailableUnits(units);
+            // Set current phase as default if available
+            if (property.currentPhase) {
+                setSelectedPhase(property.currentPhase);
+                form.setFieldsValue({
+                    phase: property.currentPhase
+                });
+            } else if (phases.length > 0) {
+                // Otherwise set the first phase as default
+                const activePhase = phases.find(phase => phase.active);
+                if (activePhase) {
+                    setSelectedPhase(activePhase.name);
+                    form.setFieldsValue({
+                        phase: activePhase.name
+                    });
+                } else {
+                    setSelectedPhase(phases[0].name);
+                    form.setFieldsValue({
+                        phase: phases[0].name
+                    });
+                }
+            }
 
             // Reset unit selection
             form.setFieldsValue({
                 unit: undefined,
-                listPrice: undefined
+                listPrice: undefined,
+                salePrice: undefined
             });
+
+            // Clear available units until phase is selected
+            setAvailableUnits([]);
         }
+    };
+
+    // Handle phase selection
+    const handlePhaseChange = (phaseName) => {
+        setSelectedPhase(phaseName);
+
+        if (!selectedProperty) return;
+
+        // Filter units based on selected phase and availability
+        const filteredUnits = selectedProperty.units ? selectedProperty.units.filter(unit => {
+            // Check if unit has the selected phase in pricing and is available
+            const hasPhase = unit.phasePricing && unit.phasePricing.some(
+                pricing => pricing.phaseName === phaseName
+            );
+            return hasPhase && unit.status !== 'sold' && unit.availableUnits > 0;
+        }) : [];
+
+        setAvailableUnits(filteredUnits);
+
+        // Reset unit selection
+        form.setFieldsValue({
+            unit: undefined,
+            listPrice: undefined,
+            salePrice: undefined
+        });
     };
 
     // Handle unit selection
     const handleUnitChange = (unitId) => {
-        if (!selectedProperty || !unitId) return;
+        if (!selectedProperty || !unitId || !selectedPhase) return;
 
         const unit = selectedProperty.units.find(u => (u._id || u.id) === unitId);
         if (unit) {
+            // Find the price for the selected phase
+            const phasePrice = unit.phasePricing.find(
+                pricing => pricing.phaseName === selectedPhase
+            );
+
+            // Use phase price if available, otherwise use base price
+            const price = phasePrice ? phasePrice.price : unit.basePrice;
+
             form.setFieldsValue({
-                listPrice: unit.price,
-                salePrice: unit.price
+                listPrice: price,
+                salePrice: price
             });
 
             // Update form with unit details
             form.setFieldsValue({
-                unitType: unit.type,
+                unitType: unit.unitType,
                 plotSize: unit.plotSize || ''
             });
 
@@ -137,7 +197,6 @@ export const AddSaleModal = ({
 
     // Handle agent selection change
     const handleAgentChange = (value) => {
-
         if (value === "add_new") {
             // Trigger the user modal via ref
             if (agentModalActionRef.current) {
@@ -155,7 +214,6 @@ export const AddSaleModal = ({
 
     // Handle property manager selection change
     const handlePropertyManagerChange = (value) => {
-
         if (value === "add_new") {
             // Trigger the user modal via ref
             if (managerModalActionRef.current) {
@@ -173,8 +231,6 @@ export const AddSaleModal = ({
 
     // Function to handle successful agent addition
     const handleAgentAdded = (newAgent) => {
-
-
         // Call the parent component's handler with the new agent data
         if (onAgentAdded && newAgent) {
             onAgentAdded(newAgent);
@@ -188,8 +244,6 @@ export const AddSaleModal = ({
 
     // Function to handle successful property manager addition
     const handlePropertyManagerAdded = (newManager) => {
-
-
         // Call the parent component's handler with the new manager data
         if (onPropertyManagerAdded && newManager) {
             onPropertyManagerAdded(newManager);
@@ -247,7 +301,6 @@ export const AddSaleModal = ({
 
     // Prefill installments from existing payment plans when in edit mode
     useEffect(() => {
-
         // If the sale is already paid, show a notification
         if (isEditMode && saleToEdit?.status === 'completed') {
             Modal.info({
@@ -262,14 +315,36 @@ export const AddSaleModal = ({
             // Set the quantity
             setQuantity(saleToEdit.quantity || 1);
 
-            // If we have a property, find it and set available units
+            // If we have a property, find it and set available units and phases
             if (saleToEdit.property) {
                 const property = propertiesData.find(p =>
                     (p._id || p.id) === (saleToEdit.property._id || saleToEdit.property)
                 );
                 if (property) {
                     setSelectedProperty(property);
-                    setAvailableUnits(property.units || []);
+
+                    // Set available phases
+                    const phases = property.phases ? property.phases.filter(phase => phase) : [];
+                    setAvailablePhases(phases);
+
+                    // Set the phase used in the sale
+                    if (saleToEdit.phase) {
+                        setSelectedPhase(saleToEdit.phase);
+                    } else if (property.currentPhase) {
+                        setSelectedPhase(property.currentPhase);
+                    }
+
+                    // Find all available units filtered by the selected phase
+                    const phaseUnits = property.units ? property.units.filter(unit => {
+                        // Include the sold unit if it's the one in this sale
+                        const isCurrentSaleUnit = saleToEdit.unit &&
+                            ((unit._id && unit._id.toString() === saleToEdit.unit.toString()) ||
+                                (unit.id && unit.id.toString() === saleToEdit.unit.toString()));
+
+                        return isCurrentSaleUnit || (unit.status !== 'sold' && unit.availableUnits > 0);
+                    }) : [];
+
+                    setAvailableUnits(phaseUnits);
                 }
             }
         }
@@ -286,10 +361,8 @@ export const AddSaleModal = ({
             // Create installments from all payment plans
             const allInstallments = [];
 
-
             // For each payment plan, we need to create installments
             saleToEdit.paymentPlans.forEach((paymentPlan) => {
-
                 // Create a special label for this payment plan to group installments
                 allInstallments.push({
                     key: `plan-header-${paymentPlan._id}`,
@@ -301,7 +374,6 @@ export const AddSaleModal = ({
                 });
 
                 if (paymentPlan.installments && paymentPlan.installments.length > 0) {
-
                     paymentPlan.installments.forEach((installment, index) => {
                         allInstallments.push({
                             key: `${paymentPlan._id}-${index}`,
@@ -315,12 +387,10 @@ export const AddSaleModal = ({
                 }
             });
 
-
             if (allInstallments.length > 0) {
                 setInstallments(allInstallments);
             } else {
                 // Fallback - create at least one default installment if none were created
-
                 setInstallments([{
                     key: 'default-0',
                     amount: 0,
@@ -331,7 +401,6 @@ export const AddSaleModal = ({
             }
         } else if (isEditMode && saleToEdit && form.getFieldValue('paymentPlan') === 'Installment') {
             // If we're in edit mode but no payment plans, add a default installment
-
             if (installments.length === 0) {
                 setInstallments([{
                     key: 'default-0',
@@ -469,25 +538,23 @@ export const AddSaleModal = ({
                             </Col>
                         </Row>
 
-                        {/* Unit Selection Row */}
+                        {/* Phase Selection Row */}
                         <Row gutter={16}>
                             <Col span={12}>
                                 <Form.Item
-                                    label="Select Unit"
-                                    name="unit"
-                                    rules={[{ required: true, message: "Please select a unit" }]}
+                                    label="Select Phase"
+                                    name="phase"
+                                    rules={[{ required: true, message: "Please select a phase" }]}
                                 >
                                     <Select
-                                        showSearch
                                         style={{ width: "100%" }}
-                                        placeholder="Select unit"
-                                        optionFilterProp="children"
-                                        onChange={handleUnitChange}
+                                        placeholder="Select phase"
+                                        onChange={handlePhaseChange}
                                         disabled={!selectedProperty || isEditMode} // Disable if no property selected or in edit mode
                                     >
-                                        {availableUnits.map((unit) => (
-                                            <Option key={unit._id || unit.id} value={unit._id || unit.id}>
-                                                {unit.unitType || unit.type} - {unit.plotSize ? `${unit.plotSize} sqm -` : ''} {formatCurrency(unit.price)}
+                                        {availablePhases.map((phase) => (
+                                            <Option key={phase.name} value={phase.name}>
+                                                {phase.name} {phase.active ? '(Active)' : ''}
                                             </Option>
                                         ))}
                                     </Select>
@@ -506,6 +573,48 @@ export const AddSaleModal = ({
                                         onChange={handleQuantityChange}
                                         disabled={isEditMode} // Disable in edit mode
                                     />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+
+                        {/* Unit Selection Row */}
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Select Unit"
+                                    name="unit"
+                                    rules={[{ required: true, message: "Please select a unit" }]}
+                                >
+                                    <Select
+                                        showSearch
+                                        style={{ width: "100%" }}
+                                        placeholder="Select unit"
+                                        optionFilterProp="children"
+                                        onChange={handleUnitChange}
+                                        disabled={!selectedProperty || !selectedPhase || isEditMode} // Disable if no property or phase selected or in edit mode
+                                    >
+                                        {availableUnits.map((unit) => {
+                                            // Find the price for this unit in the selected phase
+                                            const phasePrice = unit.phasePricing && unit.phasePricing.find(
+                                                p => p.phaseName === selectedPhase
+                                            );
+                                            const price = phasePrice ? phasePrice.price : unit.basePrice;
+
+                                            return (
+                                                <Option key={unit._id || unit.id} value={unit._id || unit.id}>
+                                                    {unit.unitType || unit.type} - {unit.plotSize ? `${unit.plotSize} sqm -` : ''} {formatCurrency(price)}
+                                                </Option>
+                                            );
+                                        })}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Unit Type"
+                                    name="unitType"
+                                >
+                                    <Input disabled />
                                 </Form.Item>
                             </Col>
                         </Row>
@@ -675,8 +784,7 @@ export const AddSaleModal = ({
                                     >
                                         {managersData && managersData.map(manager => (
                                             <Option key={manager._id || manager.id} value={manager._id || manager.id}>
-                                                {manager.name} - {manager.email}
-                                            </Option>
+                                                {manager.name} - {manager.email}</Option>
                                         ))}
                                         <Option key="add_new" value="add_new" style={{ color: "blue" }}>
                                             + Add New Property Manager
