@@ -16,12 +16,13 @@ export const loginUser = async (
       password,
       companyCode,
     });
-    console.log('nice working', response.data.tenant);
 
     if (response.data.tenant) {
       localStorage.setItem('companyCode', response.data.tenant.tenant_code);
-      localStorage.setItem('property_token', response.data.token);
     }
+
+    localStorage.setItem('property_token', response.data.token);
+
 
     return response.data;
   } catch (error) {

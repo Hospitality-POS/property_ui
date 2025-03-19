@@ -1,29 +1,34 @@
 import { message } from 'antd';
 import axios from 'axios';
-
+import { history } from '@umijs/max'; // using Umi routing
 import { getToken } from '@/utils/getToken';
 
-const { token } = getToken();
 
-// Helper function to handle errors
+let isRedirecting = false; // ✅ Prevent multiple redirects and API calls
+
 const handleError = (errorMessage: string) => {
-  message.error(`${errorMessage}`);
+  if (!isRedirecting) {
+    message.error(`${errorMessage}`);
+  }
 };
 
-// Create an axios instance with the base URL and timeout
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
 });
 
-// Interceptor to add authorization token to each request if available
 axiosInstance.interceptors.request.use(
   (config) => {
+    if (isRedirecting) {
+      // ✅ Stop sending requests if already redirecting
+      return new Promise(() => { });
+    }
+
+    const { token } = getToken();
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
 
     const storedCode = localStorage.getItem('companyCode');
-
     if (storedCode || config.data?.companyCode) {
       config.headers['companyCode'] = storedCode || config.data?.companyCode;
     }
@@ -31,32 +36,49 @@ axiosInstance.interceptors.request.use(
     return config;
   },
   (error) => {
-    handleError('Request failed');
+    handleError('Request setup failed');
     return Promise.reject(error);
   },
 );
 
-// Interceptor to handle response errors globally
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const { response } = error;
+  async (error) => {
+    const { config, response } = error;
+    const originalRequest = config;
+
     if (response && response.status === 401) {
-      handleError('Unauthorized. Please login again.');
-    } else if (response.status === 403) {
+      originalRequest._retryCount = originalRequest._retryCount || 0;
+
+      if (originalRequest._retryCount < 2) {
+        originalRequest._retryCount += 1;
+        const { token } = getToken();
+        if (token) {
+          originalRequest.headers['Authorization'] = `Bearer ${token}`;
+          return axiosInstance(originalRequest);
+        }
+      }
+
+      if (!isRedirecting) {
+        isRedirecting = true;
+        history.push('/login');
+        // ✅ Don't throw error or fire messages after redirect
+        return new Promise(() => { });
+      }
+
+      return new Promise(() => { });
+    } else if (response?.status === 403) {
       handleError(response.data.message);
-    } else if (response.status === 409) {
-      handleError('Company does not exist kindly contact support ');
-    } else if (response.status === 404) {
+    } else if (response?.status === 409) {
+      handleError('Company does not exist. Kindly contact support.');
+    } else if (response?.status === 404) {
       handleError(response.data.message);
-    } else {
-      // handleError("An error occurred while processing your request.");
     }
+
     return Promise.reject(error);
   },
 );
 
-// Utility functions for different HTTP methods
 export const getRequest = (url: string, config = {}) =>
   axiosInstance.get(url, config);
 

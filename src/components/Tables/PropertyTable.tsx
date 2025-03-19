@@ -98,7 +98,7 @@ export const PropertyTable = ({
             onFilter: (value, record) => record.propertyType === value,
         },
         {
-            title: 'Current Phase 7',
+            title: 'Current Phase',
             dataIndex: 'currentPhase',
             key: 'currentPhase',
             width: 130,
