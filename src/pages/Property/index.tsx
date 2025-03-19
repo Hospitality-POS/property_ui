@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import moment from 'moment';
 import {
-  Button, Col, DatePicker, Form, Input, Row, Select, Space, Statistic, message, Menu, Dropdown
+  Button, Col, DatePicker, Form, Input, Row, Select, Space, Statistic, message, Menu, Dropdown, Tag, Tooltip
 } from 'antd';
 import {
   BankOutlined, CheckCircleOutlined, ClockCircleOutlined,
   DollarOutlined, DownOutlined, ExportOutlined, FileExcelOutlined,
-  PlusOutlined, PrinterOutlined, SearchOutlined
+  PlusOutlined, PrinterOutlined, SearchOutlined, TagOutlined
 } from '@ant-design/icons';
 import { PropertyStatistics } from '../../components/statistics/propertStatistics';
 import { PropertyTable } from '../../components/Tables/PropertyTable';
@@ -32,11 +32,15 @@ const PropertyManager = () => {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
   const [propertyStatusFilter, setPropertyStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState(null);
+  const [phaseFilter, setPhaseFilter] = useState('all');
   const [isEditMode, setIsEditMode] = useState(false);
   const [form] = Form.useForm();
 
   // Add state to hold property managers
   const [localPropertyManagersData, setLocalPropertyManagersData] = useState([]);
+
+  // State to hold all available phases
+  const [availablePhases, setAvailablePhases] = useState([]);
 
   // Date formatting helper
   const formatDate = (dateString) => {
@@ -120,7 +124,31 @@ const PropertyManager = () => {
       }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => {
+      // Extract all unique phases from properties
+      const phases = new Set();
+
+      if (Array.isArray(data)) {
+        data.forEach(property => {
+          // Add current phase if it exists
+          if (property.currentPhase) {
+            phases.add(property.currentPhase);
+          }
+
+          // Add all phases from the phases array
+          if (Array.isArray(property.phases)) {
+            property.phases.forEach(phase => {
+              if (phase.name) {
+                phases.add(phase.name);
+              }
+            });
+          }
+        });
+      }
+
+      setAvailablePhases(Array.from(phases));
+    }
   });
 
   // Get property managers to use - prefer local state for immediate updates
@@ -324,14 +352,38 @@ const PropertyManager = () => {
     setDateRange(dates);
   };
 
+  // Phase filter change handler
+  const handlePhaseFilterChange = (value) => {
+    setPhaseFilter(value);
+  };
+
+  // Helper to get the unit price based on phase
+  const getUnitPriceForPhase = (unit, phaseName) => {
+    // If there's no phase pricing or no specific phase, return the current price or base price
+    if (!Array.isArray(unit.phasePricing) || !phaseName) {
+      return parseFloat(unit.price) || parseFloat(unit.basePrice) || 0;
+    }
+
+    // Look for the specified phase in the unit's phase pricing
+    const phasePrice = unit.phasePricing.find(p => p.phaseName === phaseName);
+    if (phasePrice) {
+      return parseFloat(phasePrice.price) || 0;
+    }
+
+    // Fall back to current price or base price if phase isn't found
+    return parseFloat(unit.price) || parseFloat(unit.basePrice) || 0;
+  };
+
   // Statistics calculations
   const getTotalPropertyValue = () => {
-    // Calculate total value based on units prices
-    return propertiesData.reduce((total, property) => {
+    // Calculate total value based on units prices and current phases
+    return filteredProperties.reduce((total, property) => {
       // If property has units, sum their values
       if (property.units && Array.isArray(property.units)) {
         const unitsValue = property.units.reduce((unitTotal, unit) => {
-          return unitTotal + (unit.price * unit.totalUnits || 0);
+          // Get the correct price based on current phase
+          const price = getUnitPriceForPhase(unit, property.currentPhase);
+          return unitTotal + (price * unit.totalUnits || 0);
         }, 0);
         return total + unitsValue;
       }
@@ -340,20 +392,20 @@ const PropertyManager = () => {
   };
 
   const getAvailablePropertiesCount = () => {
-    return propertiesData.filter((property) => property.status === 'available').length;
+    return filteredProperties.filter((property) => property.status === 'available').length;
   };
 
   const getReservedPropertiesCount = () => {
-    return propertiesData.filter((property) => property.status === 'reserved').length;
+    return filteredProperties.filter((property) => property.status === 'reserved').length;
   };
 
   const getSoldPropertiesCount = () => {
-    return propertiesData.filter((property) => property.status === 'sold').length;
+    return filteredProperties.filter((property) => property.status === 'sold').length;
   };
 
   // Get total units count (across all properties)
   const getTotalUnitsCount = () => {
-    return propertiesData.reduce((total, property) => {
+    return filteredProperties.reduce((total, property) => {
       if (property.units && Array.isArray(property.units)) {
         const totalUnits = property.units.reduce((sum, unit) => sum + (unit.totalUnits || 0), 0);
         return total + totalUnits;
@@ -364,7 +416,7 @@ const PropertyManager = () => {
 
   // Get available units count
   const getAvailableUnitsCount = () => {
-    return propertiesData.reduce((total, property) => {
+    return filteredProperties.reduce((total, property) => {
       if (property.units && Array.isArray(property.units)) {
         const availableUnits = property.units.reduce((sum, unit) => sum + (unit.availableUnits || 0), 0);
         return total + availableUnits;
@@ -379,13 +431,17 @@ const PropertyManager = () => {
       property._id?.toLowerCase().includes(searchText.toLowerCase()) ||
       property.name?.toLowerCase().includes(searchText.toLowerCase()) ||
       property.location?.address?.toLowerCase().includes(searchText.toLowerCase()) ||
-      property.propertyManager?.name?.toLowerCase().includes(searchText.toLowerCase());
+      property.propertyManager?.name?.toLowerCase().includes(searchText.toLowerCase()) ||
+      (property.currentPhase && property.currentPhase.toLowerCase().includes(searchText.toLowerCase()));
 
     const matchesType =
       propertyTypeFilter === 'all' || property.propertyType === propertyTypeFilter;
 
     const matchesStatus =
       propertyStatusFilter === 'all' || property.status === propertyStatusFilter;
+
+    const matchesPhase =
+      phaseFilter === 'all' || property.currentPhase === phaseFilter;
 
     let matchesDateRange = true;
     if (dateRange && dateRange[0] && dateRange[1]) {
@@ -395,8 +451,27 @@ const PropertyManager = () => {
       matchesDateRange = addedDate >= startDate && addedDate <= endDate;
     }
 
-    return matchesSearch && matchesType && matchesStatus && matchesDateRange;
+    return matchesSearch && matchesType && matchesStatus && matchesPhase && matchesDateRange;
   });
+
+  // Custom property table columns to include phase information
+  const getCustomPropertyTableColumns = (defaultColumns) => {
+    if (!Array.isArray(defaultColumns)) return defaultColumns;
+
+    // Find where to insert the phase column (usually after name)
+    const nameColumnIndex = defaultColumns.findIndex(col => col.dataIndex === 'name');
+    const insertIndex = nameColumnIndex >= 0 ? nameColumnIndex + 1 : 2; // Insert after name or at position 2
+
+
+
+    // Create a new array with the phase column inserted
+    const updatedColumns = [
+      ...defaultColumns.slice(0, insertIndex),
+      ...defaultColumns.slice(insertIndex)
+    ];
+
+    return updatedColumns;
+  };
 
   return (
     <>
@@ -415,8 +490,8 @@ const PropertyManager = () => {
         totalValue={getTotalPropertyValue()}
         availableCount={getAvailablePropertiesCount()}
         reservedCount={getReservedPropertiesCount()}
-        soldCount={propertiesData.length - (getAvailablePropertiesCount() + getReservedPropertiesCount())}
-        totalCount={propertiesData.length}
+        soldCount={getSoldPropertiesCount()}
+        totalCount={filteredProperties.length}
         totalUnits={getTotalUnitsCount()}
         availableUnits={getAvailableUnitsCount()}
       />
@@ -425,14 +500,14 @@ const PropertyManager = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={24} md={6}>
           <Input
-            placeholder="Search by ID, name, location or manager..."
+            placeholder="Search by ID, name, location, phase or manager..."
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={handleSearch}
             allowClear
           />
         </Col>
-        <Col xs={24} sm={8} md={5}>
+        <Col xs={24} sm={8} md={4}>
           <Select
             style={{ width: '100%' }}
             placeholder="Filter by Type"
@@ -444,7 +519,7 @@ const PropertyManager = () => {
             <Option value="apartment">Apartment</Option>
           </Select>
         </Col>
-        <Col xs={24} sm={8} md={5}>
+        <Col xs={24} sm={8} md={4}>
           <Select
             style={{ width: '100%' }}
             placeholder="Filter by Status"
@@ -458,7 +533,20 @@ const PropertyManager = () => {
             <Option value="under_construction">Under Construction</Option>
           </Select>
         </Col>
-        <Col xs={24} sm={8} md={6}>
+        <Col xs={24} sm={8} md={4}>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Filter by Phase"
+            defaultValue="all"
+            onChange={handlePhaseFilterChange}
+          >
+            <Option value="all">All Phases</Option>
+            {availablePhases.map(phase => (
+              <Option key={phase} value={phase}>{phase}</Option>
+            ))}
+          </Select>
+        </Col>
+        <Col xs={24} sm={8} md={4}>
           <RangePicker
             style={{ width: '100%' }}
             placeholder={['Start Date', 'End Date']}
@@ -485,7 +573,7 @@ const PropertyManager = () => {
         </Col>
       </Row>
 
-      {/* Properties Table Component */}
+      {/* Properties Table Component with customized columns */}
       <PropertyTable
         properties={filteredProperties}
         onView={handleViewProperty}
@@ -494,9 +582,11 @@ const PropertyManager = () => {
         formatPropertyType={formatPropertyType}
         formatStatus={formatStatus}
         formatDate={formatDate}
+        getCustomColumns={getCustomPropertyTableColumns}
+        getUnitPriceForPhase={getUnitPriceForPhase}
       />
 
-      {/* Property Details Drawer */}
+      {/* Property Details Drawer with phase information */}
       <PropertyDetailsDrawer
         visible={drawerVisible}
         property={selectedProperty}
@@ -506,9 +596,10 @@ const PropertyManager = () => {
         formatPropertyType={formatPropertyType}
         formatStatus={formatStatus}
         formatDate={formatDate}
+        getUnitPriceForPhase={getUnitPriceForPhase}
       />
 
-      {/* Add/Edit Property Modal */}
+      {/* Add/Edit Property Modal with phase support */}
       <AddPropertyModal
         visible={addPropertyVisible}
         isEditMode={isEditMode}

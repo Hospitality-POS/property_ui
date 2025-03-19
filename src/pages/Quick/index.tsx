@@ -13,7 +13,7 @@ import { fetchAllSales } from '@/services/sales';
 import AddPropertyModal from "../../components/Modals/addProperty";
 import AddLeadModal from "../../components/Modals/addLead";
 import CustomerModal from "../../components/Modals/addCustomer";
-import AddUserModal from "@/pages/Users/components/modal/AddUserModal";
+import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 import AddSaleModal from "../../components/Modals/addSales";
 import AddValuationModal from "../../components/Modals/addValuation";
 import PaymentModal from "../../components/Modals/addPayment";
@@ -37,6 +37,9 @@ const QuickPage = () => {
     const [valuationsForm] = Form.useForm();
     const [paymentForm] = Form.useForm();
     const [loading, setLoading] = useState(true);
+
+    // State to track modal visibility (used for user modal)
+    const [userModalVisible, setUserModalVisible] = useState(false);
 
     // State for data needed by modals
     const [userData, setUserData] = useState([]);
@@ -98,6 +101,11 @@ const QuickPage = () => {
                 message.error("Failed to load data for the form");
             } finally {
                 setLoading(false);
+
+                // Open the user modal if it's the user form type
+                if (formType === 'user') {
+                    setUserModalVisible(true);
+                }
             }
         };
 
@@ -223,6 +231,16 @@ const QuickPage = () => {
         history.push(returnUrl);
     };
 
+    // Handle user modal visibility change
+    const handleUserModalVisibleChange = (visible) => {
+        setUserModalVisible(visible);
+
+        // If modal is closing, navigate back
+        if (!visible) {
+            handleCancel();
+        }
+    };
+
     // Handle newly added user - for example, a property manager or agent
     const handleUserAdded = (newUser) => {
         setUserData(prevUsers => {
@@ -241,6 +259,18 @@ const QuickPage = () => {
                 return [...prevUsers, newUser];
             }
         });
+    };
+
+    // Handler for user creation success
+    const handleUserSuccess = (userData) => {
+        console.log("User form submitted with values:", userData);
+        message.success('User created successfully!');
+
+        // Add the new user to the userData state
+        handleUserAdded(userData);
+
+        // Navigate back after a delay
+        setTimeout(() => handleCancel(), 800);
     };
 
     // Render the appropriate form based on the formType from URL
@@ -311,19 +341,14 @@ const QuickPage = () => {
             case 'user':
                 return (
                     <Card title="Add User" style={pageStyle}>
-                        <AddUserModal
-                            visible={true}
+                        {/* Use the AddEditUserModal with the updated props */}
+                        <AddEditUserModal
+                            actionRef={{}} // Empty ref object
                             edit={false}
-                            form={usersForm}
-                            data={null}
-                            onSuccess={(values) => {
-                                console.log("User form submitted with values:", values);
-                                // The AddUserModal likely handles the API call internally
-                                // Just show success message and redirect
-                                message.success('User created successfully!');
-                                setTimeout(() => handleCancel(), 800); // Wait for message before returning to previous page
-                            }}
-                            onCancel={handleCancel}
+                            isVisible={userModalVisible}
+                            onVisibleChange={handleUserModalVisibleChange}
+                            onSuccess={handleUserSuccess}
+                            initialValues={{}}
                         />
                     </Card>
                 );
@@ -367,7 +392,7 @@ const QuickPage = () => {
                             onOk={() => handleFormSubmit(paymentForm.getFieldsValue())}
                             onCancel={handleCancel}
                             salesData={salesData}
-                            customersData={customersData}
+                            customersDatacustomersData={customersData}
                             formatCurrency={(val) => `KES ${val?.toLocaleString() || '0'}`}
                         />
                     </Card>

@@ -141,6 +141,12 @@ export default defineConfig({
     //   ],
     // },
     {
+      name: 'Reports',
+      path: '/reports',
+      icon: 'BarChartOutlined',
+      component: './Reports',
+    },
+    {
       name: 'User Management',
       path: '/user-management',
       icon: 'UserOutlined',
