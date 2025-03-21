@@ -213,24 +213,37 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                     </Select>
                 </Form.Item>
 
-                {/* Sale Selection */}
+                {/* Sale Selection - Now using saleCode instead of property name */}
                 <Form.Item
                     name="sale"
                     label="Sale"
                     rules={[{ required: true, message: 'Please select a sale' }]}
                 >
                     <Select
-                        placeholder="Select sale"
+                        placeholder="Select sale by code"
                         onChange={handleSaleChange}
                         disabled={!selectedCustomer || customerSales.length === 0}
                     >
                         {customerSales.map(sale => (
                             <Option key={sale._id} value={sale._id}>
-                                {sale.propertyName} - {sale.salePrice ? `KES ${sale.salePrice.toLocaleString()}` : 'No price'}
+                                {sale.saleCode || 'No Code'} - {sale.propertyName}
                             </Option>
                         ))}
                     </Select>
                 </Form.Item>
+
+                {/* Sale Details - Show additional details about selected sale */}
+                {selectedSale && (
+                    <div className="bg-gray-50 p-3 mb-4 rounded">
+                        <Text strong>Sale Details:</Text>
+                        <ul className="mt-1">
+                            <li>Sale Code: {selectedSale.saleCode || 'Not available'}</li>
+                            <li>Property: {selectedSale.propertyName}</li>
+                            <li>Sale Price: KES {selectedSale.salePrice?.toLocaleString() || '0'}</li>
+                            <li>Status: {selectedSale.status || 'Unknown'}</li>
+                        </ul>
+                    </div>
+                )}
 
                 {/* Payment Plan Selection */}
                 <Form.Item

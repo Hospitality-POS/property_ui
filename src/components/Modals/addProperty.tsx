@@ -26,7 +26,6 @@ export const AddPropertyModal = ({
     // State for unit details
     const [unitDetails, setUnitDetails] = useState({
         unitType: 'one_bedroom',
-        basePrice: 0,
         totalUnits: 1,
         availableUnits: 1
     });
@@ -62,7 +61,6 @@ export const AddPropertyModal = ({
         if (type === 'land') {
             setUnitDetails({
                 unitType: 'plot',
-                basePrice: 0,
                 totalUnits: 1,
                 availableUnits: 1,
                 plotSize: '50/100'
@@ -70,7 +68,6 @@ export const AddPropertyModal = ({
         } else {
             setUnitDetails({
                 unitType: 'one_bedroom',
-                basePrice: 0,
                 totalUnits: 1,
                 availableUnits: 1
             });
@@ -151,12 +148,6 @@ export const AddPropertyModal = ({
 
     // Add a unit
     const addUnit = () => {
-        // Validate unit details
-        if (!unitDetails.basePrice) {
-            message.error('Please enter a base price for the unit');
-            return;
-        }
-
         const newUnit = {
             ...unitDetails,
             key: Date.now(),
@@ -169,7 +160,7 @@ export const AddPropertyModal = ({
             phases.forEach(phase => {
                 newUnit.phasePricing.push({
                     phaseName: phase.name,
-                    price: unitDetails.basePrice, // Default to base price
+                    price: 0, // Default price is 0
                     active: phase.name === currentPhase
                 });
             });
@@ -257,7 +248,7 @@ export const AddPropertyModal = ({
                 if (!unitCopy.phasePricing.some(p => p.phaseName === newPhase.name)) {
                     unitCopy.phasePricing.push({
                         phaseName: newPhase.name,
-                        price: unitCopy.basePrice || 0,
+                        price: 0,
                         active: true
                     });
                 }
@@ -290,7 +281,7 @@ export const AddPropertyModal = ({
                 if (!unitCopy.phasePricing.some(p => p.phaseName === newPhase.name)) {
                     unitCopy.phasePricing.push({
                         phaseName: newPhase.name,
-                        price: unitCopy.basePrice || 0,
+                        price: 0,
                         active: false
                     });
                 }
@@ -481,11 +472,11 @@ export const AddPropertyModal = ({
     // Get current price for a unit in a phase
     const getUnitPhasePrice = (unit, phaseName) => {
         if (!unit.phasePricing || !Array.isArray(unit.phasePricing)) {
-            return unit.basePrice || 0;
+            return 0;
         }
 
         const phasePrice = unit.phasePricing.find(p => p.phaseName === phaseName);
-        return phasePrice ? phasePrice.price : unit.basePrice || 0;
+        return phasePrice ? phasePrice.price : 0;
     };
 
     // PROPERTY MANAGER FUNCTIONS
@@ -552,7 +543,7 @@ export const AddPropertyModal = ({
             <h4>{propertyType === 'land' ? 'Add Land Plot' : 'Add Apartment Unit'}</h4>
             <Row gutter={16}>
                 {propertyType === 'land' ? (
-                    <Col span={8}>
+                    <Col span={12}>
                         <Form.Item label="Plot Size">
                             <Select
                                 value={unitDetails.plotSize}
@@ -570,7 +561,7 @@ export const AddPropertyModal = ({
                         </Form.Item>
                     </Col>
                 ) : (
-                    <Col span={8}>
+                    <Col span={12}>
                         <Form.Item label="Unit Type">
                             <Select
                                 value={unitDetails.unitType}
@@ -587,20 +578,7 @@ export const AddPropertyModal = ({
                         </Form.Item>
                     </Col>
                 )}
-                <Col span={8}>
-                    <Form.Item label="Base Price">
-                        <InputNumber
-                            style={{ width: '100%' }}
-                            min={0}
-                            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                            value={unitDetails.basePrice}
-                            onChange={(value) => handleUnitChange('basePrice', value)}
-                            addonAfter="KES"
-                        />
-                    </Form.Item>
-                </Col>
-                <Col span={8}>
+                <Col span={12}>
                     <Form.Item label="Total Units">
                         <InputNumber
                             style={{ width: '100%' }}
@@ -615,7 +593,6 @@ export const AddPropertyModal = ({
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={addUnit}
-                disabled={!unitDetails.basePrice}
             >
                 Add {propertyType === 'land' ? 'Plot' : 'Unit'}
             </Button>
@@ -765,14 +742,6 @@ export const AddPropertyModal = ({
                 render: (_, record) => getUnitDisplayName(record),
                 width: 150,
                 fixed: 'left'
-            },
-            {
-                title: 'Base Price',
-                dataIndex: 'basePrice',
-                key: 'basePrice',
-                render: price => `KES ${price?.toLocaleString() || 0}`,
-                width: 150,
-                fixed: 'left'
             }
         ];
 
@@ -836,22 +805,6 @@ export const AddPropertyModal = ({
                 title: propertyType === 'land' ? 'Plot Type' : 'Unit Type',
                 key: 'unitType',
                 render: (_, record) => getUnitDisplayName(record)
-            },
-            {
-                title: 'Base Price',
-                dataIndex: 'basePrice',
-                key: 'basePrice',
-                render: price => `KES ${price?.toLocaleString() || 0}`
-            },
-            {
-                title: 'Current Price',
-                key: 'currentPrice',
-                render: (_, record) => {
-                    const price = currentPhase
-                        ? getUnitPhasePrice(record, currentPhase)
-                        : record.basePrice || 0;
-                    return `KES ${price.toLocaleString()}`;
-                }
             },
             {
                 title: propertyType === 'land' ? 'Total Plots' : 'Total Units',

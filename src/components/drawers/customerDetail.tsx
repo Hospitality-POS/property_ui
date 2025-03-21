@@ -15,7 +15,6 @@ import {
     Timeline,
     Empty,
     Table,
-    Avatar,
     message
 } from 'antd';
 import {
@@ -26,7 +25,6 @@ import {
     MessageOutlined,
     CommentOutlined,
     ShoppingOutlined,
-    CreditCardOutlined,
     TeamOutlined,
     FileTextOutlined,
     PlusOutlined,
@@ -74,64 +72,64 @@ const formatCurrency = (amount) => {
     })}`;
 };
 
-// Helper function to get all payments from payment plans
-const getAllPaymentsFromPlans = (customer) => {
-    if (!customer || !customer.paymentPlans || !Array.isArray(customer.paymentPlans)) {
+// Helper function to get all payments from purchases
+const getAllPaymentsFromPurchases = (customer) => {
+    if (!customer || !customer.purchases || !Array.isArray(customer.purchases)) {
         return [];
     }
 
     let allPayments = [];
 
-    customer.paymentPlans.forEach(plan => {
-        if (!plan) return;
+    customer.purchases.forEach(purchase => {
+        if (!purchase) return;
 
-        const planId = plan._id || plan.id || "unknown-plan";
-        const totalAmount = safeNumber(plan.totalAmount);
+        const purchaseId = purchase._id || purchase.id || "unknown-purchase";
+        const totalAmount = safeNumber(purchase.salePrice);
 
         // Check if payments array exists
-        if (Array.isArray(plan.payments) && plan.payments.length > 0) {
-            // Add each payment with plan reference
-            plan.payments.forEach(payment => {
+        if (Array.isArray(purchase.payments) && purchase.payments.length > 0) {
+            // Add each payment with purchase reference
+            purchase.payments.forEach(payment => {
                 if (!payment) return;
 
                 const paymentAmount = safeNumber(payment.amount);
                 if (paymentAmount <= 0) return;
 
                 allPayments.push({
-                    planId: planId,
-                    date: payment.date || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                    purchaseId: purchaseId,
+                    date: payment.date || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                     amount: paymentAmount,
                     method: payment.method || "Unknown",
                     reference: payment.reference || "",
-                    status: plan.status || "active"
+                    status: purchase.status || "active"
                 });
             });
         } else {
-            // If no payments array but plan is completed, create an inferred payment
-            if (plan.status === "completed" && totalAmount > 0) {
+            // If no payments array but purchase is completed, create an inferred payment
+            if (purchase.status === "completed" && totalAmount > 0) {
                 allPayments.push({
-                    planId: planId,
-                    date: plan.lastPaymentDate || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                    purchaseId: purchaseId,
+                    date: purchase.lastPaymentDate || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                     amount: totalAmount,
                     method: "Unknown",
                     reference: "Full payment",
                     status: "completed"
                 });
             }
-            // If plan has partial payment (not zero, not total)
-            else if (typeof plan.outstandingBalance === 'number' &&
-                plan.outstandingBalance < totalAmount) {
+            // If purchase has partial payment
+            else if (typeof purchase.outstandingBalance === 'number' &&
+                purchase.outstandingBalance < totalAmount) {
 
-                const paidAmount = totalAmount - plan.outstandingBalance;
+                const paidAmount = totalAmount - purchase.outstandingBalance;
 
                 if (paidAmount > 0) {
                     allPayments.push({
-                        planId: planId,
-                        date: plan.lastPaymentDate || plan.updatedAt || plan.createdAt || new Date().toISOString(),
+                        purchaseId: purchaseId,
+                        date: purchase.lastPaymentDate || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                         amount: paidAmount,
                         method: "Unknown",
                         reference: "Partial payment",
-                        status: plan.status || "active"
+                        status: purchase.status || "active"
                     });
                 }
             }
@@ -185,47 +183,11 @@ const generateTransactionData = (customer) => {
                 payment: 0,
                 balance: runningBalance
             });
-        });
-    }
 
-    // Add data from payment plans
-    if (Array.isArray(customer.paymentPlans)) {
-        let runningBalance = transactions.length > 0 ?
-            transactions[transactions.length - 1].balance : 0;
-
-        // Sort payment plans by date
-        const sortedPlans = [...customer.paymentPlans].sort((a, b) => {
-            const dateA = new Date(a.createdAt || 0);
-            const dateB = new Date(b.createdAt || 0);
-            return dateA - dateB;
-        });
-
-        sortedPlans.forEach(plan => {
-            // Skip null or undefined plans
-            if (!plan) return;
-
-            // Add plan as invoice
-            const planId = safeString(plan._id || plan.id);
-            const amount = safeNumber(plan.totalAmount);
-
-            // Only add to balance if it's a valid amount
-            if (amount > 0) {
-                runningBalance += amount;
-
-                transactions.push({
-                    date: plan.createdAt || new Date().toISOString(),
-                    type: 'Invoice',
-                    details: `Payment Plan - ${planId.substring(0, 8)}...`,
-                    amount: amount,
-                    payment: 0,
-                    balance: runningBalance
-                });
-            }
-
-            // Add payments (if payments array exists)
-            if (Array.isArray(plan.payments) && plan.payments.length > 0) {
+            // Add payments from purchases
+            if (Array.isArray(purchase.payments) && purchase.payments.length > 0) {
                 // Sort payments by date
-                const sortedPayments = [...plan.payments].sort((a, b) => {
+                const sortedPayments = [...purchase.payments].sort((a, b) => {
                     const dateA = new Date(a.date || 0);
                     const dateB = new Date(b.date || 0);
                     return dateA - dateB;
@@ -242,46 +204,43 @@ const generateTransactionData = (customer) => {
                     transactions.push({
                         date: payment.date || new Date().toISOString(),
                         type: 'Payment Received',
-                        details: `${payment.reference || 'Payment'}\nKES${paymentAmount.toLocaleString()} for payment of Plan ${planId.substring(0, 8)}...`,
+                        details: `${payment.reference || 'Payment'}\nKES${paymentAmount.toLocaleString()} for purchase of ${purchase.property?.name || 'Property'}`,
                         amount: 0,
                         payment: paymentAmount,
                         balance: runningBalance
                     });
                 });
             }
-            // Handle case where no payments array exists but plan is completed or has partial payment
-            else {
-                // For completed plans with no payments array
-                if (plan.status === "completed" && amount > 0) {
-                    runningBalance -= amount; // Full payment
+            // Handle case where no payments array exists but purchase is completed
+            else if (purchase.status === "completed" && amount > 0) {
+                runningBalance -= amount; // Full payment
+
+                transactions.push({
+                    date: purchase.updatedAt || purchase.lastPaymentDate || purchase.createdAt || new Date().toISOString(),
+                    type: 'Payment Received',
+                    details: `Full Payment\nKES${amount.toLocaleString()} for purchase of ${purchase.property?.name || 'Property'}`,
+                    amount: 0,
+                    payment: amount,
+                    balance: runningBalance
+                });
+            }
+            // Handle case where purchase has partial payment
+            else if (typeof purchase.outstandingBalance === 'number' &&
+                purchase.outstandingBalance < amount) {
+
+                const paidAmount = amount - purchase.outstandingBalance;
+
+                if (paidAmount > 0) {
+                    runningBalance -= paidAmount;
 
                     transactions.push({
-                        date: plan.updatedAt || plan.lastPaymentDate || plan.createdAt || new Date().toISOString(),
+                        date: purchase.lastPaymentDate || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                         type: 'Payment Received',
-                        details: `Full Payment\nKES${amount.toLocaleString()} for payment of Plan ${planId.substring(0, 8)}...`,
+                        details: `Partial Payment\nKES${paidAmount.toLocaleString()} for purchase of ${purchase.property?.name || 'Property'}`,
                         amount: 0,
-                        payment: amount,
+                        payment: paidAmount,
                         balance: runningBalance
                     });
-                }
-                // For active plans with partial payment
-                else if (typeof plan.outstandingBalance === 'number' &&
-                    plan.outstandingBalance < amount) {
-
-                    const paidAmount = amount - plan.outstandingBalance;
-
-                    if (paidAmount > 0) {
-                        runningBalance -= paidAmount;
-
-                        transactions.push({
-                            date: plan.lastPaymentDate || plan.updatedAt || plan.createdAt || new Date().toISOString(),
-                            type: 'Payment Received',
-                            details: `Partial Payment\nKES${paidAmount.toLocaleString()} for payment of Plan ${planId.substring(0, 8)}...`,
-                            amount: 0,
-                            payment: paidAmount,
-                            balance: runningBalance
-                        });
-                    }
                 }
             }
         });
@@ -296,7 +255,7 @@ const generateTransactionData = (customer) => {
 };
 
 // PDF Generation Function - FIXED VERSION
-const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId = null) => {
+const generateCustomerStatementPDF = (customer, transactions = []) => {
     return new Promise((resolve, reject) => {
         try {
             // Create new PDF document
@@ -332,15 +291,15 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                 }
             };
 
-            // Add company header (no logo)
-            doc.setFontSize(16);
-            doc.setTextColor(0, 0, 100);
-            doc.text('Company Name', 105, 20, { align: 'center' });
+            // // Add company header (no logo)
+            // doc.setFontSize(16);
+            // doc.setTextColor(0, 0, 100);
+            // doc.text('Company Name', 105, 20, { align: 'center' });
 
-            doc.setFontSize(10);
-            doc.setTextColor(100, 100, 100);
-            doc.text('P.O.BOX 12345-00100, PIN: P0123456789X', 105, 30, { align: 'center' });
-            doc.text('Physical Address: Company Street, City', 105, 35, { align: 'center' });
+            // doc.setFontSize(10);
+            // doc.setTextColor(100, 100, 100);
+            // doc.text('P.O.BOX 12345-00100, PIN: P0123456789X', 105, 30, { align: 'center' });
+            // doc.text('Physical Address: Company Street, City', 105, 35, { align: 'center' });
 
             // Add statement title
             doc.setFontSize(14);
@@ -383,34 +342,17 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
             } else {
                 // Calculate from data directly
                 // Get all purchases
-                const purchases = paymentPlanId
-                    ? [] // Don't include purchases for specific payment plan
-                    : Array.isArray(customer.purchases) ? customer.purchases : [];
-
-                // Get filtered payment plans
-                const paymentPlans = paymentPlanId
-                    ? (Array.isArray(customer.paymentPlans) ? customer.paymentPlans.filter(p =>
-                        (p && (p._id === paymentPlanId || p.id === paymentPlanId))) : [])
-                    : (Array.isArray(customer.paymentPlans) ? customer.paymentPlans : []);
+                const purchases = Array.isArray(customer.purchases) ? customer.purchases : [];
 
                 // Calculate purchase total
                 totalInvoiced = purchases.reduce((sum, p) =>
                     sum + safeNumber(p?.salePrice), 0);
 
-                // Add payment plan totals
-                totalInvoiced += paymentPlans.reduce((sum, p) =>
-                    sum + safeNumber(p?.totalAmount), 0);
-
                 // Get all payments
-                const allPayments = getAllPaymentsFromPlans(customer);
-
-                // Filter by plan ID if needed
-                const filteredPayments = paymentPlanId
-                    ? allPayments.filter(p => p.planId === paymentPlanId)
-                    : allPayments;
+                const allPayments = getAllPaymentsFromPurchases(customer);
 
                 // Calculate total paid
-                totalPaid = filteredPayments.reduce((sum, p) =>
+                totalPaid = allPayments.reduce((sum, p) =>
                     sum + safeNumber(p.amount), 0);
             }
 
@@ -494,61 +436,37 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                 doc.text('Balance Due', 140, finalY);
                 doc.text(`KES ${formatCurrency(balanceDue)}`, 180, finalY, { align: 'right' });
             } else {
-                // Alternative display for payment plans if no transactions
+                // Alternative display for purchases if no transactions
                 let yPos = 175;
 
-                // Filter payment plans if a specific ID is provided
-                const paymentPlans = paymentPlanId
-                    ? (Array.isArray(customer.paymentPlans)
-                        ? customer.paymentPlans.filter(p => p && (p._id === paymentPlanId || p.id === paymentPlanId))
-                        : [])
-                    : (Array.isArray(customer.paymentPlans) ? customer.paymentPlans : []);
+                // Get all purchases
+                const purchases = Array.isArray(customer.purchases) ? customer.purchases : [];
 
-                if (paymentPlans.length > 0) {
-                    // Add payment plans table
+                if (purchases.length > 0) {
+                    // Add purchases table
                     doc.setFillColor(60, 60, 60);
                     doc.rect(14, yPos, 180, 10, 'F');
                     doc.setTextColor(255, 255, 255);
-                    doc.text('Plan ID', 20, yPos + 7);
-                    doc.text('Amount', 80, yPos + 7);
-                    doc.text('Paid', 120, yPos + 7);
-                    doc.text('Outstanding', 160, yPos + 7);
+                    doc.text('Property', 20, yPos + 7);
+                    doc.text('Purchase Date', 70, yPos + 7);
+                    doc.text('Amount', 120, yPos + 7);
+                    doc.text('Status', 160, yPos + 7);
                     yPos += 15;
 
-                    // Add plan data
+                    // Add purchase data
                     doc.setTextColor(0, 0, 0);
-                    paymentPlans.forEach(plan => {
-                        if (!plan) return;
+                    purchases.forEach(purchase => {
+                        if (!purchase) return;
 
-                        const planId = safeString(plan._id || plan.id).substring(0, 8) + '...';
-                        const totalAmount = safeNumber(plan.totalAmount);
+                        const propertyName = safeString(purchase.property?.name || 'Property');
+                        const purchaseDate = formatDate(purchase.saleDate);
+                        const totalAmount = safeNumber(purchase.salePrice);
+                        const status = safeString(purchase.status || 'active');
 
-                        // Get paid amount
-                        let paidAmount = 0;
-
-                        // Calculate from payments array if available
-                        if (Array.isArray(plan.payments) && plan.payments.length > 0) {
-                            paidAmount = plan.payments.reduce((sum, payment) =>
-                                sum + safeNumber(payment?.amount), 0);
-                        }
-                        // Calculate from status and outstanding balance
-                        else {
-                            if (safeString(plan.status).toLowerCase() === 'completed') {
-                                paidAmount = totalAmount;
-                            } else if (typeof plan.outstandingBalance === 'number') {
-                                const calculatedPaid = totalAmount - plan.outstandingBalance;
-                                paidAmount = calculatedPaid > 0 ? calculatedPaid : 0;
-                            }
-                        }
-
-                        // Calculate outstanding balance
-                        const outstandingBalance = safeString(plan.status).toLowerCase() === 'completed' ?
-                            0 : (typeof plan.outstandingBalance === 'number' ? plan.outstandingBalance : (totalAmount - paidAmount));
-
-                        doc.text(planId, 20, yPos);
-                        doc.text(formatCurrency(totalAmount), 80, yPos);
-                        doc.text(formatCurrency(paidAmount), 120, yPos);
-                        doc.text(formatCurrency(outstandingBalance), 160, yPos);
+                        doc.text(propertyName, 20, yPos);
+                        doc.text(purchaseDate, 70, yPos);
+                        doc.text(formatCurrency(totalAmount), 120, yPos);
+                        doc.text(status.charAt(0).toUpperCase() + status.slice(1), 160, yPos);
                         yPos += 10;
                     });
 
@@ -558,12 +476,7 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                     yPos += 15;
 
                     // Add payment history
-                    const allPayments = getAllPaymentsFromPlans(customer);
-
-                    // Filter by plan ID if necessary
-                    const paymentHistory = paymentPlanId
-                        ? allPayments.filter(p => p.planId === paymentPlanId)
-                        : allPayments;
+                    const paymentHistory = getAllPaymentsFromPurchases(customer);
 
                     if (paymentHistory.length > 0) {
                         doc.setFontSize(12);
@@ -576,16 +489,24 @@ const generateCustomerStatementPDF = (customer, transactions = [], paymentPlanId
                             "Amount (KES)",
                             "Method",
                             "Reference",
-                            "Plan ID"
+                            "Property"
                         ];
 
-                        const paymentRows = paymentHistory.map(payment => [
-                            formatDate(payment.date),
-                            formatCurrency(safeNumber(payment.amount)),
-                            safeString(payment.method) || 'N/A',
-                            safeString(payment.reference) || 'N/A',
-                            safeString(payment.planId).substring(0, 8) + '...'
-                        ]);
+                        const paymentRows = paymentHistory.map(payment => {
+                            // Find the property name from the purchase
+                            const purchase = customer.purchases.find(p =>
+                                p && (p._id === payment.purchaseId || p.id === payment.purchaseId)
+                            );
+                            const propertyName = purchase?.property?.name || 'Property';
+
+                            return [
+                                formatDate(payment.date),
+                                formatCurrency(safeNumber(payment.amount)),
+                                safeString(payment.method) || 'N/A',
+                                safeString(payment.reference) || 'N/A',
+                                propertyName
+                            ];
+                        });
 
                         // Add the payment history table
                         autoTable(doc, {
@@ -748,11 +669,6 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-                    {/* <div>
-                        <Title level={4}>Company Name</Title>
-                        <Text>P.O.BOX 12345-00100, PIN: P0123456789X</Text><br />
-                        <Text>Physical Address: Company Street, City</Text>
-                    </div> */}
                     <div style={{ textAlign: 'right' }}>
                         <Title level={5}>Statement Period</Title>
                         <Text>01/01/2024 To {formatDate(new Date())}</Text>
@@ -889,18 +805,11 @@ export const CustomerDetailsDrawer = ({
         return parts.join(', ') || 'No address details';
     };
 
-    // Count purchases and payment plans safely
+    // Count purchases and communications safely
     const purchaseCount = (() => {
         if (!customer.purchases) return 0;
         if (typeof customer.purchases === 'number') return customer.purchases;
         if (Array.isArray(customer.purchases)) return customer.purchases.length;
-        return 0;
-    })();
-
-    const paymentPlanCount = (() => {
-        if (!customer.paymentPlans) return 0;
-        if (typeof customer.paymentPlans === 'number') return customer.paymentPlans;
-        if (Array.isArray(customer.paymentPlans)) return customer.paymentPlans.length;
         return 0;
     })();
 
@@ -937,52 +846,11 @@ export const CustomerDetailsDrawer = ({
         }
     };
 
-    // Process payment plan data safely
-    const processPaymentPlan = (plan) => {
-        if (!plan || typeof plan !== 'object') return null;
-
-        try {
-            // Calculate paid amount
-            let paidAmount = 0;
-
-            // If there's a payments array, sum the amounts
-            if (Array.isArray(plan.payments) && plan.payments.length > 0) {
-                paidAmount = plan.payments.reduce((sum, payment) =>
-                    sum + safeNumber(payment?.amount), 0);
-            }
-            // Otherwise infer from status or outstanding balance
-            else {
-                const totalAmount = safeNumber(plan.totalAmount);
-                if (safeString(plan.status).toLowerCase() === 'completed') {
-                    paidAmount = totalAmount;
-                } else if (typeof plan.outstandingBalance === 'number') {
-                    const calculatedPaid = totalAmount - plan.outstandingBalance;
-                    paidAmount = calculatedPaid > 0 ? calculatedPaid : 0;
-                }
-            }
-
-            return {
-                key: safeString(plan._id || Math.random()),
-                id: safeString(plan._id || plan.id),
-                totalAmount: safeNumber(plan.totalAmount),
-                initialDeposit: safeNumber(plan.initialDeposit),
-                outstandingBalance: safeString(plan.status).toLowerCase() === 'completed' ?
-                    0 : safeNumber(plan.outstandingBalance),
-                paidAmount: paidAmount,
-                status: safeString(plan.status)
-            };
-        } catch (err) {
-            console.error('Error processing payment plan:', err);
-            return null;
-        }
-    };
-
     // Create safe data sources for tables
     const purchasesData = safelyProcessArray(customer.purchases, processPurchase);
-    const paymentPlansData = safelyProcessArray(customer.paymentPlans, processPaymentPlan);
 
     // Function to handle statement extraction
-    const handleExtractStatement = async (planId = null) => {
+    const handleExtractStatement = async () => {
         try {
             message.loading({ content: 'Generating statement...', key: 'pdfGeneration' });
 
@@ -990,7 +858,7 @@ export const CustomerDetailsDrawer = ({
             const transactions = generateTransactionData(customer);
 
             // Generate the PDF
-            const pdfBlob = await generateCustomerStatementPDF(customer, transactions, planId);
+            const pdfBlob = await generateCustomerStatementPDF(customer, transactions);
 
             // Create a URL for the blob
             const url = URL.createObjectURL(pdfBlob);
@@ -998,9 +866,7 @@ export const CustomerDetailsDrawer = ({
             // Create a link element and trigger download
             const link = document.createElement('a');
             link.href = url;
-            link.download = planId
-                ? `${customer.name.replace(/\s+/g, '-')}-plan-statement-${String(planId).substring(0, 8)}.pdf`
-                : `${customer.name.replace(/\s+/g, '-')}-customer-statement.pdf`;
+            link.download = `${customer.name.replace(/\s+/g, '-')}-customer-statement.pdf`;
             document.body.appendChild(link);
             link.click();
 
@@ -1097,7 +963,7 @@ export const CustomerDetailsDrawer = ({
 
                 {/* Customer Status Overview */}
                 <Row gutter={16} style={{ marginBottom: 24 }}>
-                    <Col span={8}>
+                    <Col span={12}>
                         <Card size="small">
                             <Statistic
                                 title="Purchases"
@@ -1107,17 +973,7 @@ export const CustomerDetailsDrawer = ({
                             />
                         </Card>
                     </Col>
-                    <Col span={8}>
-                        <Card size="small">
-                            <Statistic
-                                title="Payment Plans"
-                                value={paymentPlanCount}
-                                prefix={<CreditCardOutlined />}
-                                valueStyle={{ color: '#52c41a' }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={8}>
+                    <Col span={12}>
                         <Card size="small">
                             <Statistic
                                 title="Communications"
@@ -1331,7 +1187,6 @@ export const CustomerDetailsDrawer = ({
                                                 <Button
                                                     size="small"
                                                     icon={<FilePdfOutlined />}
-                                                    onClick={() => handleExtractStatement(record.id)}
                                                 >
                                                     PDF
                                                 </Button>
@@ -1343,96 +1198,6 @@ export const CustomerDetailsDrawer = ({
                             />
                         ) : (
                             <Empty description="No purchases yet" />
-                        )}
-                    </TabPane>
-
-                    <TabPane tab="Payment Plans" key="6">
-                        {paymentPlanCount > 0 ? (
-                            <>
-                                <div style={{ marginBottom: 16, textAlign: 'right' }}>
-                                    <Button
-                                        type="primary"
-                                        icon={<DownloadOutlined />}
-                                        onClick={() => handleExtractStatement()}
-                                    >
-                                        Extract Full Statement to PDF
-                                    </Button>
-                                </div>
-                                <Table
-                                    dataSource={paymentPlansData}
-                                    columns={[
-                                        {
-                                            title: 'Initial Deposit (KES)',
-                                            dataIndex: 'initialDeposit',
-                                            key: 'initialDeposit',
-                                            render: (amount) => {
-                                                return typeof amount === 'number' ? amount.toLocaleString() : 'N/A';
-                                            }
-                                        },
-                                        {
-                                            title: 'Total Amount (KES)',
-                                            dataIndex: 'totalAmount',
-                                            key: 'totalAmount',
-                                            render: (amount) => {
-                                                return typeof amount === 'number' ? amount.toLocaleString() : 'N/A';
-                                            }
-                                        },
-                                        {
-                                            title: 'Paid Amount (KES)',
-                                            dataIndex: 'paidAmount',
-                                            key: 'paidAmount',
-                                            render: (amount) => {
-                                                return typeof amount === 'number' ? amount.toLocaleString() : 'N/A';
-                                            }
-                                        },
-                                        {
-                                            title: 'Outstanding (KES)',
-                                            dataIndex: 'outstandingBalance',
-                                            key: 'outstandingBalance',
-                                            render: (amount) => {
-                                                return typeof amount === 'number' ? amount.toLocaleString() : 'N/A';
-                                            }
-                                        },
-                                        {
-                                            title: 'Status',
-                                            dataIndex: 'status',
-                                            key: 'status',
-                                            render: (status) => {
-                                                let color = 'blue';
-                                                const statusStr = safeString(status);
-                                                if (statusStr === 'completed') color = 'green';
-                                                if (statusStr === 'inactive') color = 'red';
-                                                if (statusStr === 'pending') color = 'orange';
-
-                                                const statusText = statusStr.charAt(0).toUpperCase() + statusStr.slice(1);
-
-                                                return <Tag color={color}>{statusText}</Tag>;
-                                            }
-                                        },
-                                        {
-                                            title: 'Actions',
-                                            key: 'actions',
-                                            render: (_, record) => (
-                                                <Space>
-                                                    <Button size="small" icon={<FileTextOutlined />}>
-                                                        View
-                                                    </Button>
-                                                    <Button
-                                                        size="small"
-                                                        icon={<FilePdfOutlined />}
-                                                        onClick={() => handleExtractStatement(record.id)}
-                                                    >
-                                                        PDF
-                                                    </Button>
-                                                </Space>
-                                            ),
-                                        },
-                                    ]}
-                                    pagination={false}
-                                />
-                            </>
-                        ) : (
-                            <Empty description="No payment plans yet" />
                         )}
                     </TabPane>
 

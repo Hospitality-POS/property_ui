@@ -430,7 +430,7 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
                     </Col>
                   </Row>
                 </Col>
-                <Col span={4} style={{ marginTop: 30, textAlign: 'right' }}>
+                <Col span={4} style={{ textAlign: 'right' }}>
                   <Tooltip title="Generate Strong Password">
                     <Button
                       type="default"

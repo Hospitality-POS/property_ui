@@ -13,7 +13,8 @@ import {
     Descriptions,
     Table,
     Tooltip,
-    Badge
+    Badge,
+    message
 } from 'antd';
 import {
     FileTextOutlined,
@@ -23,6 +24,8 @@ import {
     TagOutlined,
     CalendarOutlined
 } from '@ant-design/icons';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -66,6 +69,153 @@ export const PropertyDetailsDrawer = ({
         }, 0);
     };
 
+    // Generate property report as PDF
+    const handleGenerateReport = () => {
+        console.log('Generating PDF report for property:', property.name);
+
+        // Show loading message
+        message.loading('Generating PDF report...', 1.0);
+
+        try {
+            // Create a new PDF document
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Add title
+            doc.setFontSize(20);
+            doc.text(`${property.name} - Property Report`, pageWidth / 2, 15, { align: 'center' });
+
+            // Add property overview
+            doc.setFontSize(16);
+            doc.text('Property Overview', 14, 30);
+
+            // Add property information
+            doc.setFontSize(11);
+            doc.text(`Type: ${formatPropertyType(property.propertyType)}`, 14, 40);
+            doc.text(`Status: ${formatStatus(property.status)}`, 14, 46);
+            doc.text(`Location: ${property.location?.address}, ${property.location?.county}`, 14, 52);
+            doc.text(`Total Units: ${calculateTotalUnits()}`, 14, 58);
+            doc.text(`Available Units: ${calculateAvailableUnits()}`, 14, 64);
+            doc.text(`Property Manager: ${property.propertyManager?.name || 'N/A'}`, 14, 70);
+            doc.text(`Current Phase: ${property.currentPhase || 'None'}`, 14, 76);
+            doc.text(`Total Value: KES ${calculateTotalValue().toLocaleString()}`, 14, 82);
+
+            // Add description
+            if (property.description) {
+                doc.setFontSize(16);
+                doc.text('Description', 14, 95);
+
+                // Handle multi-line description
+                const textLines = doc.splitTextToSize(property.description, pageWidth - 28);
+                doc.setFontSize(11);
+                doc.text(textLines, 14, 105);
+            }
+
+            // Add units table if available
+            if (property.units && property.units.length > 0) {
+                // Find appropriate y position based on content above
+                const yPosition = property.description ?
+                    105 + (doc.splitTextToSize(property.description, pageWidth - 28).length * 6) + 10 :
+                    95;
+
+                doc.setFontSize(16);
+                doc.text('Units Information', 14, yPosition);
+
+                // Create table data
+                const tableColumn = ['Type', 'Current Price', 'Total Units', 'Available', 'Sold', 'Status'];
+                const tableRows = property.units.map(unit => {
+                    const typeMap = {
+                        'studio': 'Studio',
+                        'one_bedroom': 'One Bedroom',
+                        'two_bedroom': 'Two Bedroom',
+                        'three_bedroom': 'Three Bedroom',
+                        'shops': 'Shops',
+                        'penthouse': 'Penthouse',
+                        'plot': 'Plot',
+                        'parcel': 'Parcel',
+                        'other': 'Other'
+                    };
+
+                    // Get price based on current phase
+                    const phasePrice = property.currentPhase && unit.phasePricing
+                        ? unit.phasePricing.find(p => p.phaseName === property.currentPhase)
+                        : null;
+
+                    const displayPrice = phasePrice ? phasePrice.price : unit.price;
+                    const soldUnits = (unit.totalUnits || 0) - (unit.availableUnits || 0);
+
+                    return [
+                        typeMap[unit.unitType] || unit.unitType,
+                        `KES ${displayPrice?.toLocaleString() || 0}`,
+                        unit.totalUnits || 0,
+                        unit.availableUnits || 0,
+                        soldUnits,
+                        formatStatus(unit.status)
+                    ];
+                });
+
+                autoTable(doc, {
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: yPosition + 5,
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [66, 139, 202] }
+                });
+            }
+
+            // Add phases if available on a new page
+            if (property.phases && property.phases.length > 0) {
+                doc.addPage();
+                doc.setFontSize(16);
+                doc.text('Pricing Phases', 14, 15);
+
+                // Create phases table data
+                const phasesColumns = ['Phase Name', 'Start Date', 'End Date', 'Description'];
+                const phasesRows = property.phases.map(phase => [
+                    phase.name + (phase.active ? ' (Active)' : '') + (property.currentPhase === phase.name ? ' (Current)' : ''),
+                    formatDate(phase.startDate),
+                    phase.endDate ? formatDate(phase.endDate) : 'Not set',
+                    phase.description || 'No description'
+                ]);
+
+                autoTable(doc, {
+                    head: [phasesColumns],
+                    body: phasesRows,
+                    startY: 20,
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [66, 139, 202] }
+                });
+            }
+
+            // Add footer with generation date
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                doc.text(
+                    `Generated on: ${new Date().toLocaleDateString()} | Page ${i} of ${totalPages}`,
+                    pageWidth / 2,
+                    doc.internal.pageSize.getHeight() - 10,
+                    { align: 'center' }
+                );
+            }
+
+            // Save the PDF and trigger download
+            const fileName = `${property.name.replace(/\s+/g, '_')}_Report.pdf`;
+            doc.save(fileName);
+
+            // Show success message
+            message.success(`PDF report for ${property.name} has been generated and downloaded`);
+
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            message.error('Failed to generate PDF report');
+        }
+    };
+
     // Unit table columns with phase pricing
     const unitColumns = [
         {
@@ -86,12 +236,6 @@ export const PropertyDetailsDrawer = ({
                 };
                 return typeMap[text] || text;
             }
-        },
-        {
-            title: 'Base Price',
-            dataIndex: 'basePrice',
-            key: 'basePrice',
-            render: (basePrice) => `KES ${basePrice?.toLocaleString() || 0}`
         },
         {
             title: () => (
@@ -220,14 +364,6 @@ export const PropertyDetailsDrawer = ({
                     return typeMap[text] || text;
                 }
             },
-            {
-                title: 'Base Price',
-                dataIndex: 'basePrice',
-                key: 'basePrice',
-                fixed: 'left',
-                width: 120,
-                render: price => `KES ${price?.toLocaleString() || 0}`
-            },
             ...property.phases.map(phase => ({
                 title: (
                     <div>
@@ -271,7 +407,12 @@ export const PropertyDetailsDrawer = ({
             width={700}
             footer={
                 <div style={{ textAlign: 'right' }}>
-                    <Button type="primary" icon={<FileTextOutlined />} style={{ marginRight: 8 }}>
+                    <Button
+                        type="primary"
+                        icon={<FileTextOutlined />}
+                        style={{ marginRight: 8 }}
+                        onClick={handleGenerateReport}
+                    >
                         Generate Report
                     </Button>
                     <Button onClick={onClose}>Close</Button>

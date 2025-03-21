@@ -79,13 +79,36 @@ export const AddSaleModal = ({
             const phases = property.phases ? property.phases.filter(phase => phase) : [];
             setAvailablePhases(phases);
 
-            // Set current phase as default if available
-            if (property.currentPhase) {
+            // Set property manager from the property data
+            if (property.propertyManager) {
+                form.setFieldsValue({
+                    propertyManager: property.propertyManager._id || property.propertyManager
+                });
+            }
+
+            // If there's only one phase or no phases, automatically select it and load units
+            if (phases.length === 1) {
+                const singlePhase = phases[0].name;
+                setSelectedPhase(singlePhase);
+                form.setFieldsValue({
+                    phase: singlePhase
+                });
+
+                // Immediately load units for this phase
+                loadUnitsForPhase(property, singlePhase);
+            } else if (phases.length === 0) {
+                // If no phases, just load all available units
+                const filteredUnits = property.units ? property.units.filter(unit =>
+                    unit.status !== 'sold' && unit.availableUnits > 0
+                ) : [];
+                setAvailableUnits(filteredUnits);
+            } else if (property.currentPhase) {
                 setSelectedPhase(property.currentPhase);
                 form.setFieldsValue({
                     phase: property.currentPhase
                 });
-            } else if (phases.length > 0) {
+                loadUnitsForPhase(property, property.currentPhase);
+            } else {
                 // Otherwise set the first phase as default
                 const activePhase = phases.find(phase => phase.active);
                 if (activePhase) {
@@ -93,11 +116,13 @@ export const AddSaleModal = ({
                     form.setFieldsValue({
                         phase: activePhase.name
                     });
+                    loadUnitsForPhase(property, activePhase.name);
                 } else {
                     setSelectedPhase(phases[0].name);
                     form.setFieldsValue({
                         phase: phases[0].name
                     });
+                    loadUnitsForPhase(property, phases[0].name);
                 }
             }
 
@@ -107,28 +132,31 @@ export const AddSaleModal = ({
                 listPrice: undefined,
                 salePrice: undefined
             });
-
-            // Clear available units until phase is selected
-            setAvailableUnits([]);
         }
+    };
+
+    // Helper function to load units for a specific phase
+    const loadUnitsForPhase = (property, phaseName) => {
+        if (!property) return;
+
+        // Filter units based on selected phase and availability
+        const filteredUnits = property.units ? property.units.filter(unit => {
+            // If phasePricing exists, filter by phase, otherwise include all available units
+            const hasPhase = unit.phasePricing
+                ? unit.phasePricing.some(pricing => pricing.phaseName === phaseName)
+                : true;
+            return hasPhase && unit.status !== 'sold' && unit.availableUnits > 0;
+        }) : [];
+
+        setAvailableUnits(filteredUnits);
     };
 
     // Handle phase selection
     const handlePhaseChange = (phaseName) => {
         setSelectedPhase(phaseName);
-
-        if (!selectedProperty) return;
-
-        // Filter units based on selected phase and availability
-        const filteredUnits = selectedProperty.units ? selectedProperty.units.filter(unit => {
-            // Check if unit has the selected phase in pricing and is available
-            const hasPhase = unit.phasePricing && unit.phasePricing.some(
-                pricing => pricing.phaseName === phaseName
-            );
-            return hasPhase && unit.status !== 'sold' && unit.availableUnits > 0;
-        }) : [];
-
-        setAvailableUnits(filteredUnits);
+        if (selectedProperty) {
+            loadUnitsForPhase(selectedProperty, phaseName);
+        }
 
         // Reset unit selection
         form.setFieldsValue({
@@ -140,21 +168,24 @@ export const AddSaleModal = ({
 
     // Handle unit selection
     const handleUnitChange = (unitId) => {
-        if (!selectedProperty || !unitId || !selectedPhase) return;
+        if (!selectedProperty || !unitId) return;
 
         const unit = selectedProperty.units.find(u => (u._id || u.id) === unitId);
         if (unit) {
-            // Find the price for the selected phase
-            const phasePrice = unit.phasePricing.find(
-                pricing => pricing.phaseName === selectedPhase
-            );
-
-            // Use phase price if available, otherwise use base price
-            const price = phasePrice ? phasePrice.price : unit.basePrice;
+            // Find the price for the selected phase, if applicable
+            let price = unit.basePrice;
+            if (selectedPhase && unit.phasePricing) {
+                const phasePrice = unit.phasePricing.find(
+                    pricing => pricing.phaseName === selectedPhase
+                );
+                if (phasePrice) {
+                    price = phasePrice.price;
+                }
+            }
 
             form.setFieldsValue({
                 listPrice: price,
-                salePrice: price
+                salePrice: price * (quantity || 1)
             });
 
             // Update form with unit details
@@ -207,23 +238,6 @@ export const AddSaleModal = ({
             setTimeout(() => {
                 form.setFieldsValue({
                     agent: undefined
-                });
-            }, 100);
-        }
-    };
-
-    // Handle property manager selection change
-    const handlePropertyManagerChange = (value) => {
-        if (value === "add_new") {
-            // Trigger the user modal via ref
-            if (managerModalActionRef.current) {
-                managerModalActionRef.current.click();
-            }
-
-            // Reset the select value to prevent issues
-            setTimeout(() => {
-                form.setFieldsValue({
-                    propertyManager: undefined
                 });
             }, 100);
         }
@@ -322,6 +336,13 @@ export const AddSaleModal = ({
                 );
                 if (property) {
                     setSelectedProperty(property);
+
+                    // Set property manager from property
+                    if (property.propertyManager) {
+                        form.setFieldsValue({
+                            propertyManager: property.propertyManager._id || property.propertyManager
+                        });
+                    }
 
                     // Set available phases
                     const phases = property.phases ? property.phases.filter(phase => phase) : [];
@@ -550,7 +571,7 @@ export const AddSaleModal = ({
                                         style={{ width: "100%" }}
                                         placeholder="Select phase"
                                         onChange={handlePhaseChange}
-                                        disabled={!selectedProperty || isEditMode} // Disable if no property selected or in edit mode
+                                        disabled={!selectedProperty || isEditMode || availablePhases.length <= 1} // Disable if no property selected or in edit mode or only one phase
                                     >
                                         {availablePhases.map((phase) => (
                                             <Option key={phase.name} value={phase.name}>
@@ -591,14 +612,19 @@ export const AddSaleModal = ({
                                         placeholder="Select unit"
                                         optionFilterProp="children"
                                         onChange={handleUnitChange}
-                                        disabled={!selectedProperty || !selectedPhase || isEditMode} // Disable if no property or phase selected or in edit mode
+                                        disabled={!selectedProperty || isEditMode} // Disable if no property selected or in edit mode
                                     >
                                         {availableUnits.map((unit) => {
                                             // Find the price for this unit in the selected phase
-                                            const phasePrice = unit.phasePricing && unit.phasePricing.find(
-                                                p => p.phaseName === selectedPhase
-                                            );
-                                            const price = phasePrice ? phasePrice.price : unit.basePrice;
+                                            let price = unit.basePrice;
+                                            if (selectedPhase && unit.phasePricing) {
+                                                const phasePrice = unit.phasePricing.find(
+                                                    p => p.phaseName === selectedPhase
+                                                );
+                                                if (phasePrice) {
+                                                    price = phasePrice.price;
+                                                }
+                                            }
 
                                             return (
                                                 <Option key={unit._id || unit.id} value={unit._id || unit.id}>
@@ -774,35 +800,25 @@ export const AddSaleModal = ({
                                     label="Property Manager"
                                     name="propertyManager"
                                     rules={[{ required: true, message: 'Please select a property manager' }]}
+                                    style={{ display: 'none' }} // Hide the input since it's auto-populated
                                 >
-                                    <Select
-                                        showSearch
-                                        placeholder="Select property manager"
-                                        optionFilterProp="children"
-                                        loading={isLoadingManagers}
-                                        onChange={handlePropertyManagerChange}
-                                    >
-                                        {managersData && managersData.map(manager => (
-                                            <Option key={manager._id || manager.id} value={manager._id || manager.id}>
-                                                {manager.name} - {manager.email}</Option>
-                                        ))}
-                                        <Option key="add_new" value="add_new" style={{ color: "blue" }}>
-                                            + Add New Property Manager
-                                        </Option>
-                                    </Select>
+                                    <Input type="hidden" />
                                 </Form.Item>
-
-                                {/* Hidden button to be clicked programmatically via ref */}
-                                <div style={{ display: "none" }}>
-                                    <AddEditUserModal
-                                        actionRef={managerModalActionRef}
-                                        edit={false}
-                                        data={null}
-                                        isProfile={false}
-                                        onSuccess={handlePropertyManagerAdded}
-                                        initialValues={{ role: 'property_manager' }}
+                                <Form.Item
+                                    label="Property Manager"
+                                >
+                                    <Input
+                                        disabled={true}
+                                        value={
+                                            // Display the selected property manager name
+                                            selectedProperty?.propertyManager?.name ||
+                                            (selectedProperty?.propertyManager &&
+                                                managersData?.find(m => (m._id || m.id) === (selectedProperty.propertyManager._id || selectedProperty.propertyManager))?.name
+                                            ) ||
+                                            "Auto-assigned from property"
+                                        }
                                     />
-                                </div>
+                                </Form.Item>
                             </Col>
                             <Col span={8}>
                                 <Form.Item
