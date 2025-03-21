@@ -21,7 +21,7 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import { useEffect, useState, useRef } from 'react';
-import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
+import AddEditUserModal from "@/pages/Users/components/modal/AddEditUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -1008,7 +1008,7 @@ export const AddSaleModal = ({
                                         ) : (
                                             // Show a message if no installments exist yet
                                             <div style={{ textAlign: 'center', margin: '20px 0', color: '#999' }}>
-                                                No installments defined yet. Use the generator above or click "Add Installment" to create one.
+                                                No installments defined yet. Use the generator above or click &quot;Add Installment&quot; to create one.
                                             </div>
                                         )}
 
