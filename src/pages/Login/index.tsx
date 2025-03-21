@@ -11,15 +11,13 @@ const LoginPage = () => {
 
   const { run, loading: isPending } = useRequest(loginUser, {
     manual: true,
-    onSuccess: async () => {
-      const currentUser = await initialState?.fetchUserInfo();
-
+    onSuccess: async (data) => {
       await setInitialState({
         ...initialState,
-        currentUser,
+        currentUser: data?.user,
       });
 
-      message.success('Login successful! Redirecting...');
+      message.success(`Welcome back, ${data?.user?.name}!`);
       history.push('/dashboard');
     },
     onError: (error: any) => {
@@ -114,7 +112,6 @@ const LoginPage = () => {
                     },
                   ]}
                 />
-
 
                 {/* Username Input */}
                 <ProFormText
