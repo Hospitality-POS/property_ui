@@ -22,7 +22,7 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import { useState, useRef, useEffect } from 'react';
-import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
+import AddEditUserModal from "@/pages/Users/components/modal/AddEditUserModal";
 
 const { TabPane } = Tabs;
 const { Option } = Select;
