@@ -165,3 +165,16 @@ li a {
   grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
   gap: 1em;
 }
+
+
+@keyframes bellShake {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(15deg); }
+  30% { transform: rotate(-15deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-8deg); }
+  75% { transform: rotate(4deg); }
+  85% { transform: rotate(-4deg); }
+  92% { transform: rotate(2deg); }
+  100% { transform: rotate(0); }
+}
