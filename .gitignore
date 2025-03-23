@@ -11,3 +11,6 @@
 /dist
 /.mfsu
 .swc
+
+.tool-versions
+./tool-versions
