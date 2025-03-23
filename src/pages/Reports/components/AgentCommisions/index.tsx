@@ -6,6 +6,55 @@ import { generateAgentCommissionsReport } from '../../utils/dataProcessors';
 import AgentCommissionsSummary from './AgentCommissionsSummary';
 import AgentCommissionsTable from './AgentCommissionsTable';
 
+// Import these calculation functions from where they're defined in your project
+// Or copy their implementation if they're defined inline in AgentCommissionsTable
+const calculateAmountPaid = (sale: Sale): number => {
+    // Check if the sale has the saleData property where payments are stored
+    const saleData = sale.saleData || sale;
+
+    // For completed sales, the full sale price has been paid
+    if (saleData.status === 'completed') {
+        return parseFloat(saleData.salePrice) || 0;
+    }
+
+    // Get directly from payments array - this is the source of truth
+    if (saleData.payments && Array.isArray(saleData.payments) && saleData.payments.length > 0) {
+        return saleData.payments.reduce((sum, payment) => {
+            const amount = parseFloat(payment.amount) || 0;
+            // Count all payments regardless of status for now
+            return sum + amount;
+        }, 0);
+    }
+
+    // Fallback to amountPaid field if it exists
+    return parseFloat(saleData.amountPaid || sale.amountPaid) || 0;
+};
+
+const calculateAccruedCommission = (sale: Sale): number => {
+    const amountPaid = calculateAmountPaid(sale);
+    const saleData = sale.saleData || sale;
+
+    // Get commission rate from the appropriate source
+    let commissionRate = 0;
+    if (sale.commissionPercentage) {
+        commissionRate = parseFloat(sale.commissionPercentage) / 100;
+    } else if (saleData.commission?.percentage) {
+        commissionRate = parseFloat(saleData.commission.percentage) / 100;
+    } else if (saleData.commission?.rate) {
+        commissionRate = parseFloat(saleData.commission.rate) / 100;
+    } else {
+        commissionRate = 0.05; // Default to 5% if no rate found
+    }
+
+    return amountPaid * commissionRate;
+};
+
+const calculateTotalAccruedCommission = (record: AgentCommissionReport) => {
+    return record.sales.reduce((sum, sale) => {
+        return sum + calculateAccruedCommission(sale);
+    }, 0);
+};
+
 interface AgentCommissionsTabProps {
     salesData: Sale[];
     usersData: User[];
@@ -47,10 +96,12 @@ const AgentCommissionsTab: React.FC<AgentCommissionsTabProps> = ({
         setReportData(processedData);
     }, [salesData, dateRange, selectedAgents, filterType]);
 
-    // Calculate totals for the summary
+    // Calculate totals for the summary including accrued commission
     const calculateTotals = () => {
         let totalSales = 0;
         let totalSaleValue = 0;
+        let totalAmountPaid = 0;
+        let totalAccruedCommission = 0;
         let totalCommission = 0;
         let totalPaidCommission = 0;
         let totalPendingCommission = 0;
@@ -60,12 +111,27 @@ const AgentCommissionsTab: React.FC<AgentCommissionsTabProps> = ({
             totalSaleValue += agent.totalSaleValue;
             totalCommission += agent.totalCommission;
             totalPaidCommission += agent.totalCommissionPaid;
-            totalPendingCommission += agent.totalCommissionPending;
+
+            // Calculate amount paid across all sales for this agent
+            const agentAmountPaid = agent.sales.reduce((sum, sale) => {
+                return sum + calculateAmountPaid(sale);
+            }, 0);
+            totalAmountPaid += agentAmountPaid;
+
+            // Calculate accrued commission for this agent
+            const agentAccruedCommission = calculateTotalAccruedCommission(agent);
+            totalAccruedCommission += agentAccruedCommission;
+
+            // Calculate pending commission as accrued minus paid
+            const agentPendingCommission = Math.max(0, agentAccruedCommission - agent.totalCommissionPaid);
+            totalPendingCommission += agentPendingCommission;
         });
 
         return {
             totalSales,
             totalSaleValue,
+            totalAmountPaid,
+            totalAccruedCommission,
             totalCommission,
             totalPaidCommission,
             totalPendingCommission

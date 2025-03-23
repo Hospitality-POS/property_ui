@@ -632,12 +632,12 @@ export const SaleDetailsDrawer = ({
                                         key: 'deposit',
                                         render: amount => formatCurrency(amount)
                                     },
-                                    {
-                                        title: 'Remaining',
-                                        dataIndex: 'outstandingBalance',
-                                        key: 'remaining',
-                                        render: amount => formatCurrency(amount)
-                                    },
+                                    // {
+                                    //     title: 'Remaining',
+                                    //     dataIndex: 'outstandingBalance',
+                                    //     key: 'remaining',
+                                    //     render: amount => formatCurrency(amount)
+                                    // },
                                     {
                                         title: 'Next Payment',
                                         dataIndex: 'endDate',

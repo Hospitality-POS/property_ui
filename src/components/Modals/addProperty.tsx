@@ -1,12 +1,18 @@
 import {
     Modal, Form, Tabs, Row, Col, Input, Select,
-    InputNumber, Button, Table, message, Space, Tag, DatePicker, Divider
+    InputNumber, Button, Table, message, Space, Tag, DatePicker, Divider,
+    Tooltip, Popconfirm
 } from 'antd';
 import { useState, useEffect, useRef } from 'react';
 import {
     PlusOutlined,
     DeleteOutlined,
-    TagOutlined
+    TagOutlined,
+    EditOutlined,
+    SaveOutlined,
+    CloseOutlined,
+    MenuOutlined,
+    HolderOutlined
 } from '@ant-design/icons';
 import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 import moment from 'moment';
@@ -43,6 +49,16 @@ export const AddPropertyModal = ({
     const [phaseStartDate, setPhaseStartDate] = useState(moment());
     const [phaseEndDate, setPhaseEndDate] = useState(null);
     const [phaseActive, setPhaseActive] = useState(false);
+
+    // Phase editing state
+    const [editingPhaseKey, setEditingPhaseKey] = useState(null);
+    const [editingPhaseName, setEditingPhaseName] = useState('');
+    const [editingPhaseStartDate, setEditingPhaseStartDate] = useState(null);
+    const [editingPhaseEndDate, setEditingPhaseEndDate] = useState(null);
+
+    // Phase editing in pricing table
+    const [editingPricingPhaseKey, setEditingPricingPhaseKey] = useState(null);
+    const [editingPricingPhaseName, setEditingPricingPhaseName] = useState('');
 
     // Ref for user modal
     const userModalActionRef = useRef();
@@ -99,7 +115,8 @@ export const AddPropertyModal = ({
                     ...phase,
                     key: `existing-phase-${index}-${Date.now()}`,
                     startDate: phase.startDate ? moment(phase.startDate) : null,
-                    endDate: phase.endDate ? moment(phase.endDate) : null
+                    endDate: phase.endDate ? moment(phase.endDate) : null,
+                    order: phase.order !== undefined ? phase.order : index // Use existing order or default to index
                 }));
                 setPhases(phasesWithKeys);
 
@@ -128,6 +145,8 @@ export const AddPropertyModal = ({
             setPhaseActive(false);
             setManagerValidationDisabled(false);
             setUnitsValidationError(false);
+            setEditingPhaseKey(null);
+            setEditingPricingPhaseKey(null);
             resetUnitDetails(propertyType);
         }
     }, [isEditMode, visible, form]);
@@ -157,7 +176,10 @@ export const AddPropertyModal = ({
 
         // Initialize prices for all existing phases
         if (phases.length > 0) {
-            phases.forEach(phase => {
+            // Sort phases by order for consistent initialization
+            const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
+
+            sortedPhases.forEach(phase => {
                 newUnit.phasePricing.push({
                     phaseName: phase.name,
                     price: 0, // Default price is 0
@@ -197,6 +219,242 @@ export const AddPropertyModal = ({
 
     // PHASE MANAGEMENT FUNCTIONS
 
+    // Handle phase table row reordering
+    const handlePhaseRowReorder = (newDataSource) => {
+        // Update order property based on new sequence
+        const reorderedPhases = newDataSource.map((phase, index) => ({
+            ...phase,
+            order: index
+        }));
+
+        setPhases(reorderedPhases);
+
+        // Update form field
+        form.setFieldsValue({
+            phases: reorderedPhases.map(({ key, ...rest }) => ({
+                ...rest,
+                startDate: rest.startDate ? rest.startDate.toISOString() : null,
+                endDate: rest.endDate ? rest.endDate.toISOString() : null,
+                order: rest.order
+            }))
+        });
+    };
+
+    // Handle phase columns reordering in pricing table
+    const handlePhaseColumnReorder = (newOrder) => {
+        // Get current order of phases
+        const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
+
+        // Create a mapping of old to new positions
+        const reorderedPhases = phases.map(phase => {
+            // Find current index in sorted phases
+            const currentIndex = sortedPhases.findIndex(p => p.key === phase.key);
+            // Find new index based on column order
+            const newIndex = newOrder.indexOf(currentIndex);
+
+            return {
+                ...phase,
+                order: newIndex !== -1 ? newIndex : phase.order
+            };
+        });
+
+        setPhases(reorderedPhases);
+
+        // Update form field
+        form.setFieldsValue({
+            phases: reorderedPhases.map(({ key, ...rest }) => ({
+                ...rest,
+                startDate: rest.startDate ? rest.startDate.toISOString() : null,
+                endDate: rest.endDate ? rest.endDate.toISOString() : null,
+                order: rest.order
+            }))
+        });
+    };
+
+    // Start editing a pricing table phase
+    const startEditingPricingPhase = (phaseKey, phaseName) => {
+        setEditingPricingPhaseKey(phaseKey);
+        setEditingPricingPhaseName(phaseName);
+    };
+
+    // Cancel editing a pricing table phase
+    const cancelEditingPricingPhase = () => {
+        setEditingPricingPhaseKey(null);
+        setEditingPricingPhaseName('');
+    };
+
+    // Save pricing table phase edits
+    const savePricingPhaseEdits = (phaseKey) => {
+        // Validate phase name
+        if (!editingPricingPhaseName.trim()) {
+            message.error('Phase name cannot be empty');
+            return;
+        }
+
+        // Check if the new name already exists in other phases
+        const isNameExists = phases.some(phase =>
+            phase.key !== phaseKey && phase.name === editingPricingPhaseName.trim()
+        );
+
+        if (isNameExists) {
+            message.error('A phase with this name already exists');
+            return;
+        }
+
+        // Find the old phase name
+        const oldPhase = phases.find(phase => phase.key === phaseKey);
+        if (!oldPhase) return;
+
+        // Update the phase name
+        const updatedPhases = phases.map(phase => {
+            if (phase.key === phaseKey) {
+                return {
+                    ...phase,
+                    name: editingPricingPhaseName.trim()
+                };
+            }
+            return phase;
+        });
+
+        setPhases(updatedPhases);
+
+        // If we updated the current phase name, update currentPhase too
+        if (oldPhase.name === currentPhase) {
+            setCurrentPhase(editingPricingPhaseName.trim());
+        }
+
+        // Update all units' phasePricing with the new phase name
+        const updatedUnits = units.map(unit => {
+            const unitCopy = { ...unit };
+            if (unitCopy.phasePricing && Array.isArray(unitCopy.phasePricing)) {
+                unitCopy.phasePricing = unitCopy.phasePricing.map(pricing => {
+                    if (pricing.phaseName === oldPhase.name) {
+                        return {
+                            ...pricing,
+                            phaseName: editingPricingPhaseName.trim()
+                        };
+                    }
+                    return pricing;
+                });
+            }
+            return unitCopy;
+        });
+
+        setUnits(updatedUnits);
+
+        // Update form fields
+        form.setFieldsValue({
+            phases: updatedPhases.map(({ key, ...rest }) => ({
+                ...rest,
+                startDate: rest.startDate ? rest.startDate.toISOString() : null,
+                endDate: rest.endDate ? rest.endDate.toISOString() : null
+            })),
+            units: updatedUnits.map(({ key, ...rest }) => rest),
+            currentPhase: oldPhase.name === currentPhase ? editingPricingPhaseName.trim() : currentPhase
+        });
+
+        // Exit editing mode
+        cancelEditingPricingPhase();
+        message.success('Phase name updated successfully');
+    };
+
+    // Start editing a phase
+    const startEditingPhase = (phaseKey) => {
+        const phaseToEdit = phases.find(phase => phase.key === phaseKey);
+        if (phaseToEdit) {
+            setEditingPhaseKey(phaseKey);
+            setEditingPhaseName(phaseToEdit.name);
+            setEditingPhaseStartDate(phaseToEdit.startDate);
+            setEditingPhaseEndDate(phaseToEdit.endDate);
+        }
+    };
+
+    // Cancel editing a phase
+    const cancelEditingPhase = () => {
+        setEditingPhaseKey(null);
+        setEditingPhaseName('');
+        setEditingPhaseStartDate(null);
+        setEditingPhaseEndDate(null);
+    };
+
+    // Save phase edits
+    const savePhaseEdits = (phaseKey) => {
+        // Validate phase name
+        if (!editingPhaseName.trim()) {
+            message.error('Phase name cannot be empty');
+            return;
+        }
+
+        // Check if the new name already exists in other phases
+        const isNameExists = phases.some(phase =>
+            phase.key !== phaseKey && phase.name === editingPhaseName.trim()
+        );
+
+        if (isNameExists) {
+            message.error('A phase with this name already exists');
+            return;
+        }
+
+        // Find the old phase name
+        const oldPhase = phases.find(phase => phase.key === phaseKey);
+        if (!oldPhase) return;
+
+        // Update the phase
+        const updatedPhases = phases.map(phase => {
+            if (phase.key === phaseKey) {
+                const updatedPhase = {
+                    ...phase,
+                    name: editingPhaseName.trim(),
+                    startDate: editingPhaseStartDate,
+                    endDate: editingPhaseEndDate
+                };
+                return updatedPhase;
+            }
+            return phase;
+        });
+
+        setPhases(updatedPhases);
+
+        // If we updated the current phase name, update currentPhase too
+        if (oldPhase.name === currentPhase) {
+            setCurrentPhase(editingPhaseName.trim());
+        }
+
+        // Update all units' phasePricing with the new phase name
+        const updatedUnits = units.map(unit => {
+            const unitCopy = { ...unit };
+            if (unitCopy.phasePricing && Array.isArray(unitCopy.phasePricing)) {
+                unitCopy.phasePricing = unitCopy.phasePricing.map(pricing => {
+                    if (pricing.phaseName === oldPhase.name) {
+                        return {
+                            ...pricing,
+                            phaseName: editingPhaseName.trim()
+                        };
+                    }
+                    return pricing;
+                });
+            }
+            return unitCopy;
+        });
+
+        setUnits(updatedUnits);
+
+        // Update form fields
+        form.setFieldsValue({
+            phases: updatedPhases.map(({ key, ...rest }) => ({
+                ...rest,
+                startDate: rest.startDate ? rest.startDate.toISOString() : null,
+                endDate: rest.endDate ? rest.endDate.toISOString() : null
+            })),
+            units: updatedUnits.map(({ key, ...rest }) => rest),
+            currentPhase: oldPhase.name === currentPhase ? editingPhaseName.trim() : currentPhase
+        });
+
+        // Exit editing mode
+        cancelEditingPhase();
+        message.success('Phase updated successfully');
+    };
+
     // Add a phase
     const addPhase = () => {
         // Validate phase name
@@ -211,12 +469,16 @@ export const AddPropertyModal = ({
             return;
         }
 
+        // Get next order index
+        const nextOrder = phases.length;
+
         // Create new phase
         const newPhase = {
             name: phaseName.trim(),
             startDate: phaseStartDate,
             endDate: phaseEndDate,
             active: phaseActive,
+            order: nextOrder,
             key: `phase-${Date.now()}`
         };
 
@@ -301,7 +563,8 @@ export const AddPropertyModal = ({
         const cleanPhases = [...phases, newPhase].map(({ key, ...rest }) => ({
             ...rest,
             startDate: rest.startDate ? rest.startDate.toISOString() : null,
-            endDate: rest.endDate ? rest.endDate.toISOString() : null
+            endDate: rest.endDate ? rest.endDate.toISOString() : null,
+            order: rest.order
         }));
 
         // Update form field
@@ -327,15 +590,21 @@ export const AddPropertyModal = ({
         // Remove the phase
         const updatedPhases = phases.filter(phase => phase.key !== phaseKey);
 
+        // Update order property to maintain sequence
+        const reorderedPhases = updatedPhases.map((phase, index) => ({
+            ...phase,
+            order: index
+        }));
+
         // If we removed the current phase, set a new one if available
-        if (isCurrentPhase && updatedPhases.length > 0) {
-            const newCurrentPhase = updatedPhases[0].name;
+        if (isCurrentPhase && reorderedPhases.length > 0) {
+            const newCurrentPhase = reorderedPhases[0].name;
             setCurrentPhase(newCurrentPhase);
             form.setFieldsValue({ currentPhase: newCurrentPhase });
 
             // Update active status for phases
-            updatedPhases[0].active = true;
-        } else if (updatedPhases.length === 0) {
+            reorderedPhases[0].active = true;
+        } else if (reorderedPhases.length === 0) {
             setCurrentPhase(null);
             form.setFieldsValue({ currentPhase: null });
         }
@@ -351,15 +620,16 @@ export const AddPropertyModal = ({
             return unitCopy;
         });
 
-        setPhases(updatedPhases);
+        setPhases(reorderedPhases);
         setUnits(updatedUnits);
 
         // Update form fields
         form.setFieldsValue({
-            phases: updatedPhases.map(({ key, ...rest }) => ({
+            phases: reorderedPhases.map(({ key, ...rest }) => ({
                 ...rest,
                 startDate: rest.startDate ? rest.startDate.toISOString() : null,
-                endDate: rest.endDate ? rest.endDate.toISOString() : null
+                endDate: rest.endDate ? rest.endDate.toISOString() : null,
+                order: rest.order
             })),
             units: updatedUnits.map(({ key, ...rest }) => rest)
         });
@@ -520,7 +790,8 @@ export const AddPropertyModal = ({
             phases: phases.map(({ key, ...rest }) => ({
                 ...rest,
                 startDate: rest.startDate ? rest.startDate.toISOString() : null,
-                endDate: rest.endDate ? rest.endDate.toISOString() : null
+                endDate: rest.endDate ? rest.endDate.toISOString() : null,
+                order: rest.order
             })),
             currentPhase: currentPhase
         });
@@ -533,6 +804,12 @@ export const AddPropertyModal = ({
 
         // Call the parent onOk handler
         onOk();
+    };
+
+    // Handle disabledDate function for DatePicker to fix date selection issues
+    const disabledDate = (current) => {
+        // Don't disable any dates - this allows selection of any date
+        return false;
     };
 
     // RENDER FUNCTIONS
@@ -619,6 +896,8 @@ export const AddPropertyModal = ({
                             style={{ width: '100%' }}
                             value={phaseStartDate}
                             onChange={(date) => setPhaseStartDate(date)}
+                            disabledDate={disabledDate}
+                            format="YYYY-MM-DD"
                         />
                     </Form.Item>
                 </Col>
@@ -628,6 +907,8 @@ export const AddPropertyModal = ({
                             style={{ width: '100%' }}
                             value={phaseEndDate}
                             onChange={(date) => setPhaseEndDate(date)}
+                            disabledDate={disabledDate}
+                            format="YYYY-MM-DD"
                         />
                     </Form.Item>
                 </Col>
@@ -656,7 +937,7 @@ export const AddPropertyModal = ({
         </div>
     );
 
-    // Render phase list
+    // Render phase list with drag-and-drop rows
     const renderPhaseList = () => {
         if (phases.length === 0) {
             return (
@@ -666,64 +947,191 @@ export const AddPropertyModal = ({
             );
         }
 
+        // Sort phases by order property
+        const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
+
         const columns = [
+            {
+                title: '',
+                dataIndex: 'sort',
+                width: 30,
+                className: 'drag-visible',
+                render: () => <HolderOutlined style={{ cursor: 'grab', color: '#999' }} />,
+            },
+            {
+                title: 'Order',
+                key: 'order',
+                render: (_, record) => record.order + 1,
+                width: 70
+            },
             {
                 title: 'Phase Name',
                 dataIndex: 'name',
                 key: 'name',
-                render: (text, record) => (
-                    <Space>
-                        {text}
-                        {record.active && <Tag color="green">Active</Tag>}
-                        {record.name === currentPhase && <Tag color="blue">Current</Tag>}
-                    </Space>
-                )
+                render: (text, record) => {
+                    if (editingPhaseKey === record.key) {
+                        return (
+                            <Input
+                                value={editingPhaseName}
+                                onChange={(e) => setEditingPhaseName(e.target.value)}
+                                style={{ width: '100%' }}
+                            />
+                        );
+                    }
+                    return (
+                        <Space>
+                            {text}
+                            {record.active && <Tag color="green">Active</Tag>}
+                            {record.name === currentPhase && <Tag color="blue">Current</Tag>}
+                        </Space>
+                    );
+                }
             },
             {
                 title: 'Start Date',
                 dataIndex: 'startDate',
                 key: 'startDate',
-                render: (date) => date ? date.format('YYYY-MM-DD') : 'Not set'
+                render: (date, record) => {
+                    if (editingPhaseKey === record.key) {
+                        return (
+                            <DatePicker
+                                value={editingPhaseStartDate}
+                                onChange={(date) => setEditingPhaseStartDate(date)}
+                                style={{ width: '100%' }}
+                                disabledDate={disabledDate}
+                                format="YYYY-MM-DD"
+                            />
+                        );
+                    }
+                    return date ? date.format('YYYY-MM-DD') : 'Not set';
+                }
             },
             {
                 title: 'End Date',
                 dataIndex: 'endDate',
                 key: 'endDate',
-                render: (date) => date ? date.format('YYYY-MM-DD') : 'Not set'
+                render: (date, record) => {
+                    if (editingPhaseKey === record.key) {
+                        return (
+                            <DatePicker
+                                value={editingPhaseEndDate}
+                                onChange={(date) => setEditingPhaseEndDate(date)}
+                                style={{ width: '100%' }}
+                                disabledDate={disabledDate}
+                                format="YYYY-MM-DD"
+                            />
+                        );
+                    }
+                    return date ? date.format('YYYY-MM-DD') : 'Not set';
+                }
             },
             {
                 title: 'Actions',
                 key: 'actions',
-                render: (_, record) => (
-                    <Space>
-                        <Button
-                            size="small"
-                            onClick={() => setActivePhase(record.key)}
-                            disabled={record.name === currentPhase}
-                        >
-                            Set Active
-                        </Button>
-                        <Button
-                            type="text"
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            onClick={() => deletePhase(record.key)}
-                        />
-                    </Space>
-                )
+                render: (_, record) => {
+                    if (editingPhaseKey === record.key) {
+                        return (
+                            <Space>
+                                <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<SaveOutlined />}
+                                    onClick={() => savePhaseEdits(record.key)}
+                                >
+                                    Save
+                                </Button>
+                                <Button
+                                    size="small"
+                                    icon={<CloseOutlined />}
+                                    onClick={cancelEditingPhase}
+                                >
+                                    Cancel
+                                </Button>
+                            </Space>
+                        );
+                    }
+
+                    return (
+                        <Space>
+                            <Button
+                                size="small"
+                                onClick={() => setActivePhase(record.key)}
+                                disabled={record.name === currentPhase}
+                            >
+                                Set Active
+                            </Button>
+                            <Button
+                                size="small"
+                                type="default"
+                                icon={<EditOutlined />}
+                                onClick={() => startEditingPhase(record.key)}
+                            />
+                            <Popconfirm
+                                title="Are you sure you want to delete this phase?"
+                                onConfirm={() => deletePhase(record.key)}
+                                okText="Yes"
+                                cancelText="No"
+                            >
+                                <Button
+                                    type="text"
+                                    danger
+                                    size="small"
+                                    icon={<DeleteOutlined />}
+                                />
+                            </Popconfirm>
+                        </Space>
+                    );
+                }
             }
         ];
 
         return (
-            <Table
-                columns={columns}
-                dataSource={phases}
-                pagination={false}
-                size="small"
-                rowKey={record => record.key}
-                style={{ marginBottom: 16 }}
-            />
+            <div style={{ marginBottom: 16 }}>
+                <p style={{ marginBottom: 8 }}>
+                    <HolderOutlined /> Drag rows to reorder phases
+                </p>
+                <Table
+                    dataSource={sortedPhases}
+                    columns={columns}
+                    pagination={false}
+                    rowKey={record => record.key}
+                    size="small"
+                    components={{
+                        body: {
+                            row: ({ className, style, ...restProps }) => {
+                                // Get the index of this row's data
+                                const index = sortedPhases.findIndex(item => item.key === restProps['data-row-key']);
+
+                                // Make the row draggable
+                                return (
+                                    <tr
+                                        {...restProps}
+                                        className={`${className} draggable-row`}
+                                        style={{ ...style, cursor: 'move' }}
+                                        draggable
+                                        onDragStart={e => {
+                                            e.dataTransfer.setData('text/plain', index);
+                                        }}
+                                        onDragOver={e => {
+                                            e.preventDefault();
+                                        }}
+                                        onDrop={e => {
+                                            e.preventDefault();
+                                            const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                                            if (dragIndex !== index) {
+                                                const newData = [...sortedPhases];
+                                                const item = newData.splice(dragIndex, 1)[0];
+                                                newData.splice(index, 0, item);
+                                                handlePhaseRowReorder(newData);
+                                            }
+                                        }}
+                                    />
+                                );
+                            }
+                        }
+                    }}
+                />
+            </div>
         );
     };
 
@@ -732,6 +1140,9 @@ export const AddPropertyModal = ({
         if (units.length === 0 || phases.length === 0) {
             return null;
         }
+
+        // Sort phases by order property
+        const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
 
         // Create columns: first column for unit name, then one column per phase
         const columns = [
@@ -746,12 +1157,25 @@ export const AddPropertyModal = ({
         ];
 
         // Add a column for each phase
-        phases.forEach(phase => {
+        sortedPhases.forEach((phase, index) => {
             columns.push({
                 title: (
-                    <div>
-                        {phase.name}
-                        {phase.name === currentPhase && <Tag color="blue" style={{ marginLeft: 5 }}>Current</Tag>}
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <HolderOutlined style={{ cursor: 'grab', color: '#999', marginRight: 8 }} />
+                        {editingPricingPhaseKey === phase.key ? (
+                            <Input
+                                value={editingPricingPhaseName}
+                                onChange={(e) => setEditingPricingPhaseName(e.target.value)}
+                                onPressEnter={() => savePricingPhaseEdits(phase.key)}
+                                onBlur={() => savePricingPhaseEdits(phase.key)}
+                                style={{ width: '80%' }}
+                            />
+                        ) : (
+                            <div onClick={() => startEditingPricingPhase(phase.key, phase.name)} style={{ cursor: 'pointer' }}>
+                                {phase.name}
+                                {phase.name === currentPhase && <Tag color="blue" style={{ marginLeft: 5 }}>Current</Tag>}
+                            </div>
+                        )}
                     </div>
                 ),
                 key: phase.name,
@@ -771,13 +1195,37 @@ export const AddPropertyModal = ({
                         />
                     );
                 },
-                width: 180
+                width: 180,
+                onHeaderCell: () => ({
+                    draggable: true,
+                    onDragStart: (e) => {
+                        e.dataTransfer.setData('text/plain', index);
+                    },
+                    onDragOver: (e) => {
+                        e.preventDefault();
+                    },
+                    onDrop: (e) => {
+                        e.preventDefault();
+                        const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                        if (dragIndex !== index) {
+                            const newOrder = [...Array(sortedPhases.length).keys()];
+                            const item = newOrder.splice(dragIndex, 1)[0];
+                            newOrder.splice(index, 0, item);
+                            handlePhaseColumnReorder(newOrder);
+                        }
+                    }
+                })
             });
         });
 
         return (
             <>
                 <h4>Unit Prices by Phase</h4>
+                <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontStyle: 'italic' }}>
+                        <HolderOutlined /> Drag to reorder phases. Click on phase name to edit.
+                    </span>
+                </div>
                 <Table
                     columns={columns}
                     dataSource={units}
@@ -785,6 +1233,17 @@ export const AddPropertyModal = ({
                     size="small"
                     rowKey={record => record.key}
                     scroll={{ x: 'max-content' }}
+                    components={{
+                        header: {
+                            cell: ({ className, style, ...restProps }) => (
+                                <th
+                                    {...restProps}
+                                    className={`${className} ${restProps.draggable ? 'draggable-header' : ''}`}
+                                    style={{ ...style, cursor: restProps.draggable ? 'move' : 'default' }}
+                                />
+                            )
+                        }
+                    }}
                 />
             </>
         );
@@ -820,13 +1279,20 @@ export const AddPropertyModal = ({
                 title: 'Actions',
                 key: 'actions',
                 render: (_, record) => (
-                    <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => removeUnit(record.key)}
+                    <Popconfirm
+                        title="Are you sure you want to delete this unit?"
+                        onConfirm={() => removeUnit(record.key)}
+                        okText="Yes"
+                        cancelText="No"
                         disabled={record._id && isEditMode && (record.totalUnits !== record.availableUnits)}
-                    />
+                    >
+                        <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={record._id && isEditMode && (record.totalUnits !== record.availableUnits)}
+                        />
+                    </Popconfirm>
                 )
             }
         ];
@@ -915,13 +1381,14 @@ export const AddPropertyModal = ({
                                 </Form.Item>
                             </Col>
                             <Col span={8}>
-                                <Form.Item label="Constituency" name={['location', 'constituency']}>
+                                <Form.Item label="Constituency" name={['location', 'constituency']}
+                                    rules={[{ required: true, message: 'Please enter the Constituency' }]}
+
+                                >
                                     <Input placeholder="Constituency name" />
                                 </Form.Item>
                             </Col>
                         </Row>
-
-
 
                         <Row gutter={16}>
                             <Col span={24}>
@@ -970,7 +1437,6 @@ export const AddPropertyModal = ({
                                 </Form.Item>
                             </Col>
                         </Row>
-
                     </TabPane>
 
                     <TabPane tab="Units & Pricing" key="2">

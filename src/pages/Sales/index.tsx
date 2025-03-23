@@ -765,6 +765,7 @@ const SalesManagement = () => {
 
     // Calculate payment stats for a sale
     const calculatePaymentStats = (sale) => {
+        console.log('Calculating payment stats for sale:', sale);
         if (!sale) {
             return {
                 totalAmount: 0,

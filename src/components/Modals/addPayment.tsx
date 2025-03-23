@@ -27,10 +27,10 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
     const [form] = Form.useForm();
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedSale, setSelectedSale] = useState(null);
-    const [selectedPaymentPlan, setSelectedPaymentPlan] = useState(null);
     const [loading, setLoading] = useState(false);
     const [customerSales, setCustomerSales] = useState([]);
-    const [salePaymentPlans, setSalePaymentPlans] = useState([]);
+    const [activePlans, setActivePlans] = useState([]);
+    const [totalOutstanding, setTotalOutstanding] = useState(0);
 
     // Fetch customers
     const {
@@ -59,9 +59,9 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
             form.resetFields();
             setSelectedCustomer(null);
             setSelectedSale(null);
-            setSelectedPaymentPlan(null);
             setCustomerSales([]);
-            setSalePaymentPlans([]);
+            setActivePlans([]);
+            setTotalOutstanding(0);
         }
     }, [visible, form]);
 
@@ -72,10 +72,8 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
 
         // Clear previous selections
         setSelectedSale(null);
-        setSelectedPaymentPlan(null);
         form.setFieldsValue({
             sale: undefined,
-            paymentPlan: undefined,
             amount: undefined
         });
 
@@ -97,33 +95,23 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
     // Handle sale selection
     const handleSaleChange = (saleId) => {
         const sale = customerSales.find(s => s._id === saleId);
-
         setSelectedSale(sale);
-
-        // Clear previous payment plan selection
-        setSelectedPaymentPlan(null);
-        form.setFieldsValue({ paymentPlan: undefined, amount: undefined });
+        form.setFieldsValue({ amount: undefined });
 
         // Extract active payment plans from the selected sale
         if (sale && sale.paymentPlans && Array.isArray(sale.paymentPlans)) {
-            const activePlans = sale.paymentPlans.filter(plan => plan.status !== 'completed').map(plan => ({
-                ...plan,
-                saleName: sale.propertyName
-            }));
-            setSalePaymentPlans(activePlans);
+            const plans = sale.paymentPlans.filter(plan => plan.status !== 'completed');
+            setActivePlans(plans);
+
+            // Calculate total outstanding balance across all active payment plans
+            const outstandingTotal = plans.reduce((sum, plan) => sum + (plan.installmentAmount || 0), 0);
+            setTotalOutstanding(outstandingTotal);
+
+            // Pre-fill the amount with the total outstanding balance
+            form.setFieldsValue({ amount: outstandingTotal });
         } else {
-            setSalePaymentPlans([]);
-        }
-    };
-
-    // Handle payment plan selection
-    const handlePaymentPlanChange = (paymentPlanId) => {
-        const plan = salePaymentPlans.find(p => p._id === paymentPlanId);
-        setSelectedPaymentPlan(plan);
-
-        // Pre-fill the amount with the remaining balance
-        if (plan && plan.installmentAmount) {
-            form.setFieldsValue({ amount: plan.installmentAmount });
+            setActivePlans([]);
+            setTotalOutstanding(0);
         }
     };
 
@@ -139,7 +127,8 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                 paymentDate: values.paymentDate.format('YYYY-MM-DD'),
                 status: 'completed',
                 saleId: selectedSale?._id, // Include saleId in the payment data
-                paymentPlanId: selectedPaymentPlan?._id // Include paymentPlanId in the payment data
+                // No longer sending a specific paymentPlanId since it will be distributed
+                activePaymentPlans: activePlans.map(plan => plan._id) // Send all active payment plan IDs
             };
 
             // Call API to create payment
@@ -213,7 +202,7 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                     </Select>
                 </Form.Item>
 
-                {/* Sale Selection - Now using saleCode instead of property name */}
+                {/* Sale Selection - Using saleCode instead of property name */}
                 <Form.Item
                     name="sale"
                     label="Sale"
@@ -232,46 +221,29 @@ const AddPaymentModal = ({ visible, onCancel, onSuccess }) => {
                     </Select>
                 </Form.Item>
 
-                {/* Sale Details - Show additional details about selected sale */}
-                {selectedSale && (
+                {/* Active Payment Plans Summary */}
+                {selectedSale && activePlans.length > 0 && (
                     <div className="bg-gray-50 p-3 mb-4 rounded">
-                        <Text strong>Sale Details:</Text>
+                        <Text strong>Active Payment Plans:</Text>
                         <ul className="mt-1">
-                            <li>Sale Code: {selectedSale.saleCode || 'Not available'}</li>
-                            <li>Property: {selectedSale.propertyName}</li>
-                            <li>Sale Price: KES {selectedSale.salePrice?.toLocaleString() || '0'}</li>
-                            <li>Status: {selectedSale.status || 'Unknown'}</li>
+                            {activePlans.map((plan, index) => (
+                                <li key={index}>
+                                    Plan #{index + 1}: Outstanding KES {plan.installmentAmount?.toLocaleString() || '0'}
+                                </li>
+                            ))}
+                            <li className="mt-2 font-bold">
+                                Total Outstanding: KES {totalOutstanding?.toLocaleString() || '0'}
+                            </li>
                         </ul>
+                        <Text type="secondary" className="block mt-2">
+                            Payment will be automatically distributed across all active payment plans
+                        </Text>
                     </div>
                 )}
 
-                {/* Payment Plan Selection */}
-                <Form.Item
-                    name="paymentPlan"
-                    label="Payment Plan"
-                    rules={[{ required: true, message: 'Please select a payment plan' }]}
-                >
-                    <Select
-                        placeholder="Select payment plan"
-                        onChange={handlePaymentPlanChange}
-                        disabled={!selectedSale || salePaymentPlans.length === 0}
-                    >
-                        {salePaymentPlans.map(plan => (
-                            <Option key={plan._id} value={plan._id}>
-                                KES {plan.installmentAmount?.toLocaleString() || '0'} outstanding
-                            </Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-
-                {selectedPaymentPlan && (
-                    <div className="bg-gray-50 p-3 mb-4 rounded">
-                        <Text strong>Payment Plan Details:</Text>
-                        <ul className="mt-1">
-                            <li>Total Amount: KES {selectedPaymentPlan.totalAmount?.toLocaleString() || '0'}</li>
-                            <li>Outstanding: KES {selectedPaymentPlan.outstandingBalance?.toLocaleString() || '0'}</li>
-                            <li>Status: {selectedPaymentPlan.status}</li>
-                        </ul>
+                {selectedSale && activePlans.length === 0 && (
+                    <div className="bg-yellow-50 p-3 mb-4 rounded border border-yellow-200">
+                        <Text type="warning">No active payment plans found for this sale.</Text>
                     </div>
                 )}
 

@@ -1,9 +1,12 @@
 import { Moment } from 'moment';
 
 // Basic Types
-export type TabKey = 'agent-commissions' | 'sales-analysis' | 'portfolio-progress' | 'aging-balances' | 'performance-trends';
+export type TabKey = 'agent-commissions' | 'sales-analysis' | 'portfolio-progress' | 'aging-balances' | 'performance-trends' | 'due-payments' | 'payment-statistics' | 'payment-forecasts';
 export type FilterType = 'all' | 'paid' | 'partial' | 'unpaid';
 export type AgingFilter = 'all' | '0-30' | '31-60' | '61-90' | '91-plus';
+export type PaymentStatus = 'all' | 'due' | 'overdue' | 'paid' | 'partial';
+export type PaymentType = 'all' | 'installment' | 'deposit' | 'final';
+export type SortOrder = 'dueDate' | 'amount' | 'customer';
 
 // Report Data Types
 export interface User {
@@ -52,6 +55,7 @@ export interface Payment {
     date: string;
     method?: string;
     reference?: string;
+    notes?: string;
 }
 
 export interface Commission {
@@ -59,6 +63,19 @@ export interface Commission {
     amount?: number;
     status?: string;
     payments?: Payment[];
+}
+
+export interface PaymentPlan {
+    _id?: string;
+    id?: string;
+    name?: string;
+    type: string;
+    amount: number;
+    dueDate: string;
+    status?: string;
+    paidAmount?: number;
+    remainingAmount?: number;
+    payments: Payment[];
 }
 
 export interface Sale {
@@ -76,8 +93,10 @@ export interface Sale {
     salesAgent?: User;
     agent?: string;
     commission?: Commission;
-    paymentPlans?: any[];
+    paymentPlans?: PaymentPlan[];
     payments?: Payment[];
+    remainingBalance?: number;
+    totalPaid?: number;
 }
 
 // Processed Report Data Types
@@ -247,6 +266,79 @@ export interface PerformanceTrends {
     agentData: AgentPerformance[];
 }
 
+// Payment Analysis Types
+export interface DuePaymentItem {
+    id: string;
+    saleId: string;
+    saleCode: string;
+    planType: string;
+    propertyName: string;
+    propertyId?: string;
+    customerName: string;
+    customerId?: string;
+    customerContact: string;
+    agentName: string;
+    agentId?: string;
+    dueDate: string;
+    paymentAmount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    status: string;
+    daysUntilDue: number;
+    daysOverdue: number;
+    progress: number;
+    sale: Sale;
+    paymentPlan: PaymentPlan;
+}
+
+export interface DuePaymentsSummary {
+    totalDuePayments: number;
+    totalDueAmount: number;
+    totalOverduePayments: number;
+    totalOverdueAmount: number;
+    upcomingDuePayments: number;
+    upcomingDueAmount: number;
+    averageDaysOverdue: number;
+}
+
+export interface PaymentMethodBreakdown {
+    method: string;
+    count: number;
+    amount: number;
+}
+
+export interface PaymentTypeBreakdown {
+    type: string;
+    count: number;
+    amount: number;
+}
+
+export interface MonthlyCollection {
+    month: string;
+    monthDisplay: string;
+    count: number;
+    amount: number;
+}
+
+export interface PaymentStatistics {
+    collectionRate: number;
+    totalPayments: number;
+    totalAmountCollected: number;
+    totalSalesValue: number;
+    paymentMethodBreakdown: PaymentMethodBreakdown[];
+    paymentTypeBreakdown: PaymentTypeBreakdown[];
+    monthlyCollections: MonthlyCollection[];
+}
+
+export interface PaymentForecast {
+    month: string;
+    monthDisplay: string;
+    expectedAmount: number;
+    duePayments: number;
+    salesTarget?: number;
+    cashflowTarget?: number;
+}
+
 // Context and Props Types
 export interface FiltersContextType {
     dateRange: [Moment | null, Moment | null];
@@ -261,6 +353,25 @@ export interface FiltersContextType {
     setSelectedAgingFilter: (filter: AgingFilter) => void;
     refreshKey: number;
     refreshData: () => void;
+}
+
+// Extended Props Types for Payment Analysis Tabs
+export interface DuePaymentsTabProps {
+    salesData: Sale[];
+    propertiesData: Property[];
+    isLoading: boolean;
+    paymentStatus?: PaymentStatus;
+    paymentType?: PaymentType;
+}
+
+export interface PaymentStatisticsTabProps {
+    salesData: Sale[];
+    isLoading: boolean;
+}
+
+export interface PaymentForecastsTabProps {
+    salesData: Sale[];
+    isLoading: boolean;
 }
 
 export interface ReportTabsProps {

@@ -36,6 +36,18 @@ export const SalesTable = ({
                 return nameA.localeCompare(nameB);
             },
         },
+        {
+            title: 'Sale Code',
+            dataIndex: 'saleCode',
+            key: 'saleCode',
+            width: 120,
+            render: (code) => code || <Text type="secondary">N/A</Text>,
+            sorter: (a, b) => {
+                const codeA = a.saleCode || '';
+                const codeB = b.saleCode || '';
+                return codeA.localeCompare(codeB);
+            },
+        },
         // {
         //     title: 'Phase',
         //     dataIndex: 'phase',
@@ -274,7 +286,7 @@ export const SalesTable = ({
             dataSource={sales}
             rowKey="_id"
             pagination={{ pageSize: 10 }}
-            scroll={{ x: 1800 }} // Increased to accommodate new Phase column
+            scroll={{ x: 1900 }} // Increased to accommodate new Sale Code column
             expandable={{
                 expandedRowRender: record => (
                     <div style={{ margin: 0 }}>
@@ -288,6 +300,7 @@ export const SalesTable = ({
                                     ''}
                             </p>
                         )}
+                        {record.saleCode && <p><strong>Sale Code:</strong> {record.saleCode}</p>}
                     </div>
                 ),
             }}
@@ -309,19 +322,19 @@ export const SalesTable = ({
                 return (
                     <Table.Summary fixed>
                         <Table.Summary.Row>
-                            <Table.Summary.Cell index={0} colSpan={3}><strong>Page Total</strong></Table.Summary.Cell>
-                            <Table.Summary.Cell index={3}>
+                            <Table.Summary.Cell index={0} colSpan={4}><strong>Page Total</strong></Table.Summary.Cell>
+                            <Table.Summary.Cell index={4}>
                                 <Text type="success"><InboxOutlined /> {totalUnits}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={4}></Table.Summary.Cell>
-                            <Table.Summary.Cell index={5}>
+                            <Table.Summary.Cell index={5}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={6}>
                                 <Text type="danger">KES {totalSaleAmount.toLocaleString()}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={6} colSpan={6}></Table.Summary.Cell>
-                            <Table.Summary.Cell index={12}>
+                            <Table.Summary.Cell index={7} colSpan={6}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={13}>
                                 <Text type="danger">KES {totalCommission.toLocaleString()}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={13}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={14}></Table.Summary.Cell>
                         </Table.Summary.Row>
                     </Table.Summary>
                 );

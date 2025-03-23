@@ -70,6 +70,238 @@ export const exportToCSV = (
 };
 
 /**
+ * Export data to PDF
+ * @param data - The data to export
+ * @param filename - The filename to use
+ * @param setExportLoading - Function to set loading state
+ */
+export const exportToPDF = (
+    data: any[],
+    filename: string,
+    setExportLoading: (loading: boolean) => void
+): void => {
+    setExportLoading(true);
+    try {
+        // Create a hidden iframe for printing to PDF
+        const printIframe = document.createElement('iframe');
+        printIframe.style.position = 'absolute';
+        printIframe.style.top = '-9999px';
+        printIframe.style.left = '-9999px';
+        printIframe.style.width = '0';
+        printIframe.style.height = '0';
+        document.body.appendChild(printIframe);
+
+        // Flag to track if iframe is removed
+        let isIframeRemoved = false;
+
+        // Generate HTML content
+        const tableHTML = generateHTMLTable(data, filename);
+
+        // Write the HTML content to the iframe
+        printIframe.contentDocument?.open();
+        printIframe.contentDocument?.write(`
+            <html>
+            <head>
+                <title>${filename}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1, h2 { text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { padding: 8px; border: 1px solid #ddd; }
+                    th { background-color: #f2f2f2; text-align: left; }
+                    .right-align { text-align: right; }
+                    .center-align { text-align: center; }
+                    .status-paid { background-color: #52c41a; color: white; padding: 3px 8px; border-radius: 4px; }
+                    .status-partial { background-color: #faad14; color: white; padding: 3px 8px; border-radius: 4px; }
+                    .status-pending { background-color: #ff4d4f; color: white; padding: 3px 8px; border-radius: 4px; }
+                    .footer { margin-top: 30px; text-align: center; font-size: 12px; }
+                    @media print {
+                        body { margin: 0; }
+                        h1 { margin-top: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${tableHTML}
+                <script>
+                    // This will automatically print
+                    document.addEventListener('DOMContentLoaded', function() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 500);
+                    });
+                </script>
+            </body>
+            </html>
+        `);
+        printIframe.contentDocument?.close();
+
+        // Set up event listener to know when to remove the iframe
+        const removeIframe = () => {
+            // Check if iframe still exists in the document and hasn't been removed yet
+            if (!isIframeRemoved && document.body.contains(printIframe)) {
+                try {
+                    document.body.removeChild(printIframe);
+                    isIframeRemoved = true;
+                } catch (e) {
+                    console.log('Iframe already removed');
+                }
+            }
+
+            // Always set loading to false
+            setExportLoading(false);
+        };
+
+        // For modern browsers
+        if (printIframe.contentWindow) {
+            printIframe.contentWindow.onafterprint = removeIframe;
+
+            // Set a fallback timeout in case onafterprint doesn't fire
+            setTimeout(removeIframe, 5000);
+
+            // Trigger the print directly
+            setTimeout(() => {
+                if (printIframe.contentWindow && !isIframeRemoved) {
+                    try {
+                        printIframe.contentWindow.focus();
+                        printIframe.contentWindow.print();
+                    } catch (e) {
+                        console.error('Error triggering print:', e);
+                        removeIframe();
+                    }
+                }
+            }, 1000);
+        } else {
+            // Fallback if contentWindow is not accessible
+            removeIframe();
+        }
+
+        message.success('PDF export initiated');
+    } catch (error) {
+        console.error('PDF export error:', error);
+        message.error('Failed to export to PDF');
+        setExportLoading(false);
+    }
+};
+
+/**
+ * Generate HTML table from data
+ */
+const generateHTMLTable = (data: any[], title: string): string => {
+    if (!data || data.length === 0) {
+        return '<p>No data available</p>';
+    }
+
+    const keys = Object.keys(data[0]);
+    const currentDate = new Date().toLocaleDateString();
+
+    // Function to format values appropriately
+    const formatValue = (key: string, value: any): string => {
+        if (value === null || value === undefined) return '-';
+
+        // Format currency fields
+        if (key.toLowerCase().includes('price') ||
+            key.toLowerCase().includes('amount') ||
+            key.toLowerCase().includes('commission') ||
+            key.toLowerCase().includes('paid')) {
+            if (typeof value === 'number' || !isNaN(Number(value))) {
+                return 'KES ' + Number(value).toLocaleString();
+            }
+        }
+
+        // Format date fields
+        if (key.toLowerCase().includes('date')) {
+            try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString();
+                }
+            } catch (e) {
+                // Not a valid date, return as is
+            }
+        }
+
+        return String(value);
+    };
+
+    // Function to determine cell alignment
+    const getCellAlignment = (key: string): string => {
+        if (key.toLowerCase().includes('price') ||
+            key.toLowerCase().includes('amount') ||
+            key.toLowerCase().includes('commission') ||
+            key.toLowerCase().includes('paid')) {
+            return 'right-align';
+        }
+
+        if (key.toLowerCase().includes('status')) {
+            return 'center-align';
+        }
+
+        return '';
+    };
+
+    // Function to format status cells
+    const formatStatusCell = (value: string): string => {
+        if (!value) return '-';
+
+        const status = String(value).toLowerCase();
+        let statusClass = '';
+
+        if (status === 'paid' || status === 'completed') {
+            statusClass = 'status-paid';
+        } else if (status === 'partial') {
+            statusClass = 'status-partial';
+        } else {
+            statusClass = 'status-pending';
+        }
+
+        return `<span class="${statusClass}">${String(value).toUpperCase()}</span>`;
+    };
+
+    // Generate header row
+    let headerRow = keys.map(key => {
+        // Format the header for display (capitalize, replace underscores with spaces)
+        const formattedHeader = key.replace(/([A-Z])/g, ' $1')
+            .replace(/_/g, ' ')
+            .replace(/^\w/, c => c.toUpperCase());
+
+        return `<th>${formattedHeader}</th>`;
+    }).join('');
+
+    // Generate data rows
+    let dataRows = data.map(row => {
+        return '<tr>' + keys.map(key => {
+            const cellClass = getCellAlignment(key);
+            let cellContent = formatValue(key, row[key]);
+
+            // Special formatting for status cells
+            if (key.toLowerCase().includes('status')) {
+                cellContent = formatStatusCell(row[key]);
+            }
+
+            return `<td class="${cellClass}">${cellContent}</td>`;
+        }).join('') + '</tr>';
+    }).join('');
+
+    // Assemble the complete HTML
+    return `
+        <h1>${title}</h1>
+        <h2>Commission Report</h2>
+        <table>
+            <thead>
+                <tr>${headerRow}</tr>
+            </thead>
+            <tbody>
+                ${dataRows}
+            </tbody>
+        </table>
+        <div class="footer">
+            <p>Generated on ${currentDate}</p>
+        </div>
+    `;
+};
+
+/**
  * Print agent commission report
  * @param record - The agent record
  * @param dateRange - The date range
