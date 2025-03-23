@@ -1,6 +1,6 @@
 import { reversePhoneNumber } from '@/components/phonenumber/reversePhoneNumberFormat';
-import UserDetailsDrawer from '@/pages/Users/components/drawer/userDetail';
-import AddEditUserModal from '@/pages/Users/components/modal/AddUserModal';
+import UserDetailsDrawer from '@/pages/Users/components/drawers/userDetail';
+import AddEditUserModal from '@/pages/Users/components/modal/AddEditUserModal';
 import { deleteUser, fetchAllUsers } from '@/services/auth.api';
 import {
   DeleteOutlined,
@@ -11,7 +11,7 @@ import {
   PrinterOutlined,
 } from '@ant-design/icons';
 import { ActionType, ProTable } from '@ant-design/pro-components';
-import { useMutation } from '@tanstack/react-query';
+import { useRequest } from '@umijs/max';
 import {
   Button,
   Dropdown,
@@ -30,17 +30,13 @@ const UserManagement = () => {
 
   const actionRef = useRef<ActionType>();
 
-  // Added missing function definitions
   const onView = (record) => {
     setSelectedRecord(record);
     setDrawerVisible(true);
   };
 
-  const DeleteMutation = useMutation({
-    mutationKey: ['delete-user'],
-    mutationFn: async (id) => {
-      await deleteUser(id);
-    },
+  const { run: delUser } = useRequest(deleteUser, {
+    manual: true,
     onSuccess: () => {
       message.success('User deleted successfully');
       actionRef.current?.reload();
@@ -49,7 +45,6 @@ const UserManagement = () => {
       message.error('Error deleting user');
     },
   });
-
   // Added missing formatDate function
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -77,12 +72,12 @@ const UserManagement = () => {
             actionRef={actionRef}
             data={record}
             edit
-            key={'edit-user'}
+            key={`edit-user-${record._id}-${JSON.stringify(record)}`}
           />
         </Tooltip>
         <Popconfirm
           title="Are you sure delete this user?"
-          onConfirm={() => DeleteMutation.mutate(record.id)}
+          onConfirm={() => delUser(record._id)}
           okText="Yes"
           cancelText="No"
         >
@@ -214,9 +209,9 @@ const UserManagement = () => {
           const data = await fetchAllUsers();
 
           return {
-            data: data,
+            data: data?.data,
             success: true,
-            total: data.length,
+            total: data?.data.length,
           };
         }}
         search={{
