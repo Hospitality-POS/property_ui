@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Typography, Tag, Progress, Button, Tooltip } from 'antd';
+import { Table, Typography, Tag, Progress, Button, Tooltip, Space } from 'antd';
 import { PlusOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { AgentCommissionReport, AgentSaleDetails, Sale } from '../types';
@@ -58,6 +58,46 @@ const calculateAccruedCommission = (sale: Sale | AgentSaleDetails): number => {
     return amountPaid * commissionRate;
 };
 
+/**
+ * Calculate commission payment progress
+ */
+const calculateCommissionProgress = (sale: Sale | AgentSaleDetails): number => {
+    const saleData = sale.saleData || sale;
+
+    // Get commission data from appropriate source
+    let commissionPaid = 0;
+    let totalCommission = 0;
+
+    if (sale.commissionPaid) {
+        commissionPaid = parseFloat(sale.commissionPaid);
+    } else if (saleData.commission?.payments && Array.isArray(saleData.commission.payments)) {
+        commissionPaid = saleData.commission.payments.reduce((sum, payment) => {
+            return sum + parseFloat(payment.amount || 0);
+        }, 0);
+    }
+
+    if (sale.commissionAmount) {
+        totalCommission = parseFloat(sale.commissionAmount);
+    } else if (saleData.commission?.amount) {
+        totalCommission = parseFloat(saleData.commission.amount);
+    }
+
+    if (totalCommission <= 0) return 0;
+    return (commissionPaid / totalCommission) * 100;
+};
+
+/**
+ * Calculate client payment progress
+ */
+const calculateClientPaymentProgress = (sale: Sale | AgentSaleDetails): number => {
+    const saleData = sale.saleData || sale;
+    const totalPrice = parseFloat(saleData.salePrice || sale.salePrice || 0);
+    const amountPaid = calculateAmountPaid(sale);
+
+    if (totalPrice <= 0) return 0;
+    return (amountPaid / totalPrice) * 100;
+};
+
 const AgentExpandedRow: React.FC<AgentExpandedRowProps> = ({
     record,
     onShowCommissionPaymentModal,
@@ -81,11 +121,6 @@ const AgentExpandedRow: React.FC<AgentExpandedRowProps> = ({
             dataIndex: 'unit',
             key: 'unit',
         },
-        // {
-        //     title: 'Customer',
-        //     dataIndex: 'customer',
-        //     key: 'customer',
-        // },
         {
             title: 'Sale Price',
             dataIndex: 'salePrice',
@@ -136,22 +171,60 @@ const AgentExpandedRow: React.FC<AgentExpandedRowProps> = ({
             render: (text: number) => formatCurrency(text)
         },
         {
-            title: 'Progress',
+            title: (
+                <Tooltip title="Client payment progress vs Commission payment progress">
+                    Payment Progress
+                </Tooltip>
+            ),
             dataIndex: 'paymentProgress',
             key: 'paymentProgress',
             align: 'center' as const,
-            render: (progress: number | string, record: AgentSaleDetails) => {
-                // Calculate real progress based on amount paid
-                const amountPaid = calculateAmountPaid(record);
-                const salePrice = parseFloat(record.salePrice) || 0;
-                const realProgress = salePrice > 0 ? (amountPaid / salePrice) * 100 : 0;
+            width: 200,
+            render: (_: any, record: AgentSaleDetails) => {
+                const clientProgress = calculateClientPaymentProgress(record);
+                const commissionProgress = calculateCommissionProgress(record);
+
+                // Calculate status color based on the relationship between commission and client progress
+                let statusColor = '#52c41a'; // green by default
+
+                if (commissionProgress < clientProgress * 0.8) {
+                    statusColor = '#ff4d4f'; // red if commission progress is significantly behind
+                } else if (commissionProgress < clientProgress) {
+                    statusColor = '#faad14'; // yellow if commission progress is a bit behind
+                }
 
                 return (
-                    <Progress
-                        percent={Math.min(100, Math.round(realProgress))}
-                        size="small"
-                        status={realProgress >= 100 ? "success" : realProgress > 0 ? "active" : "exception"}
-                    />
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                        <Tooltip title={`Client Payment: ${clientProgress.toFixed(1)}%`}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <Text style={{ width: '70px', fontSize: '12px' }}>Client:</Text>
+                                <Progress
+                                    percent={clientProgress}
+                                    size="small"
+                                    showInfo={false}
+                                    style={{ flex: 1 }}
+                                />
+                                <Text style={{ width: '40px', fontSize: '12px', textAlign: 'right' }}>
+                                    {clientProgress.toFixed(0)}%
+                                </Text>
+                            </div>
+                        </Tooltip>
+                        <Tooltip title={`Commission Payment: ${commissionProgress.toFixed(1)}%`}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <Text style={{ width: '70px', fontSize: '12px' }}>Commission:</Text>
+                                <Progress
+                                    percent={commissionProgress}
+                                    size="small"
+                                    showInfo={false}
+                                    strokeColor={statusColor}
+                                    style={{ flex: 1 }}
+                                />
+                                <Text style={{ width: '40px', fontSize: '12px', textAlign: 'right' }}>
+                                    {commissionProgress.toFixed(0)}%
+                                </Text>
+                            </div>
+                        </Tooltip>
+                    </Space>
                 );
             }
         },
@@ -164,6 +237,8 @@ const AgentExpandedRow: React.FC<AgentExpandedRowProps> = ({
                 // Determine real status based on accrued vs paid
                 const accrued = calculateAccruedCommission(record);
                 const paid = parseFloat(record.commissionPaid) || 0;
+                const clientProgress = calculateClientPaymentProgress(record);
+                const commissionProgress = calculateCommissionProgress(record);
 
                 let realStatus = status;
                 let statusColor = 'red';
@@ -175,8 +250,17 @@ const AgentExpandedRow: React.FC<AgentExpandedRowProps> = ({
                     realStatus = 'PAID';
                     statusColor = 'green';
                 } else if (paid > 0) {
-                    realStatus = 'PARTIAL';
-                    statusColor = 'orange';
+                    // Show warning if commission payments are lagging behind client payments
+                    if (commissionProgress < clientProgress * 0.8) {
+                        realStatus = 'BEHIND';
+                        statusColor = 'red';
+                    } else if (commissionProgress < clientProgress) {
+                        realStatus = 'PARTIAL';
+                        statusColor = 'orange';
+                    } else {
+                        realStatus = 'ON TRACK';
+                        statusColor = 'green';
+                    }
                 } else {
                     realStatus = 'PENDING';
                     statusColor = 'blue';

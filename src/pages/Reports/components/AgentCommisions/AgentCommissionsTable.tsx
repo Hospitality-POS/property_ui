@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Space, Button, Dropdown, Menu, Typography, Tooltip } from 'antd';
+import { Table, Space, Button, Dropdown, Menu, Typography, Tooltip, Progress } from 'antd';
 import { DownloadOutlined, DownOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { AgentCommissionReport, Sale } from '../types';
 import { formatCurrency } from '../../utils/formatters';
@@ -70,6 +70,40 @@ const calculateAccruedCommission = (sale: Sale): number => {
     return amountPaid * commissionRate;
 };
 
+/**
+ * Calculate commission payments progress
+ */
+const calculateCommissionProgress = (sale: Sale): number => {
+    const saleData = sale.saleData || sale;
+    const commission = saleData.commission || {};
+
+    // Calculate total commission paid
+    let commissionPaid = 0;
+    if (commission.payments && Array.isArray(commission.payments) && commission.payments.length > 0) {
+        commissionPaid = commission.payments.reduce((sum, payment) => {
+            return sum + parseFloat(payment.amount || 0);
+        }, 0);
+    }
+
+    // Calculate total commission amount
+    const totalCommission = parseFloat(commission.amount || 0);
+
+    if (totalCommission <= 0) return 0;
+    return (commissionPaid / totalCommission) * 100;
+};
+
+/**
+ * Calculate client payment progress
+ */
+const calculateClientPaymentProgress = (sale: Sale): number => {
+    const saleData = sale.saleData || sale;
+    const totalPrice = parseFloat(saleData.salePrice || 0);
+    const amountPaid = calculateAmountPaid(sale);
+
+    if (totalPrice <= 0) return 0;
+    return (amountPaid / totalPrice) * 100;
+};
+
 const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
     reportData,
     expandedRowKeys,
@@ -92,6 +126,28 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
         }, 0);
     };
 
+    // Calculate average commission payment progress for an agent
+    const calculateAvgCommissionProgress = (record: AgentCommissionReport) => {
+        if (!record.sales || record.sales.length === 0) return 0;
+
+        const totalProgress = record.sales.reduce((sum, sale) => {
+            return sum + calculateCommissionProgress(sale);
+        }, 0);
+
+        return totalProgress / record.sales.length;
+    };
+
+    // Calculate average client payment progress for an agent
+    const calculateAvgClientPaymentProgress = (record: AgentCommissionReport) => {
+        if (!record.sales || record.sales.length === 0) return 0;
+
+        const totalProgress = record.sales.reduce((sum, sale) => {
+            return sum + calculateClientPaymentProgress(sale);
+        }, 0);
+
+        return totalProgress / record.sales.length;
+    };
+
     // Handle export with filtered columns
     const handleExport = (record, format) => {
         // Columns to exclude from export
@@ -112,6 +168,10 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
             if (!filteredSale.accruedCommission) {
                 filteredSale.accruedCommission = calculateAccruedCommission(sale);
             }
+
+            // Add payment progress information
+            filteredSale.clientPaymentProgress = `${calculateClientPaymentProgress(sale).toFixed(1)}%`;
+            filteredSale.commissionPaymentProgress = `${calculateCommissionProgress(sale).toFixed(1)}%`;
 
             return filteredSale;
         });
@@ -266,6 +326,47 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
             }
         },
         {
+            title: (
+                <Tooltip title="Commission payment progress compared to client payment progress">
+                    Payment Progress
+                </Tooltip>
+            ),
+            dataIndex: 'paymentProgress',
+            key: 'paymentProgress',
+            width: 140,
+            align: 'center' as const,
+            sorter: (a: AgentCommissionReport, b: AgentCommissionReport) => {
+                return calculateAvgCommissionProgress(a) - calculateAvgCommissionProgress(b);
+            },
+            sortOrder: sortedInfo.columnKey === 'paymentProgress' && sortedInfo.order,
+            render: (_: any, record: AgentCommissionReport) => {
+                const commissionProgress = calculateAvgCommissionProgress(record);
+                const clientProgress = calculateAvgClientPaymentProgress(record);
+
+                // Calculate the status color based on the relationship between commission and client progress
+                let statusColor = '#52c41a'; // green by default
+
+                if (commissionProgress < clientProgress * 0.8) {
+                    statusColor = '#ff4d4f'; // red if commission progress is significantly behind
+                } else if (commissionProgress < clientProgress) {
+                    statusColor = '#faad14'; // yellow if commission progress is a bit behind
+                }
+
+                return (
+                    <div style={{ width: '100%' }}>
+                        <Tooltip title={`Commission: ${commissionProgress.toFixed(1)}% | Client: ${clientProgress.toFixed(1)}%`}>
+                            <Progress
+                                percent={commissionProgress}
+                                strokeColor={statusColor}
+                                size="small"
+                                format={(percent) => `${percent?.toFixed(1)}%`}
+                            />
+                        </Tooltip>
+                    </div>
+                );
+            }
+        },
+        {
             title: 'Actions',
             key: 'actions',
             width: 150,
@@ -314,7 +415,7 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
             columns={agentColumns}
             dataSource={reportData}
             rowKey="agentId"
-            scroll={{ x: 1140 }}
+            scroll={{ x: 1280 }}
             expandable={{
                 expandedRowRender: (record) => (
                     <AgentExpandedRow
@@ -343,6 +444,8 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
                 let totalCommission = 0;
                 let totalCommissionPaid = 0;
                 let totalPendingCommission = 0;
+                let avgCommissionProgress = 0;
+                let avgClientProgress = 0;
 
                 pageData.forEach(record => {
                     totalSales += record.totalSales || 0;
@@ -360,7 +463,25 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
                     totalCommission += record.totalCommission || 0;
                     totalCommissionPaid += record.totalCommissionPaid || 0;
                     totalPendingCommission += Math.max(0, agentAccruedCommission - record.totalCommissionPaid);
+
+                    // Calculate progress values
+                    avgCommissionProgress += calculateAvgCommissionProgress(record);
+                    avgClientProgress += calculateAvgClientPaymentProgress(record);
                 });
+
+                // Calculate averages
+                if (pageData.length > 0) {
+                    avgCommissionProgress = avgCommissionProgress / pageData.length;
+                    avgClientProgress = avgClientProgress / pageData.length;
+                }
+
+                // Determine status color
+                let statusColor = '#52c41a'; // green by default
+                if (avgCommissionProgress < avgClientProgress * 0.8) {
+                    statusColor = '#ff4d4f'; // red if significantly behind
+                } else if (avgCommissionProgress < avgClientProgress) {
+                    statusColor = '#faad14'; // yellow if a bit behind
+                }
 
                 return (
                     <Table.Summary fixed>
@@ -392,7 +513,16 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
                             <Table.Summary.Cell index={7} align="right">
                                 <Text strong type="warning">{formatCurrency(totalPendingCommission)}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={8}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={8} align="center">
+                                <Progress
+                                    percent={avgCommissionProgress}
+                                    strokeColor={statusColor}
+                                    size="small"
+                                    format={(percent) => `${percent?.toFixed(1)}%`}
+                                    tooltip={`Avg Commission: ${avgCommissionProgress.toFixed(1)}% | Avg Client: ${avgClientProgress.toFixed(1)}%`}
+                                />
+                            </Table.Summary.Cell>
+                            <Table.Summary.Cell index={9}></Table.Summary.Cell>
                         </Table.Summary.Row>
                     </Table.Summary>
                 );

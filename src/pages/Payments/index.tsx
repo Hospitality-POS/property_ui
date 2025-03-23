@@ -15,23 +15,20 @@ import {
   Tag,
   Typography,
   message,
+  Tooltip,
 } from 'antd';
 import {
   CheckCircleOutlined,
-  ClockCircleOutlined,
-  DeleteOutlined,
+  CalendarOutlined,
   DollarOutlined,
   DownOutlined,
-  EditOutlined,
-  ExclamationCircleOutlined,
-  ExportOutlined,
   EyeOutlined,
   FileExcelOutlined,
   PrinterOutlined,
   SearchOutlined,
   AreaChartOutlined,
-  CalendarOutlined,
   PlusOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import PaymentDetailsDrawer from '../../components/drawers/payment'; // Import the drawer component
 import AddPaymentModal from '../../components/Modals/addPayment'; // Import the new payment modal
@@ -80,8 +77,6 @@ const PaymentsList = () => {
     refetchOnWindowFocus: false
   });
 
-  console.log('payment vals', paymentsData);
-
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return moment(dateString).format('DD MMM YYYY');
@@ -95,16 +90,6 @@ const PaymentsList = () => {
 
   const handleCloseDrawer = () => {
     setDrawerVisible(false);
-  };
-
-  const handleEditPayment = (payment) => {
-    console.log('Edit payment:', payment);
-    // In a real app, this would open an edit form
-  };
-
-  const handleDeletePayment = (payment) => {
-    console.log('Delete payment:', payment);
-    // In a real app, this would show a confirmation dialog
   };
 
   const handleSearch = (e) => {
@@ -193,25 +178,39 @@ const PaymentsList = () => {
     return matchesSearch && matchesStatus && matchesPaymentMethod && matchesDateRange;
   });
 
+  // Helper function to get payment plan display text
+  const getPaymentPlanDisplay = (payment) => {
+    // Handle case with multiple payment plans
+    if (payment.paymentPlans && payment.paymentPlans.length > 0) {
+      if (payment.paymentPlans.length === 1) {
+        // Single payment plan - show total amount if available
+        const plan = payment.paymentPlans[0];
+        if (plan.totalAmount) {
+          return `KES ${plan.totalAmount.toLocaleString() || 0}`;
+        } else {
+          return plan._id ? `Plan ID: ${String(plan._id).slice(-6)}` : 'Single Plan';
+        }
+      } else {
+        // Multiple payment plans - show count
+        return `${payment.paymentPlans.length} Plans`;
+      }
+    }
+
+    // Handle backward compatibility with old structure
+    if (payment.paymentPlan && payment.paymentPlan.totalAmount) {
+      return `KES ${payment.paymentPlan.totalAmount.toLocaleString() || 0}`;
+    }
+
+    return 'N/A';
+  };
+
   // Table column definitions
   const paymentColumns = [
-    {
-      title: 'Property',
-      dataIndex: ['sale', 'property', 'name'],
-      key: 'property',
-      fixed: true,
-      width: 200,
-      render: (text) => text || 'N/A',
-      sorter: (a, b) => {
-        const nameA = a.sale?.property?.name || '';
-        const nameB = b.sale?.property?.name || '';
-        return nameA.localeCompare(nameB);
-      },
-    },
     {
       title: 'Customer',
       dataIndex: ['customer', 'name'],
       key: 'customer',
+      fixed: true,
       width: 150,
       render: (text) => text || 'N/A',
       sorter: (a, b) => {
@@ -222,10 +221,21 @@ const PaymentsList = () => {
     },
     {
       title: 'Payment Plan',
-      dataIndex: ['paymentPlan', 'totalAmount'],
       key: 'paymentPlan',
       width: 130,
-      render: (amount) => `KES ${amount?.toLocaleString() || 0}`,
+      render: (_, record) => {
+        // Handle multiple payment plans
+        if (record.paymentPlans && record.paymentPlans.length > 1) {
+          return (
+            <Tooltip title={`Applied to ${record.paymentPlans.length} payment plans`}>
+              <Tag color="blue">{record.paymentPlans.length} Plans</Tag>
+            </Tooltip>
+          );
+        }
+
+        // Handle single payment plan
+        return getPaymentPlanDisplay(record);
+      },
     },
     {
       title: 'Amount (KES)',
@@ -301,7 +311,6 @@ const PaymentsList = () => {
             break;
         }
         return <Tag color={color}>{text}</Tag>;
-
       },
     },
     {
@@ -478,10 +487,40 @@ const PaymentsList = () => {
         loading={isLoadingPayments}
         expandable={{
           expandedRowRender: (record) => (
-            <p style={{ margin: 0 }}>
-              <strong>Transaction Reference:</strong> {record.transactionReference || 'N/A'}<br />
-              <strong>Notes:</strong> {record.notes || 'No notes provided'}
-            </p>
+            <div style={{ margin: 0 }}>
+              <p>
+                <strong>Transaction Reference:</strong> {record.transactionReference || 'N/A'}<br />
+                <strong>Notes:</strong> {record.notes || 'No notes provided'}
+              </p>
+
+              {/* Display allocation details if present */}
+              {record.allocation && record.allocation.length > 0 && (
+                <div>
+                  <strong>Payment Allocation:</strong>
+                  <ul style={{ marginTop: 5 }}>
+                    {record.allocation.map((item, index) => (
+                      <li key={index}>
+                        Plan {item.paymentPlan
+                          ? (item.paymentPlan.name || String(item.paymentPlan).slice(-6))
+                          : index + 1}: KES {item.amount.toLocaleString()}
+                        ({item.appliedTo.charAt(0).toUpperCase() + item.appliedTo.slice(1)})
+                        {item.notes && ` - ${item.notes}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Show sale information if available */}
+              {record.sale && (
+                <p style={{ marginTop: 10 }}>
+                  <strong>Sale Reference:</strong> {record.sale.saleCode || String(record.sale).slice(-6)}<br />
+                  {record.sale.property && (
+                    <><strong>Property:</strong> {record.sale.property.name || 'N/A'}</>
+                  )}
+                </p>
+              )}
+            </div>
           ),
         }}
         summary={(pageData) => {

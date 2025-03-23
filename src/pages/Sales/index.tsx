@@ -407,7 +407,7 @@ const SalesManagement = () => {
         createPayment(paymentData)
             .then(newPayment => {
                 // Show success message
-                message.success('Payment added successfully!');
+                //message.success('Payment added successfully!');
 
                 // Close modal immediately after successful payment
                 setAddPaymentVisible(false);

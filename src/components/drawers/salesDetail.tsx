@@ -542,7 +542,7 @@ export const SaleDetailsDrawer = ({
                                                 </Row>
 
                                                 {/* Payments Table */}
-                                                <div style={{ marginTop: 16 }}>
+                                                {/* <div style={{ marginTop: 16 }}>
                                                     <Title level={5}>Payments History</Title>
                                                     {plan.payments && plan.payments.length > 0 ? (
                                                         <Table
@@ -608,7 +608,7 @@ export const SaleDetailsDrawer = ({
                                                             image={Empty.PRESENTED_IMAGE_SIMPLE}
                                                         />
                                                     )}
-                                                </div>
+                                                </div> */}
                                             </>
                                         );
                                     }
@@ -671,28 +671,28 @@ export const SaleDetailsDrawer = ({
                                             );
                                         }
                                     },
-                                    {
-                                        title: 'Actions',
-                                        key: 'actions',
-                                        render: (text, record) => (
-                                            <Space>
-                                                {(record.status === 'active' || isPaymentPlanOverdue(record)) &&
-                                                    sale.status !== 'completed' && sale.status !== 'cancelled' && (
-                                                        <Button
-                                                            type={isPaymentPlanOverdue(record) ? "danger" : "primary"}
-                                                            onClick={() => handleAddPayment(sale, record)}
-                                                            icon={<DollarOutlined />}
-                                                            size="small"
-                                                        >
-                                                            {isPaymentPlanOverdue(record) ? "Pay Overdue" : "Make Payment"}
-                                                        </Button>
-                                                    )}
-                                                <Button size="small" icon={<FileTextOutlined />}>
-                                                    Details
-                                                </Button>
-                                            </Space>
-                                        )
-                                    }
+                                    // {
+                                    //     title: 'Actions',
+                                    //     key: 'actions',
+                                    //     render: (text, record) => (
+                                    //         <Space>
+                                    //             {(record.status === 'active' || isPaymentPlanOverdue(record)) &&
+                                    //                 sale.status !== 'completed' && sale.status !== 'cancelled' && (
+                                    //                     <Button
+                                    //                         type={isPaymentPlanOverdue(record) ? "danger" : "primary"}
+                                    //                         onClick={() => handleAddPayment(sale, record)}
+                                    //                         icon={<DollarOutlined />}
+                                    //                         size="small"
+                                    //                     >
+                                    //                         {isPaymentPlanOverdue(record) ? "Pay Overdue" : "Make Payment"}
+                                    //                     </Button>
+                                    //                 )}
+                                    //             <Button size="small" icon={<FileTextOutlined />}>
+                                    //                 Details
+                                    //             </Button>
+                                    //         </Space>
+                                    //     )
+                                    // }
                                 ]}
                             />
                         </>
@@ -973,21 +973,21 @@ export const SaleDetailsDrawer = ({
             onClose={onClose}
             open={visible}
             width={700}
-            footer={
-                <div style={{ textAlign: 'right' }}>
-                    {sale && sale.status !== 'completed' && sale.status !== 'cancelled' &&
-                        sale.paymentPlanType === 'Full Payment' && (
-                            <Button
-                                type="primary"
-                                onClick={() => handleAddPayment(sale)}
-                                style={{ marginRight: 8 }}
-                            >
-                                Make Payment
-                            </Button>
-                        )}
-                    <Button onClick={onClose}>Close</Button>
-                </div>
-            }
+        // footer={
+        //     <div style={{ textAlign: 'right' }}>
+        //         {sale && sale.status !== 'completed' && sale.status !== 'cancelled' &&
+        //             sale.paymentPlanType === 'Full Payment' && (
+        //                 <Button
+        //                     type="primary"
+        //                     onClick={() => handleAddPayment(sale)}
+        //                     style={{ marginRight: 8 }}
+        //                 >
+        //                     Make Payment
+        //                 </Button>
+        //             )}
+        //         <Button onClick={onClose}>Close</Button>
+        //     </div>
+        // }
         >
             <div style={{ marginBottom: 24 }}>
                 <Row gutter={16}>

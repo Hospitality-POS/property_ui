@@ -3,234 +3,298 @@ import axios from 'axios';
 import { history } from '@umijs/max'; // using Umi routing
 import { getToken } from '@/utils/getToken';
 
+// Token state enum for better tracking
+enum TokenState {
+  LOADING = 'loading',
+  VALID = 'valid',
+  INVALID = 'invalid',
+}
 
-let isRedirecting = false; // Prevent multiple redirects and API calls
-let tokenPromise: Promise<string> | null = null; // Store token promise for pre-loading
+// Token manager to centralize token handling
+class TokenManager {
+  private tokenPromise: Promise<string> | null = null;
+  private tokenState: TokenState = TokenState.LOADING;
+  private redirectInProgress: boolean = false;
+  private maxAttempts: number = 3;
+  private timeoutMs: number = 5000; // 5 second timeout for token loading
 
-// Pre-load token to avoid race conditions
-const preloadToken = (): Promise<string> => {
-  if (!tokenPromise) {
-    tokenPromise = new Promise((resolve) => {
-      // Try to get token immediately
-      const { token } = getToken();
-      if (token && token.length > 10) { // Basic validation to ensure token exists and has minimum length
-        resolve(token);
-      } else {
-        // If no valid token, retry with exponential backoff
-        let attempts = 0;
-        const maxAttempts = 3;
+  // Validate token format
+  public validateToken(token: string): boolean {
+    if (!token) return false;
 
-        const tryGetToken = () => {
-          setTimeout(() => {
-            const { token: retryToken } = getToken();
-            if (retryToken && retryToken.length > 10) {
-              resolve(retryToken);
-            } else {
-              attempts++;
-              if (attempts < maxAttempts) {
-                // Exponential backoff: 300ms, 600ms, 1200ms
-                tryGetToken();
-              } else {
-                // After max attempts, resolve with empty string or redirect to login
-                console.warn('Failed to get valid token after multiple attempts');
-                if (!isRedirecting) {
-                  isRedirecting = true;
-                  history.push('/login');
-                }
-                resolve('');
-              }
-            }
-          }, 300 * Math.pow(2, attempts));
-        };
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
 
-        tryGetToken();
+    try {
+      for (const part of parts) {
+        if (part.trim() === '') return false;
+        // Check if it's base64 format (allows for URL safe base64)
+        if (!/^[A-Za-z0-9_-]+$/g.test(part)) {
+          return false;
+        }
       }
-    });
-  }
-  return tokenPromise;
-};
-
-// Reset token promise when needed (e.g., after logout/login)
-export const resetTokenPromise = () => {
-  tokenPromise = null;
-};
-
-// Validate token format to prevent malformed JWT errors
-export const validateToken = (token: string): boolean => {
-  // Basic JWT validation - should have 3 parts separated by dots
-  // and be a reasonable length
-  if (!token) return false;
-
-  const parts = token.split('.');
-  if (parts.length !== 3) return false;
-
-  // Check that each part is a valid base64 string
-  try {
-    for (const part of parts) {
-      if (part.trim() === '') return false;
-      // Check if it's base64 format (allows for URL safe base64)
-      if (!/^[A-Za-z0-9_-]+$/g.test(part)) {
-        return false;
-      }
+      return true;
+    } catch (e) {
+      return false;
     }
-    return true;
-  } catch (e) {
-    return false;
   }
-};
 
-const handleError = (errorMessage: string) => {
-  if (!isRedirecting) {
-    message.error(`${errorMessage}`);
+  // Reset token state and promise
+  public reset(): void {
+    this.tokenPromise = null;
+    this.tokenState = TokenState.LOADING;
   }
-};
 
+  // Get token with timeout
+  public async getTokenWithTimeout(): Promise<string> {
+    const tokenPromise = this.loadToken();
+
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<string>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Token loading timed out'));
+      }, this.timeoutMs);
+    });
+
+    try {
+      // Race between token loading and timeout
+      return await Promise.race([tokenPromise, timeoutPromise]);
+    } catch (error) {
+      this.tokenState = TokenState.INVALID;
+      console.error('Token loading error:', error);
+      return '';
+    }
+  }
+
+  // Internal method to load token
+  private async loadToken(): Promise<string> {
+    // Return existing promise if already loading
+    if (this.tokenPromise) {
+      return this.tokenPromise;
+    }
+
+    this.tokenState = TokenState.LOADING;
+
+    // Create new token loading promise
+    this.tokenPromise = new Promise(async (resolve) => {
+      // First attempt - immediate
+      const { token } = getToken();
+
+      if (token && this.validateToken(token)) {
+        this.tokenState = TokenState.VALID;
+        resolve(token);
+        return;
+      }
+
+      // Retry with exponential backoff
+      let attempts = 0;
+
+      const tryGetToken = () => {
+        setTimeout(() => {
+          const { token: retryToken } = getToken();
+
+          if (retryToken && this.validateToken(retryToken)) {
+            this.tokenState = TokenState.VALID;
+            resolve(retryToken);
+            return;
+          }
+
+          attempts++;
+          if (attempts < this.maxAttempts) {
+            // Exponential backoff: 300ms, 600ms, 1200ms
+            tryGetToken();
+          } else {
+            // After max attempts, mark as invalid and redirect
+            this.tokenState = TokenState.INVALID;
+            this.redirectToLogin();
+            resolve('');
+          }
+        }, 300 * Math.pow(2, attempts));
+      };
+
+      tryGetToken();
+    });
+
+    return this.tokenPromise;
+  }
+
+  // Redirect to login page
+  private redirectToLogin(): void {
+    if (!this.redirectInProgress) {
+      this.redirectInProgress = true;
+      console.warn('Redirecting to login due to invalid token');
+      setTimeout(() => {
+        history.push('/login');
+        // Reset the flag after navigation completes
+        setTimeout(() => {
+          this.redirectInProgress = false;
+        }, 100);
+      }, 0);
+    }
+  }
+
+  // Check if we need to redirect
+  public shouldRedirect(): boolean {
+    return this.tokenState === TokenState.INVALID && !this.redirectInProgress;
+  }
+
+  // Get current token state
+  public getState(): TokenState {
+    return this.tokenState;
+  }
+}
+
+// Create singleton instance
+const tokenManager = new TokenManager();
+
+// Initialize axios instance
 const axiosInstance = axios.create({
-  baseURL: BASE_URL,
+  baseURL: process.env.BASE_URL,
 });
 
+// Request interceptor with improved token handling
 axiosInstance.interceptors.request.use(
   async (config) => {
-    if (isRedirecting) {
-      // Stop sending requests if already redirecting
+    // Skip token handling for auth endpoints
+    const isAuthEndpoint = config.url?.includes('/login') || config.url?.includes('/auth');
+    if (isAuthEndpoint) {
+      return config;
+    }
+
+    // If already redirecting, don't send the request
+    if (tokenManager.shouldRedirect()) {
       return new Promise(() => { });
     }
 
-    // Wait for token to be available
-    const token = await preloadToken();
+    try {
+      // Get token with timeout protection
+      const token = await tokenManager.getTokenWithTimeout();
 
-    // Only proceed with request if we have a valid token
-    if (token && token.length > 10) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      if (token) {
+        // Apply token to request
+        config.headers['Authorization'] = `Bearer ${token}`;
 
-      const storedCode = localStorage.getItem('companyCode');
-      if (storedCode || config.data?.companyCode) {
-        config.headers['companyCode'] = storedCode || config.data?.companyCode;
-      }
+        // Handle company code if needed
+        const storedCode = localStorage.getItem('companyCode');
+        if (storedCode || config.data?.companyCode) {
+          config.headers['companyCode'] = storedCode || config.data?.companyCode;
+        }
 
-      return config;
-    } else {
-      // If we're here, we don't have a valid token and we're not redirecting yet
-      if (!isRedirecting && !config.url?.includes('/login') && !config.url?.includes('/auth')) {
-        console.warn('No valid token available for request:', config.url);
-
-        // For API endpoints that require authentication, don't send the request
-        // Instead, delay and retry or redirect to login
+        return config;
+      } else {
+        // If we have no token and this isn't an auth endpoint, try retry logic
         if (config._retry !== true) {
           config._retry = true;
           // Return a promise that will resolve later with a retry
           return new Promise((resolve) => {
             setTimeout(() => {
-              resetTokenPromise(); // Force token refresh
+              tokenManager.reset(); // Force token refresh
               resolve(axiosInstance(config)); // Retry the request
             }, 800);
           });
         } else {
-          isRedirecting = true;
-          history.push('/login');
+          // If we've already retried, redirect to login
+          tokenManager.redirectToLogin();
           return new Promise(() => { });
         }
       }
-
-      // For login/auth endpoints or retries, proceed without token
-      return config;
+    } catch (error) {
+      console.error('Error in request interceptor:', error);
+      message.error('Failed to prepare request: Network error');
+      return Promise.reject(error);
     }
   },
   (error) => {
-    handleError('Request setup failed');
+    if (!tokenManager.shouldRedirect()) {
+      message.error('Request setup failed');
+    }
     return Promise.reject(error);
-  },
+  }
 );
 
+// Response interceptor with improved error handling
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const { config, response } = error;
     const originalRequest = config;
 
+    // Handle 401 Unauthorized errors
     if (response && response.status === 401) {
       originalRequest._retryCount = originalRequest._retryCount || 0;
 
       if (originalRequest._retryCount < 2) {
         originalRequest._retryCount += 1;
+
         // Force refresh token
-        resetTokenPromise();
-        const token = await preloadToken();
+        tokenManager.reset();
+        const token = await tokenManager.getTokenWithTimeout();
+
         if (token) {
           originalRequest.headers['Authorization'] = `Bearer ${token}`;
           return axiosInstance(originalRequest);
         }
       }
 
-      if (!isRedirecting) {
-        isRedirecting = true;
-        history.push('/login');
-        // Don't throw error or fire messages after redirect
-        return new Promise(() => { });
-      }
-
+      // If we've retried too many times, redirect to login
+      tokenManager.redirectToLogin();
       return new Promise(() => { });
-    } else if (response?.status === 403) {
-      handleError(response.data.message);
-    } else if (response?.status === 409) {
-      handleError('Company does not exist. Kindly contact support.');
-    } else if (response?.status === 404) {
-      handleError(response.data.message);
+    }
+
+    // Handle other error types
+    if (!tokenManager.shouldRedirect()) {
+      if (response?.status === 403) {
+        message.error(response.data.message || 'Forbidden access');
+      } else if (response?.status === 409) {
+        message.error('Company does not exist. Kindly contact support.');
+      } else if (response?.status === 404) {
+        message.error(response.data.message || 'Resource not found');
+      } else if (!response) {
+        message.error('Network error. Please check your connection.');
+      }
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
-// Function to safely get token that validates before returning
-export const getSafeToken = (): { token: string, isValid: boolean } => {
-  const { token } = getToken();
-  const isValid = validateToken(token);
-  return { token, isValid };
-};
-
-// Override the getToken function for axios instance usage
-const axiosGetToken = (): { token: string } => {
-  const { token, isValid } = getSafeToken();
-  return { token: isValid ? token : '' };
-};
-
-// Initialize token pre-loading immediately when this file is imported
-// We use a small delay to ensure any token setup has completed
-setTimeout(() => {
-  preloadToken();
-}, 50);
-
-// Helper function to ensure token is loaded before making requests
-const ensureTokenLoaded = async (): Promise<boolean> => {
-  try {
-    const token = await preloadToken();
-    return token && token.length > 10;
-  } catch (error) {
-    console.error('Error ensuring token is loaded:', error);
-    return false;
-  }
-};
-
-// Wrapper for axios methods that ensures token is loaded before making requests
+// Helper functions that ensure token is loaded before making requests
 export const getRequest = async (url: string, config = {}) => {
-  await ensureTokenLoaded();
+  await tokenManager.getTokenWithTimeout();
   return axiosInstance.get(url, config);
 };
 
 export const postRequest = async (url: string, data: any, config = {}) => {
-  await ensureTokenLoaded();
+  await tokenManager.getTokenWithTimeout();
   return axiosInstance.post(url, data, config);
 };
 
 export const putRequest = async (url: string, data: any, config = {}) => {
-  await ensureTokenLoaded();
+  await tokenManager.getTokenWithTimeout();
   return axiosInstance.put(url, data, config);
 };
 
 export const deleteRequest = async (url: string, config = {}) => {
-  await ensureTokenLoaded();
+  await tokenManager.getTokenWithTimeout();
   return axiosInstance.delete(url, config);
 };
+
+// Allow direct access to token manager for other modules
+export const initializeToken = () => {
+  // Pre-load token immediately to reduce wait time for first request
+  setTimeout(() => {
+    tokenManager.getTokenWithTimeout().catch(error => {
+      console.warn('Initial token loading failed:', error);
+    });
+  }, 50);
+};
+
+// For backward compatibility with existing code
+export const resetTokenPromise = () => {
+  tokenManager.reset();
+};
+
+// Call initializer immediately
+initializeToken();
 
 export default axiosInstance;
