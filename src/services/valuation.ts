@@ -54,3 +54,20 @@ export const updateValuation = async (
     throw error;
   }
 };
+
+export const deleteValuation = async (valuationId: string) => {
+  try {
+    const response = await axiosInstance.delete(
+      `${BASE_URL}/valuations/${valuationId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
