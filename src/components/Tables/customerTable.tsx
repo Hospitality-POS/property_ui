@@ -207,8 +207,8 @@ export const CustomersTable = ({
             dataIndex: 'leadSource',
             key: 'leadSource',
             width: 120,
-            render: (source) => {
-                const sourceStr = safeString(source);
+            render: (_, record) => {
+                const sourceStr = record?.lead?.name ? safeString(record.lead.name) : null;
                 if (!sourceStr) return 'Unknown';
 
                 const colorMap = {
@@ -232,8 +232,12 @@ export const CustomersTable = ({
                 { text: 'Social', value: 'social' },
                 { text: 'Agent', value: 'agent' }
             ],
-            onFilter: (value, record) => safeString(record.leadSource).toLowerCase() === value,
+            onFilter: (value, record) => {
+                const sourceStr = record?.lead?.name ? safeString(record.lead.name).toLowerCase() : '';
+                return sourceStr === value;
+            },
         },
+
         {
             title: 'Created',
             dataIndex: 'createdAt',

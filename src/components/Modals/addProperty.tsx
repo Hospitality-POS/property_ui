@@ -882,7 +882,11 @@ export const AddPropertyModal = ({
             <h4>Add New Phase</h4>
             <Row gutter={16}>
                 <Col span={8}>
-                    <Form.Item label="Phase Name">
+                    <Form.Item
+                        label="Phase Name"
+                        name="phaseName"
+                        rules={[{ required: true, message: 'Please enter phase name' }]}
+                    >
                         <Input
                             placeholder="e.g., Early Bird, Phase 1"
                             value={phaseName}
@@ -891,7 +895,11 @@ export const AddPropertyModal = ({
                     </Form.Item>
                 </Col>
                 <Col span={7}>
-                    <Form.Item label="Start Date">
+                    <Form.Item
+                        label="Start Date"
+                        name="phaseStartDate"
+                        rules={[{ required: true, message: 'Please select start date' }]}
+                    >
                         <DatePicker
                             style={{ width: '100%' }}
                             value={phaseStartDate}
@@ -901,8 +909,12 @@ export const AddPropertyModal = ({
                         />
                     </Form.Item>
                 </Col>
-                <Col span={7}>
-                    <Form.Item label="End Date (Optional)">
+                <Col span={6}>
+                    <Form.Item
+                        label="End Date"
+                        name="phaseEndDate"
+                        rules={[{ required: true, message: 'Please select end date' }]}
+                    >
                         <DatePicker
                             style={{ width: '100%' }}
                             value={phaseEndDate}
@@ -912,13 +924,13 @@ export const AddPropertyModal = ({
                         />
                     </Form.Item>
                 </Col>
-                <Col span={2} style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <Col span={3} style={{ display: 'flex', alignItems: 'flex-end' }}>
                     <Form.Item label=" " colon={false}>
                         <Button
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={addPhase}
-                            disabled={!phaseName.trim()}
+                            disabled={!phaseName.trim() || !phaseStartDate || !phaseEndDate}
                         >
                             Add
                         </Button>

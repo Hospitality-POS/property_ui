@@ -74,11 +74,13 @@ export const exportToCSV = (
  * @param data - The data to export
  * @param filename - The filename to use
  * @param setExportLoading - Function to set loading state
+ * @param config - Optional configuration for PDF export
  */
 export const exportToPDF = (
     data: any[],
     filename: string,
-    setExportLoading: (loading: boolean) => void
+    setExportLoading: (loading: boolean) => void,
+    config: any = {}
 ): void => {
     setExportLoading(true);
     try {
@@ -95,7 +97,7 @@ export const exportToPDF = (
         let isIframeRemoved = false;
 
         // Generate HTML content
-        const tableHTML = generateHTMLTable(data, filename);
+        const tableHTML = generateHTMLTable(data, filename, config);
 
         // Write the HTML content to the iframe
         printIframe.contentDocument?.open();
@@ -187,13 +189,21 @@ export const exportToPDF = (
 /**
  * Generate HTML table from data
  */
-const generateHTMLTable = (data: any[], title: string): string => {
+const generateHTMLTable = (data: any[], title: string, config: any = {}): string => {
     if (!data || data.length === 0) {
         return '<p>No data available</p>';
     }
 
-    const keys = Object.keys(data[0]);
     const currentDate = new Date().toLocaleDateString();
+
+    // Use custom columns if provided, otherwise use all keys from data
+    const useCustomColumns = config.columns && Array.isArray(config.columns) && config.columns.length > 0;
+    const columns = useCustomColumns ? config.columns : Object.keys(data[0]).map(key => ({
+        header: key.replace(/([A-Z])/g, ' $1')
+            .replace(/_/g, ' ')
+            .replace(/^\w/, c => c.toUpperCase()),
+        dataKey: key
+    }));
 
     // Function to format values appropriately
     const formatValue = (key: string, value: any): string => {
@@ -259,18 +269,14 @@ const generateHTMLTable = (data: any[], title: string): string => {
     };
 
     // Generate header row
-    let headerRow = keys.map(key => {
-        // Format the header for display (capitalize, replace underscores with spaces)
-        const formattedHeader = key.replace(/([A-Z])/g, ' $1')
-            .replace(/_/g, ' ')
-            .replace(/^\w/, c => c.toUpperCase());
-
-        return `<th>${formattedHeader}</th>`;
+    let headerRow = columns.map(column => {
+        return `<th>${column.header}</th>`;
     }).join('');
 
     // Generate data rows
     let dataRows = data.map(row => {
-        return '<tr>' + keys.map(key => {
+        return '<tr>' + columns.map(column => {
+            const key = column.dataKey;
             const cellClass = getCellAlignment(key);
             let cellContent = formatValue(key, row[key]);
 
@@ -283,10 +289,14 @@ const generateHTMLTable = (data: any[], title: string): string => {
         }).join('') + '</tr>';
     }).join('');
 
+    // Custom title and subtitle if provided
+    const displayTitle = config.title || title;
+    const displaySubtitle = config.subtitle || 'Commission Report';
+
     // Assemble the complete HTML
     return `
-        <h1>${title}</h1>
-        <h2>Commission Report</h2>
+        <h1>${displayTitle}</h1>
+        <h2>${displaySubtitle}</h2>
         <table>
             <thead>
                 <tr>${headerRow}</tr>

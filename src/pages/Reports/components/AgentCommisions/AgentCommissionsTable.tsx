@@ -149,9 +149,17 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
     };
 
     // Handle export with filtered columns
+    // Handle export with filtered columns
+    // Handle export with filtered columns
+    // Handle export with filtered columns
     const handleExport = (record, format) => {
         // Columns to exclude from export
         const excludeColumns = ['saleId', 'commissionStatus', 'unit', 'unitId', 'saleData', 'quantity', 'paymentProgress', 'propertyId'];
+
+        // For PDF specifically, add more columns to exclude (removing sales info)
+        if (format === 'pdf') {
+            excludeColumns.push('totalSales', 'commissionPaymentProgress');
+        }
 
         // Prepare filtered data
         const exportData = record.sales.map(sale => {
@@ -165,13 +173,50 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
                 filteredSale.amountPaid = calculateAmountPaid(sale);
             }
 
-            if (!filteredSale.accruedCommission) {
-                filteredSale.accruedCommission = calculateAccruedCommission(sale);
-            }
+            const accruedCommission = calculateAccruedCommission(sale);
+            filteredSale.accruedCommission = accruedCommission;
 
             // Add payment progress information
             filteredSale.clientPaymentProgress = `${calculateClientPaymentProgress(sale).toFixed(1)}%`;
-            filteredSale.commissionPaymentProgress = `${calculateCommissionProgress(sale).toFixed(1)}%`;
+
+            // Only include commission payment progress if not PDF
+            if (format !== 'pdf') {
+                filteredSale.commissionPaymentProgress = `${calculateCommissionProgress(sale).toFixed(1)}%`;
+            }
+
+            // For PDF, add detailed commission payment information
+            if (format === 'pdf') {
+                const saleData = sale.saleData || sale;
+                const commission = saleData.commission || {};
+
+                // Get commission paid amount
+                let commissionPaid = 0;
+                if (commission.payments && Array.isArray(commission.payments) && commission.payments.length > 0) {
+                    commissionPaid = commission.payments.reduce((sum, payment) => {
+                        return sum + parseFloat(payment.amount || 0);
+                    }, 0);
+
+                    filteredSale.commissionPaid = commissionPaid;
+
+                    // Calculate balance (accrued commission minus paid)
+                    filteredSale.commissionBalance = filteredSale.accruedCommission - commissionPaid;
+
+                    // Get the most recent payment for method, reference and notes
+                    const mostRecentPayment = [...commission.payments].sort((a, b) =>
+                        new Date(b.paymentDate) - new Date(a.paymentDate)
+                    )[0];
+
+                    filteredSale.lastPaymentMethod = mostRecentPayment.paymentMethod;
+                    filteredSale.lastPaymentReference = mostRecentPayment.reference || 'N/A';
+                    filteredSale.lastPaymentNotes = mostRecentPayment.notes || 'N/A';
+                } else {
+                    filteredSale.commissionPaid = 0;
+                    filteredSale.commissionBalance = filteredSale.accruedCommission;
+                    filteredSale.lastPaymentMethod = 'N/A';
+                    filteredSale.lastPaymentReference = 'N/A';
+                    filteredSale.lastPaymentNotes = 'N/A';
+                }
+            }
 
             return filteredSale;
         });
@@ -185,14 +230,28 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
             } else if (format === 'csv') {
                 exportToCSV(exportData, `${record.agentName}_Commission`, setExportLoading);
             } else if (format === 'pdf') {
-                exportToPDF(exportData, `${record.agentName}_Commission`, setExportLoading);
+                // Custom configuration for PDF export
+                const pdfConfig = {
+                    title: `Commission Report for ${record.agentName}`,
+                    subtitle: `Generated on ${new Date().toLocaleDateString()}`,
+                    columns: [
+                        { header: 'Amount Paid by Client', dataKey: 'amountPaid' },
+                        { header: 'Commission Amount', dataKey: 'accruedCommission' },
+                        { header: 'Commission Paid', dataKey: 'commissionPaid' },
+                        { header: 'Balance', dataKey: 'commissionBalance' },
+                        { header: 'Payment Method', dataKey: 'lastPaymentMethod' },
+                        { header: 'Reference', dataKey: 'lastPaymentReference' },
+                        { header: 'Payment Notes', dataKey: 'lastPaymentNotes' }
+                    ]
+                };
+
+                exportToPDF(exportData, `${record.agentName}_Commission`, setExportLoading, pdfConfig);
             }
         } catch (error) {
             console.error(`Error exporting to ${format}:`, error);
             setExportLoading(false);
         }
     };
-
     // Agent commissions report columns
     const agentColumns = [
         {

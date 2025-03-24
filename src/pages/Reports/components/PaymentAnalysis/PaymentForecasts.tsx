@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Row, Col, Card, Statistic, Empty, Spin, Typography,
-    Space, Table, Tag, Alert
+    Space, Table, Tag, Alert, List, Divider
 } from 'antd';
 import { Line, Column } from '@ant-design/charts';
 import {
@@ -38,11 +38,13 @@ interface Sale {
     paymentPlans?: PaymentPlan[];
 }
 
+// Extended with paymentPlans to track related plans
 interface PaymentForecast {
     month: string;
     monthDisplay: string;
     expectedAmount: number;
     duePayments: number;
+    paymentPlans: Array<{ plan: PaymentPlan, saleInfo: { id: string, saleCode?: string } }>;
 }
 
 interface PaymentForecastsTabProps {
@@ -104,7 +106,8 @@ const PaymentForecastsTab: React.FC<PaymentForecastsTabProps> = ({
                     month: monthKey,
                     monthDisplay: currentMonth.format('MMM YYYY'),
                     expectedAmount: 0,
-                    duePayments: 0
+                    duePayments: 0,
+                    paymentPlans: [] // Initialize empty array to store payment plans
                 };
                 currentMonth.add(1, 'month');
             }
@@ -167,6 +170,15 @@ const PaymentForecastsTab: React.FC<PaymentForecastsTabProps> = ({
                     if (monthlyForecasts[monthKey]) {
                         monthlyForecasts[monthKey].expectedAmount += planAmount;
                         monthlyForecasts[monthKey].duePayments += 1;
+
+                        // Store the payment plan and related sale info in the forecast
+                        monthlyForecasts[monthKey].paymentPlans.push({
+                            plan,
+                            saleInfo: {
+                                id: sale._id || sale.id || '',
+                                saleCode: sale.saleCode
+                            }
+                        });
                     }
                 });
             });
@@ -254,6 +266,69 @@ const PaymentForecastsTab: React.FC<PaymentForecastsTabProps> = ({
                 };
             },
         },
+    };
+
+    // Payment plan expandable panel
+    const expandedRowRender = (record: PaymentForecast) => {
+        // Return early if no payment plans
+        if (!record.paymentPlans || record.paymentPlans.length === 0) {
+            return <Empty description="No payment plans found" />;
+        }
+
+        return (
+            <List
+                size="small"
+                header={<Text strong>Payment Plans Due in {record.monthDisplay}</Text>}
+                bordered
+                dataSource={record.paymentPlans}
+                renderItem={item => (
+                    <List.Item>
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                            <Space>
+                                <Text type="secondary">Sale:</Text>
+                                <Text strong>{item.saleInfo.saleCode || item.saleInfo.id}</Text>
+
+                                <Divider type="vertical" />
+
+                                <Text type="secondary">Plan ID:</Text>
+                                <Text>{item.plan._id || item.plan.id}</Text>
+
+                                <Divider type="vertical" />
+
+                                <Text type="secondary">Status:</Text>
+                                <Tag color={
+                                    item.plan.status === 'active' ? 'green' :
+                                        item.plan.status === 'defaulted' ? 'red' :
+                                            item.plan.status === 'cancelled' ? 'volcano' : 'blue'
+                                }>
+                                    {item.plan.status || 'Unknown'}
+                                </Tag>
+                            </Space>
+
+                            <Space>
+                                <Text type="secondary">Amount Due:</Text>
+                                <Text strong>{formatCurrency(ensureNumber(item.plan.outstandingBalance || item.plan.totalAmount))}</Text>
+
+                                <Divider type="vertical" />
+
+                                <Text type="secondary">Start Date:</Text>
+                                <Text>{item.plan.startDate ? moment(item.plan.startDate).format('MMM DD, YYYY') : 'Not set'}</Text>
+
+                                <Divider type="vertical" />
+
+                                <Text type="secondary">End Date:</Text>
+                                <Text>{item.plan.endDate ? moment(item.plan.endDate).format('MMM DD, YYYY') : 'Not set'}</Text>
+
+                                <Divider type="vertical" />
+
+                                <Text type="secondary">Payment Method:</Text>
+                                <Text>{item.plan.paymentMethod || 'Not specified'}</Text>
+                            </Space>
+                        </Space>
+                    </List.Item>
+                )}
+            />
+        );
     };
 
     // Detailed forecast table columns
@@ -348,7 +423,7 @@ const PaymentForecastsTab: React.FC<PaymentForecastsTabProps> = ({
                 )}
             </Card>
 
-            {/* Forecast Detail Table */}
+            {/* Forecast Detail Table with Expandable Rows */}
             <Card style={{ marginTop: 16 }} title="Monthly Forecast Details">
                 {isLoading ? (
                     <div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -360,6 +435,11 @@ const PaymentForecastsTab: React.FC<PaymentForecastsTabProps> = ({
                         dataSource={forecasts}
                         rowKey="month"
                         pagination={false}
+                        expandable={{
+                            expandedRowRender,
+                            expandRowByClick: true,
+                            expandIconColumnIndex: 0,
+                        }}
                         summary={pageData => {
                             // Calculate totals for the table footer
                             let totalDuePayments = 0;
@@ -374,7 +454,10 @@ const PaymentForecastsTab: React.FC<PaymentForecastsTabProps> = ({
                                 <>
                                     <Table.Summary.Row>
                                         <Table.Summary.Cell index={0}>
-                                            <Text strong>Total</Text>
+                                            {/* <Text strong>Total</Text> */}
+                                        </Table.Summary.Cell>
+                                        <Table.Summary.Cell index={0}>
+                                            {/* <Text strong>Total</Text> */}
                                         </Table.Summary.Cell>
                                         <Table.Summary.Cell index={1} align="center">
                                             <Text strong>{totalDuePayments}</Text>

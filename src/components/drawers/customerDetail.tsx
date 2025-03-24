@@ -72,8 +72,9 @@ const formatCurrency = (amount) => {
     })}`;
 };
 
-// Helper function to get all payments from purchases
+// Helper function to get all payments from purchases - FIXED
 const getAllPaymentsFromPurchases = (customer) => {
+    console.log('customer purchase', customer);
     if (!customer || !customer.purchases || !Array.isArray(customer.purchases)) {
         return [];
     }
@@ -85,6 +86,7 @@ const getAllPaymentsFromPurchases = (customer) => {
 
         const purchaseId = purchase._id || purchase.id || "unknown-purchase";
         const totalAmount = safeNumber(purchase.salePrice);
+        const propertyName = purchase.property?.name || 'Property';
 
         // Check if payments array exists
         if (Array.isArray(purchase.payments) && purchase.payments.length > 0) {
@@ -97,6 +99,7 @@ const getAllPaymentsFromPurchases = (customer) => {
 
                 allPayments.push({
                     purchaseId: purchaseId,
+                    propertyName: propertyName,
                     date: payment.date || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                     amount: paymentAmount,
                     method: payment.method || "Unknown",
@@ -109,6 +112,7 @@ const getAllPaymentsFromPurchases = (customer) => {
             if (purchase.status === "completed" && totalAmount > 0) {
                 allPayments.push({
                     purchaseId: purchaseId,
+                    propertyName: propertyName,
                     date: purchase.lastPaymentDate || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                     amount: totalAmount,
                     method: "Unknown",
@@ -125,6 +129,7 @@ const getAllPaymentsFromPurchases = (customer) => {
                 if (paidAmount > 0) {
                     allPayments.push({
                         purchaseId: purchaseId,
+                        propertyName: propertyName,
                         date: purchase.lastPaymentDate || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
                         amount: paidAmount,
                         method: "Unknown",
@@ -146,7 +151,7 @@ const getAllPaymentsFromPurchases = (customer) => {
     return allPayments;
 };
 
-// Generate transaction data from customer data - FIXED VERSION
+// Generate transaction data from customer data - FIXED
 const generateTransactionData = (customer) => {
     const transactions = [];
 
@@ -171,78 +176,41 @@ const generateTransactionData = (customer) => {
             return dateA - dateB;
         });
 
+        // Process each purchase first
         sortedPurchases.forEach(purchase => {
+            if (!purchase) return;
+
             const amount = safeNumber(purchase.salePrice);
             runningBalance += amount;
+
+            const propertyName = purchase.property?.name || 'Property';
 
             transactions.push({
                 date: purchase.saleDate || new Date().toISOString(),
                 type: 'Invoice',
-                details: `Purchase - ${safeString(purchase.property?.name || 'Property')}`,
+                details: `Purchase - ${propertyName}`,
                 amount: amount,
                 payment: 0,
                 balance: runningBalance
             });
+        });
 
-            // Add payments from purchases
-            if (Array.isArray(purchase.payments) && purchase.payments.length > 0) {
-                // Sort payments by date
-                const sortedPayments = [...purchase.payments].sort((a, b) => {
-                    const dateA = new Date(a.date || 0);
-                    const dateB = new Date(b.date || 0);
-                    return dateA - dateB;
-                });
+        // Now process all payments separately
+        const allPayments = getAllPaymentsFromPurchases(customer);
 
-                sortedPayments.forEach(payment => {
-                    if (!payment) return; // Skip null/undefined payments
+        allPayments.forEach(payment => {
+            if (!payment) return;
 
-                    const paymentAmount = safeNumber(payment.amount);
-                    if (paymentAmount <= 0) return; // Skip zero or negative payments
+            runningBalance -= payment.amount;
 
-                    runningBalance -= paymentAmount;
-
-                    transactions.push({
-                        date: payment.date || new Date().toISOString(),
-                        type: 'Payment Received',
-                        details: `${payment.reference || 'Payment'}\nKES${paymentAmount.toLocaleString()} for purchase of ${purchase.property?.name || 'Property'}`,
-                        amount: 0,
-                        payment: paymentAmount,
-                        balance: runningBalance
-                    });
-                });
-            }
-            // Handle case where no payments array exists but purchase is completed
-            else if (purchase.status === "completed" && amount > 0) {
-                runningBalance -= amount; // Full payment
-
-                transactions.push({
-                    date: purchase.updatedAt || purchase.lastPaymentDate || purchase.createdAt || new Date().toISOString(),
-                    type: 'Payment Received',
-                    details: `Full Payment\nKES${amount.toLocaleString()} for purchase of ${purchase.property?.name || 'Property'}`,
-                    amount: 0,
-                    payment: amount,
-                    balance: runningBalance
-                });
-            }
-            // Handle case where purchase has partial payment
-            else if (typeof purchase.outstandingBalance === 'number' &&
-                purchase.outstandingBalance < amount) {
-
-                const paidAmount = amount - purchase.outstandingBalance;
-
-                if (paidAmount > 0) {
-                    runningBalance -= paidAmount;
-
-                    transactions.push({
-                        date: purchase.lastPaymentDate || purchase.updatedAt || purchase.createdAt || new Date().toISOString(),
-                        type: 'Payment Received',
-                        details: `Partial Payment\nKES${paidAmount.toLocaleString()} for purchase of ${purchase.property?.name || 'Property'}`,
-                        amount: 0,
-                        payment: paidAmount,
-                        balance: runningBalance
-                    });
-                }
-            }
+            transactions.push({
+                date: payment.date,
+                type: 'Payment Received',
+                details: `${payment.reference || 'Payment'}\nKES ${payment.amount.toLocaleString()} for purchase of ${payment.propertyName}`,
+                amount: 0,
+                payment: payment.amount,
+                balance: runningBalance
+            });
         });
     }
 
@@ -254,7 +222,7 @@ const generateTransactionData = (customer) => {
     });
 };
 
-// PDF Generation Function - FIXED VERSION
+// PDF Generation Function - FIXED
 const generateCustomerStatementPDF = (customer, transactions = []) => {
     return new Promise((resolve, reject) => {
         try {
@@ -290,16 +258,6 @@ const generateCustomerStatementPDF = (customer, transactions = []) => {
                     return 'Invalid Date';
                 }
             };
-
-            // // Add company header (no logo)
-            // doc.setFontSize(16);
-            // doc.setTextColor(0, 0, 100);
-            // doc.text('Company Name', 105, 20, { align: 'center' });
-
-            // doc.setFontSize(10);
-            // doc.setTextColor(100, 100, 100);
-            // doc.text('P.O.BOX 12345-00100, PIN: P0123456789X', 105, 30, { align: 'center' });
-            // doc.text('Physical Address: Company Street, City', 105, 35, { align: 'center' });
 
             // Add statement title
             doc.setFontSize(14);
@@ -340,20 +298,21 @@ const generateCustomerStatementPDF = (customer, transactions = []) => {
                     return t.type === 'Credit Note' ? sum + safeNumber(t.amount) : sum;
                 }, 0);
             } else {
-                // Calculate from data directly
-                // Get all purchases
-                const purchases = Array.isArray(customer.purchases) ? customer.purchases : [];
+                // Generate transactions if not provided
+                transactions = generateTransactionData(customer);
 
-                // Calculate purchase total
-                totalInvoiced = purchases.reduce((sum, p) =>
-                    sum + safeNumber(p?.salePrice), 0);
+                // Calculate from generated transactions
+                totalInvoiced = transactions.reduce((sum, t) => {
+                    return t.type === 'Invoice' ? sum + safeNumber(t.amount) : sum;
+                }, 0);
 
-                // Get all payments
-                const allPayments = getAllPaymentsFromPurchases(customer);
+                totalPaid = transactions.reduce((sum, t) => {
+                    return t.type === 'Payment Received' ? sum + safeNumber(t.payment) : sum;
+                }, 0);
 
-                // Calculate total paid
-                totalPaid = allPayments.reduce((sum, p) =>
-                    sum + safeNumber(p.amount), 0);
+                creditNotes = transactions.reduce((sum, t) => {
+                    return t.type === 'Credit Note' ? sum + safeNumber(t.amount) : sum;
+                }, 0);
             }
 
             const balanceDue = totalInvoiced - totalPaid - Math.abs(creditNotes);
@@ -378,7 +337,7 @@ const generateCustomerStatementPDF = (customer, transactions = []) => {
             doc.text('Balance Due', 14, 161);
             doc.text(`KES ${formatCurrency(balanceDue)}`, 180, 161, { align: 'right' });
 
-            // Add transactions table if available
+            // Add transactions table
             if (transactions.length > 0) {
                 // Prepare transactions table
                 doc.setFillColor(60, 60, 60);
@@ -433,92 +392,8 @@ const generateCustomerStatementPDF = (customer, transactions = []) => {
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
                 const finalY = doc.lastAutoTable.finalY + 10;
-                doc.text('Balance Due', 140, finalY);
-                doc.text(`KES ${formatCurrency(balanceDue)}`, 180, finalY, { align: 'right' });
-            } else {
-                // Alternative display for purchases if no transactions
-                let yPos = 175;
-
-                // Get all purchases
-                const purchases = Array.isArray(customer.purchases) ? customer.purchases : [];
-
-                if (purchases.length > 0) {
-                    // Add purchases table
-                    doc.setFillColor(60, 60, 60);
-                    doc.rect(14, yPos, 180, 10, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.text('Property', 20, yPos + 7);
-                    doc.text('Purchase Date', 70, yPos + 7);
-                    doc.text('Amount', 120, yPos + 7);
-                    doc.text('Status', 160, yPos + 7);
-                    yPos += 15;
-
-                    // Add purchase data
-                    doc.setTextColor(0, 0, 0);
-                    purchases.forEach(purchase => {
-                        if (!purchase) return;
-
-                        const propertyName = safeString(purchase.property?.name || 'Property');
-                        const purchaseDate = formatDate(purchase.saleDate);
-                        const totalAmount = safeNumber(purchase.salePrice);
-                        const status = safeString(purchase.status || 'active');
-
-                        doc.text(propertyName, 20, yPos);
-                        doc.text(purchaseDate, 70, yPos);
-                        doc.text(formatCurrency(totalAmount), 120, yPos);
-                        doc.text(status.charAt(0).toUpperCase() + status.slice(1), 160, yPos);
-                        yPos += 10;
-                    });
-
-                    // Add a line
-                    yPos += 5;
-                    doc.line(14, yPos, 196, yPos);
-                    yPos += 15;
-
-                    // Add payment history
-                    const paymentHistory = getAllPaymentsFromPurchases(customer);
-
-                    if (paymentHistory.length > 0) {
-                        doc.setFontSize(12);
-                        doc.text('Payment History:', 14, yPos);
-                        yPos += 10;
-
-                        // Prepare payment history table
-                        const paymentColumns = [
-                            "Date",
-                            "Amount (KES)",
-                            "Method",
-                            "Reference",
-                            "Property"
-                        ];
-
-                        const paymentRows = paymentHistory.map(payment => {
-                            // Find the property name from the purchase
-                            const purchase = customer.purchases.find(p =>
-                                p && (p._id === payment.purchaseId || p.id === payment.purchaseId)
-                            );
-                            const propertyName = purchase?.property?.name || 'Property';
-
-                            return [
-                                formatDate(payment.date),
-                                formatCurrency(safeNumber(payment.amount)),
-                                safeString(payment.method) || 'N/A',
-                                safeString(payment.reference) || 'N/A',
-                                propertyName
-                            ];
-                        });
-
-                        // Add the payment history table
-                        autoTable(doc, {
-                            head: [paymentColumns],
-                            body: paymentRows,
-                            startY: yPos,
-                            styles: { fontSize: 9 },
-                            headStyles: { fillColor: [46, 204, 113], textColor: 255 },
-                            alternateRowStyles: { fillColor: [242, 242, 242] }
-                        });
-                    }
-                }
+                doc.text('Balance Due ', 140, finalY);
+                doc.text(` ${formatCurrency(balanceDue)}`, 180, finalY, { align: 'right' });
             }
 
             // Add footer
@@ -551,7 +426,7 @@ const generateCustomerStatementPDF = (customer, transactions = []) => {
     });
 };
 
-// Customer Statement Component
+// Customer Statement Component - FIXED
 const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabChange, onClose }) => {
     // Format date
     const formatDate = (dateString) => {

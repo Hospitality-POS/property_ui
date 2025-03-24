@@ -344,6 +344,7 @@ const CommissionPaymentModal = ({
                         <Form.Item
                             name="reference"
                             label="Reference Number"
+                            rules={[{ required: true, message: 'Reference Number' }]}
                         >
                             <Input placeholder="Enter reference number or transaction ID" />
                         </Form.Item>

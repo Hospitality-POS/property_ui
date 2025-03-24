@@ -248,16 +248,7 @@ export const SalesTable = ({
                             onClick={() => onView(record)}
                         />
                     </Tooltip>
-                    {record.status !== 'completed' && record.status !== 'cancelled' && (
-                        <Tooltip title="Add Payment">
-                            <Button
-                                icon={<DollarOutlined />}
-                                size="small"
-                                type="primary"
-                                onClick={() => onAddPayment(record)}
-                            />
-                        </Tooltip>
-                    )}
+
                     <Tooltip title="Edit Sale">
                         <Button
                             icon={<EditOutlined />}
