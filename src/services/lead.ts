@@ -32,11 +32,7 @@ export const fetchAllLeads = async (token?: ParamsType) => {
   }
 };
 
-export const updateLead = async (
-  leadId: string,
-  leadData: any,
-  token?: ParamsType,
-) => {
+export const updateLead = async (leadId: string, leadData: any) => {
   try {
     const response = await axiosInstance.put(
       `${BASE_URL}/leads/${leadId}`,
