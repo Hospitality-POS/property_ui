@@ -17,6 +17,21 @@ export const createNewSale = async (sale) => {
     throw error;
   }
 };
+
+export const createNewComm = async (saleId, commData) => {
+  try {
+
+    const response = await axiosInstance.post(`${BASE_URL}/sales/${saleId}/commission-payment`, commData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
 export const fetchAllSales = async () => {
   try {
     const response = await axiosInstance.get(`${BASE_URL}/sales`, {
@@ -24,6 +39,7 @@ export const fetchAllSales = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
+    console.log(' i tried response', response);
     return response.data;
   } catch (error) {
     console.log(error);

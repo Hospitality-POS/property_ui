@@ -1,9 +1,8 @@
 import axios from 'axios';
-import axiosInstance from './request';
+import axiosInstance, { resetTokenPromise, getRequest, postRequest, putRequest, deleteRequest } from './request';
 
-import { getToken } from '@/utils/getToken';
 
-const { token } = getToken();
+// DO NOT get token at module level as this only runs once on import
 
 export const loginUser = async (
   username: string,
@@ -11,16 +10,36 @@ export const loginUser = async (
   companyCode: string,
 ) => {
   try {
+    // For login, use vanilla axios without token
     const response = await axios.post(`${BASE_URL}/users/login`, {
       username,
       password,
       companyCode,
     });
-    console.log('nice working', response.data.tenant);
 
     if (response.data.tenant) {
       localStorage.setItem('companyCode', response.data.tenant.tenant_code);
-      localStorage.setItem('property_token', response.data.token);
+    }
+
+    // Store the token
+    localStorage.setItem('property_token', response.data.token);
+
+    // IMPORTANT: Reset the token promise to force a reload of the new token
+    resetTokenPromise();
+
+    // Trigger an immediate lightweight API call to initialize the token
+    // This helps ensure subsequent navigation has a working token
+    try {
+      // A simple call to get user info - don't await to avoid blocking login
+      setTimeout(async () => {
+        try {
+          await getRequest(`${BASE_URL}/users/user-info`);
+        } catch (e) {
+          // Ignore errors during this initialization call
+        }
+      }, 100);
+    } catch (e) {
+      // Ignore any error from this call
     }
 
     return response.data;
@@ -32,15 +51,8 @@ export const loginUser = async (
 
 export const registerUser = async (userData: any) => {
   try {
-    const response = await axiosInstance.post(
-      `${BASE_URL}/users/register`,
-      userData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
+    // Use the axiosInstance's postRequest which handles token automatically
+    const response = await postRequest(`${BASE_URL}/users/register`, userData);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -50,11 +62,8 @@ export const registerUser = async (userData: any) => {
 
 export const getUserInfo = async () => {
   try {
-    const response = await axiosInstance.get(`${BASE_URL}/users/user-info`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // Use the axiosInstance's getRequest which handles token automatically
+    const response = await getRequest(`${BASE_URL}/users/user-info`);
     return response.data?.data || null;
   } catch (error) {
     console.log(error);
@@ -64,11 +73,8 @@ export const getUserInfo = async () => {
 
 export const fetchAllUsers = async () => {
   try {
-    const response = await axiosInstance.get(`${BASE_URL}/users`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // Use the axiosInstance's getRequest which handles token automatically
+    const response = await getRequest(`${BASE_URL}/users`);
     return response.data.data;
   } catch (error) {
     console.log(error);
@@ -78,15 +84,8 @@ export const fetchAllUsers = async () => {
 
 export const updateUser = async (userId: string, userData: any) => {
   try {
-    const response = await axiosInstance.put(
-      `${BASE_URL}/users/${userId}`,
-      userData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
+    // Use the axiosInstance's putRequest which handles token automatically
+    const response = await putRequest(`${BASE_URL}/users/${userId}`, userData);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -96,11 +95,8 @@ export const updateUser = async (userId: string, userData: any) => {
 
 export const deleteUser = async (userId: string) => {
   try {
-    const response = await axiosInstance.delete(`${BASE_URL}/users/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // Use the axiosInstance's deleteRequest which handles token automatically
+    const response = await deleteRequest(`${BASE_URL}/users/${userId}`);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -116,18 +112,20 @@ export const deleteUser = async (userId: string) => {
  */
 export const resetPassword = async (email: string) => {
   try {
-    const response = await axiosInstance.post(
+    // Use the axiosInstance's postRequest which handles token automatically
+    const response = await postRequest(
       `${BASE_URL}/users/reset-password`,
-      { email },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      { email }
     );
     return response.data;
   } catch (error) {
     console.log('Reset password error:', error);
     throw error;
   }
+};
+
+// Function to manually refresh authentication state
+// Can be called from components if needed
+export const refreshAuthState = () => {
+  resetTokenPromise();
 };

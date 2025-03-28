@@ -8,7 +8,7 @@ import {
     PrinterOutlined, DownOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
-import { createNewCustomer, fetchAllCustomers, updateCustomer } from '@/services/customer';
+import { createNewCustomer, fetchAllCustomers, updateCustomer, deleteCustomer } from '@/services/customer';
 import { fetchAllLeads, updateLead } from '@/services/lead';
 
 import { CustomerStatisticsCards } from '../../components/statistics/customerStatistics';
@@ -38,8 +38,12 @@ const CustomerManagement = () => {
     const [customerModalMode, setCustomerModalMode] = useState('create'); // 'create' or 'edit'
     const [communicationModalVisible, setCommunicationModalVisible] = useState(false);
     const [noteModalVisible, setNoteModalVisible] = useState(false);
+
+    // Enhanced state for customer deletion
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState(null);
 
     // State for leads conversion
     const [leads, setLeads] = useState([]);
@@ -66,7 +70,6 @@ const CustomerManagement = () => {
             try {
                 const response = await fetchAllCustomers();
 
-
                 // Process data to use createdAt as dateJoined
                 const processedData = Array.isArray(response.data)
                     ? response.data.map(customer => ({
@@ -85,8 +88,6 @@ const CustomerManagement = () => {
         staleTime: 1000 * 60 * 5, // 5 minutes
         refetchOnWindowFocus: false
     });
-
-
 
     // Fetch leads for the convert lead modal
     const fetchLeads = async () => {
@@ -506,14 +507,43 @@ const CustomerManagement = () => {
     const showDeleteConfirm = (customer) => {
         setCustomerToDelete(customer);
         setDeleteModalVisible(true);
+        setDeleteError(null);
     };
 
     // Handle delete customer
-    const handleDeleteCustomer = () => {
-        // In a real app, this would call an API to delete the customer
+    const handleDeleteCustomer = async () => {
+        // Check if customer has purchases
+        const hasSales = customerToDelete.purchases &&
+            Array.isArray(customerToDelete.purchases) &&
+            customerToDelete.purchases.length > 0;
 
-        setDeleteModalVisible(false);
-        setCustomerToDelete(null);
+        if (hasSales) {
+            setDeleteError("Cannot delete a customer with sales records.");
+            return;
+        }
+
+        setIsDeleting(true);
+        setDeleteError(null);
+
+        try {
+            await deleteCustomer(customerToDelete._id);
+
+            // Update the local state
+            setRefreshKey(prevKey => prevKey + 1);
+            refetchCustomers({ force: true });
+
+            // Show success message
+            message.success(`Customer ${customerToDelete.name} deleted successfully!`);
+
+            // Close the modal and clean up
+            setDeleteModalVisible(false);
+            setCustomerToDelete(null);
+        } catch (error) {
+            console.error('Error deleting customer:', error);
+            setDeleteError(error.message || 'Failed to delete customer. Please try again.');
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     // Handle search
@@ -741,7 +771,19 @@ const CustomerManagement = () => {
                 visible={deleteModalVisible}
                 customer={customerToDelete}
                 onDelete={handleDeleteCustomer}
-                onCancel={() => setDeleteModalVisible(false)}
+                onCancel={() => {
+                    setDeleteModalVisible(false);
+                    setCustomerToDelete(null);
+                    setDeleteError(null);
+                }}
+                isDeleting={isDeleting}
+                hasSales={
+                    customerToDelete &&
+                    customerToDelete.purchases &&
+                    Array.isArray(customerToDelete.purchases) &&
+                    customerToDelete.purchases.length > 0
+                }
+                errorMessage={deleteError}
             />
         </>
     );

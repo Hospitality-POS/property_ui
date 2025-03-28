@@ -407,7 +407,7 @@ const SalesManagement = () => {
         createPayment(paymentData)
             .then(newPayment => {
                 // Show success message
-                message.success('Payment added successfully!');
+                //message.success('Payment added successfully!');
 
                 // Close modal immediately after successful payment
                 setAddPaymentVisible(false);
@@ -765,6 +765,7 @@ const SalesManagement = () => {
 
     // Calculate payment stats for a sale
     const calculatePaymentStats = (sale) => {
+        console.log('Calculating payment stats for sale:', sale);
         if (!sale) {
             return {
                 totalAmount: 0,

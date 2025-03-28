@@ -40,8 +40,10 @@ interface AddEditUserModalProps {
   isProfile?: boolean;
   userId?: string;
   editText?: string;
-  onSuccess?: (newUser: any) => void; // Added onSuccess callback prop
-  initialValues?: Record<string, any>; // Added initialValues prop
+  onSuccess?: (newUser: any) => void;
+  initialValues?: Record<string, any>;
+  isVisible?: boolean; // New prop to control visibility from parent
+  onVisibleChange?: (visible: boolean) => void; // New prop to handle visibility changes
 }
 
 /**
@@ -55,6 +57,8 @@ interface AddEditUserModalProps {
  * @param {string} props.editText - Text to be displayed in the edit button
  * @param {Function} props.onSuccess - Callback function when user is successfully added/updated
  * @param {Object} props.initialValues - Initial values for the form (e.g., to pre-select a role)
+ * @param {boolean} props.isVisible - External control for modal visibility
+ * @param {Function} props.onVisibleChange - Callback when modal visibility changes
  * @returns {JSX.Element} The modal for adding or editing a user
  */
 
@@ -65,16 +69,26 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
   isProfile,
   userId,
   editText,
-  onSuccess, // Added onSuccess callback prop
-  initialValues = {}, // Default to empty object
+  onSuccess,
+  initialValues = {},
+  isVisible, // Handle the external visibility control
+  onVisibleChange, // Handle visibility change callback
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef<ActionType>();
 
-  const [open, setOpen] = useState(false);
+  // Initialize open state with isVisible if provided
+  const [open, setOpen] = useState(isVisible || false);
   const [isResetting, setIsResetting] = useState(false);
 
   const queryClient = useQueryClient();
+
+  // Listen to changes in isVisible prop
+  useEffect(() => {
+    if (isVisible !== undefined) {
+      setOpen(isVisible);
+    }
+  }, [isVisible]);
 
   useEffect(() => {
     if (open) {
@@ -97,6 +111,12 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
+
+    // Call external handler if provided
+    if (onVisibleChange) {
+      onVisibleChange(newOpen);
+    }
+
     if (!newOpen) {
       form.resetFields();
     }
@@ -155,9 +175,6 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
     }
   };
 
-  // Update the handleFinish function in your AddEditUserModal component
-  // to ensure the id is properly included in the user data
-
   const handleFinish = async (values: any) => {
     try {
       const phoneNumber = getPhoneNumber(values?.phoneNumber);
@@ -215,6 +232,10 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
         if (actionRef.current?.reload) {
           actionRef.current?.reload();
         }
+
+        // Close the modal after successful submission
+        handleOpenChange(false);
+
         return true;
       }
     } catch (error) {
@@ -223,6 +244,7 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
       return false;
     }
   };
+
   return (
     <ModalForm
       title={
@@ -237,25 +259,28 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
       formRef={formRef}
       width={800}
       trigger={
-        edit ? (
-          <Button
-            key="button"
-            icon={<EditOutlined onClick={() => form.setFieldsValue(data)} />}
-            size="small"
-            ref={actionRef} // Attach the ref here
-          >
-            {editText ? editText : ''}
-          </Button>
-        ) : (
-          <Button
-            type="primary"
-            key="button"
-            icon={<UsergroupAddOutlined />}
-            ref={actionRef} // Attach the ref here
-          >
-            Add New User
-          </Button>
-        )
+        // Only render trigger if not controlled externally
+        isVisible === undefined ? (
+          edit ? (
+            <Button
+              key="button"
+              icon={<EditOutlined onClick={() => form.setFieldsValue(data)} />}
+              size="small"
+              ref={actionRef} // Attach the ref here
+            >
+              {editText ? editText : ''}
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              key="button"
+              icon={<UsergroupAddOutlined />}
+              ref={actionRef} // Attach the ref here
+            >
+              Add New User
+            </Button>
+          )
+        ) : null
       }
       autoFocusFirstInput
       modalProps={{
@@ -405,7 +430,7 @@ export const AddEditUserModal: React.FC<AddEditUserModalProps> = ({
                     </Col>
                   </Row>
                 </Col>
-                <Col span={4} style={{ marginTop: 30, textAlign: 'right' }}>
+                <Col span={4} style={{ textAlign: 'right' }}>
                   <Tooltip title="Generate Strong Password">
                     <Button
                       type="default"

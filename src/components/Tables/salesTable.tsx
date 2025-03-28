@@ -37,6 +37,38 @@ export const SalesTable = ({
             },
         },
         {
+            title: 'Sale Code',
+            dataIndex: 'saleCode',
+            key: 'saleCode',
+            width: 120,
+            render: (code) => code || <Text type="secondary">N/A</Text>,
+            sorter: (a, b) => {
+                const codeA = a.saleCode || '';
+                const codeB = b.saleCode || '';
+                return codeA.localeCompare(codeB);
+            },
+        },
+        // {
+        //     title: 'Phase',
+        //     dataIndex: 'phase',
+        //     key: 'phase',
+        //     width: 120,
+        //     render: (phase, record) => {
+        //         if (!phase) return <Text type="secondary">Default</Text>;
+        //         const isActivePhase = phase === record.property?.currentPhase;
+        //         return (
+        //             <Tag color={isActivePhase ? 'green' : 'blue'}>
+        //                 {phase}{isActivePhase ? ' (Active)' : ''}
+        //             </Tag>
+        //         );
+        //     },
+        //     filters: (sales || [])
+        //         .map(sale => sale.phase)
+        //         .filter((phase, index, self) => phase && self.indexOf(phase) === index)
+        //         .map(phase => ({ text: phase, value: phase })),
+        //     onFilter: (value, record) => record.phase === value,
+        // },
+        {
             title: 'Unit Type',
             dataIndex: 'unit',
             key: 'unitType',
@@ -62,7 +94,7 @@ export const SalesTable = ({
             title: 'Qty',
             dataIndex: 'quantity',
             key: 'quantity',
-            width: 100,
+            width: 80,
             render: (quantity) => quantity || 1,
             sorter: (a, b) => (a.quantity || 1) - (b.quantity || 1),
         },
@@ -90,13 +122,41 @@ export const SalesTable = ({
                 return priceA - priceB;
             },
         },
-        {
-            title: 'Unit Price',
-            dataIndex: 'unit',
-            key: 'unitPrice',
-            width: 150,
-            render: (unit) => formatCurrency(unit?.price),
-        },
+        // {
+        //     title: 'Unit Price',
+        //     key: 'unitPrice',
+        //     width: 150,
+        //     render: (_, record) => {
+        //         // Get the phase-specific price if available
+        //         if (record.unit && record.phase) {
+        //             // Look for phase-specific pricing
+        //             const phasePrice = record.unit.phasePricing?.find(
+        //                 p => p.phaseName === record.phase
+        //             )?.price;
+
+        //             if (phasePrice) {
+        //                 return formatCurrency(phasePrice);
+        //             }
+        //         }
+
+        //         // Fall back to unit price or base price
+        //         return formatCurrency(record.unit?.price || record.unit?.basePrice);
+        //     },
+        //     sorter: (a, b) => {
+        //         // Get prices for comparison
+        //         const getPriceForSorting = (record) => {
+        //             if (record.unit && record.phase) {
+        //                 const phasePrice = record.unit.phasePricing?.find(
+        //                     p => p.phaseName === record.phase
+        //                 )?.price;
+        //                 if (phasePrice) return phasePrice;
+        //             }
+        //             return record.unit?.price || record.unit?.basePrice || 0;
+        //         };
+
+        //         return getPriceForSorting(a) - getPriceForSorting(b);
+        //     },
+        // },
         {
             title: 'Sale Date',
             dataIndex: 'saleDate',
@@ -188,16 +248,7 @@ export const SalesTable = ({
                             onClick={() => onView(record)}
                         />
                     </Tooltip>
-                    {record.status !== 'completed' && record.status !== 'cancelled' && (
-                        <Tooltip title="Add Payment">
-                            <Button
-                                icon={<DollarOutlined />}
-                                size="small"
-                                type="primary"
-                                onClick={() => onAddPayment(record)}
-                            />
-                        </Tooltip>
-                    )}
+
                     <Tooltip title="Edit Sale">
                         <Button
                             icon={<EditOutlined />}
@@ -226,12 +277,21 @@ export const SalesTable = ({
             dataSource={sales}
             rowKey="_id"
             pagination={{ pageSize: 10 }}
-            scroll={{ x: 1700 }}
+            scroll={{ x: 1900 }} // Increased to accommodate new Sale Code column
             expandable={{
                 expandedRowRender: record => (
                     <div style={{ margin: 0 }}>
                         <p><strong>Notes:</strong> {record.notes?.[0]?.content || 'No notes available'}</p>
                         {record.unit?.plotSize && <p><strong>Plot Size:</strong> {record.unit.plotSize} sqm</p>}
+                        {record.phase && (
+                            <p>
+                                <strong>Phase Info:</strong> {record.phase}
+                                {record.unit?.phasePricing?.find(p => p.phaseName === record.phase) ?
+                                    ` (${formatCurrency(record.unit.phasePricing.find(p => p.phaseName === record.phase).price)})` :
+                                    ''}
+                            </p>
+                        )}
+                        {record.saleCode && <p><strong>Sale Code:</strong> {record.saleCode}</p>}
                     </div>
                 ),
             }}
@@ -253,19 +313,19 @@ export const SalesTable = ({
                 return (
                     <Table.Summary fixed>
                         <Table.Summary.Row>
-                            <Table.Summary.Cell index={0} colSpan={2}><strong>Page Total</strong></Table.Summary.Cell>
-                            <Table.Summary.Cell index={2}>
+                            <Table.Summary.Cell index={0} colSpan={4}><strong>Page Total</strong></Table.Summary.Cell>
+                            <Table.Summary.Cell index={4}>
                                 <Text type="success"><InboxOutlined /> {totalUnits}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={3}></Table.Summary.Cell>
-                            <Table.Summary.Cell index={4}>
+                            <Table.Summary.Cell index={5}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={6}>
                                 <Text type="danger">KES {totalSaleAmount.toLocaleString()}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={5} colSpan={6}></Table.Summary.Cell>
-                            <Table.Summary.Cell index={11}>
+                            <Table.Summary.Cell index={7} colSpan={6}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={13}>
                                 <Text type="danger">KES {totalCommission.toLocaleString()}</Text>
                             </Table.Summary.Cell>
-                            <Table.Summary.Cell index={12}></Table.Summary.Cell>
+                            <Table.Summary.Cell index={14}></Table.Summary.Cell>
                         </Table.Summary.Row>
                     </Table.Summary>
                 );

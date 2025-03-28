@@ -11,14 +11,21 @@ import {
     Card,
     Tabs,
     Descriptions,
-    Table
+    Table,
+    Tooltip,
+    Badge,
+    message
 } from 'antd';
 import {
     FileTextOutlined,
     HomeOutlined,
     EnvironmentOutlined,
-    UserOutlined
+    UserOutlined,
+    TagOutlined,
+    CalendarOutlined
 } from '@ant-design/icons';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -32,13 +39,14 @@ export const PropertyDetailsDrawer = ({
     onClose,
     formatPropertyType,
     formatStatus,
-    formatDate
+    formatDate,
+    getUnitPriceForPhase
 }) => {
     if (!property) {
         return null;
     }
 
-    // Calculate total units and value
+    // Calculate total units and value based on phase pricing
     const calculateTotalUnits = () => {
         if (!property.units || !Array.isArray(property.units)) return 0;
         return property.units.reduce((total, unit) => total + (unit.totalUnits || 0), 0);
@@ -52,11 +60,163 @@ export const PropertyDetailsDrawer = ({
     const calculateTotalValue = () => {
         if (!property.units || !Array.isArray(property.units)) return 0;
         return property.units.reduce((total, unit) => {
-            return total + ((unit.price || 0) * (unit.totalUnits || 0));
+            // Use getUnitPriceForPhase if available to get correct phase price
+            const unitPrice = getUnitPriceForPhase
+                ? getUnitPriceForPhase(unit, property.currentPhase)
+                : (unit.price || 0);
+
+            return total + (unitPrice * (unit.totalUnits || 0));
         }, 0);
     };
 
-    // Unit table columns
+    // Generate property report as PDF
+    const handleGenerateReport = () => {
+        console.log('Generating PDF report for property:', property.name);
+
+        // Show loading message
+        message.loading('Generating PDF report...', 1.0);
+
+        try {
+            // Create a new PDF document
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Add title
+            doc.setFontSize(20);
+            doc.text(`${property.name} - Property Report`, pageWidth / 2, 15, { align: 'center' });
+
+            // Add property overview
+            doc.setFontSize(16);
+            doc.text('Property Overview', 14, 30);
+
+            // Add property information
+            doc.setFontSize(11);
+            doc.text(`Type: ${formatPropertyType(property.propertyType)}`, 14, 40);
+            doc.text(`Status: ${formatStatus(property.status)}`, 14, 46);
+            doc.text(`Location: ${property.location?.address}, ${property.location?.county}`, 14, 52);
+            doc.text(`Total Units: ${calculateTotalUnits()}`, 14, 58);
+            doc.text(`Available Units: ${calculateAvailableUnits()}`, 14, 64);
+            doc.text(`Property Manager: ${property.propertyManager?.name || 'N/A'}`, 14, 70);
+            doc.text(`Current Phase: ${property.currentPhase || 'None'}`, 14, 76);
+            doc.text(`Total Value: KES ${calculateTotalValue().toLocaleString()}`, 14, 82);
+
+            // Add description
+            if (property.description) {
+                doc.setFontSize(16);
+                doc.text('Description', 14, 95);
+
+                // Handle multi-line description
+                const textLines = doc.splitTextToSize(property.description, pageWidth - 28);
+                doc.setFontSize(11);
+                doc.text(textLines, 14, 105);
+            }
+
+            // Add units table if available
+            if (property.units && property.units.length > 0) {
+                // Find appropriate y position based on content above
+                const yPosition = property.description ?
+                    105 + (doc.splitTextToSize(property.description, pageWidth - 28).length * 6) + 10 :
+                    95;
+
+                doc.setFontSize(16);
+                doc.text('Units Information', 14, yPosition);
+
+                // Create table data
+                const tableColumn = ['Type', 'Current Price', 'Total Units', 'Available', 'Sold', 'Status'];
+                const tableRows = property.units.map(unit => {
+                    const typeMap = {
+                        'studio': 'Studio',
+                        'one_bedroom': 'One Bedroom',
+                        'two_bedroom': 'Two Bedroom',
+                        'three_bedroom': 'Three Bedroom',
+                        'shops': 'Shops',
+                        'penthouse': 'Penthouse',
+                        'plot': 'Plot',
+                        'parcel': 'Parcel',
+                        'other': 'Other'
+                    };
+
+                    // Get price based on current phase
+                    const phasePrice = property.currentPhase && unit.phasePricing
+                        ? unit.phasePricing.find(p => p.phaseName === property.currentPhase)
+                        : null;
+
+                    const displayPrice = phasePrice ? phasePrice.price : unit.price;
+                    const soldUnits = (unit.totalUnits || 0) - (unit.availableUnits || 0);
+
+                    return [
+                        typeMap[unit.unitType] || unit.unitType,
+                        `KES ${displayPrice?.toLocaleString() || 0}`,
+                        unit.totalUnits || 0,
+                        unit.availableUnits || 0,
+                        soldUnits,
+                        formatStatus(unit.status)
+                    ];
+                });
+
+                autoTable(doc, {
+                    head: [tableColumn],
+                    body: tableRows,
+                    startY: yPosition + 5,
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [66, 139, 202] }
+                });
+            }
+
+            // Add phases if available on a new page
+            if (property.phases && property.phases.length > 0) {
+                doc.addPage();
+                doc.setFontSize(16);
+                doc.text('Pricing Phases', 14, 15);
+
+                // Create phases table data
+                const phasesColumns = ['Phase Name', 'Start Date', 'End Date', 'Description'];
+                const phasesRows = property.phases.map(phase => [
+                    phase.name + (phase.active ? ' (Active)' : '') + (property.currentPhase === phase.name ? ' (Current)' : ''),
+                    formatDate(phase.startDate),
+                    phase.endDate ? formatDate(phase.endDate) : 'Not set',
+                    phase.description || 'No description'
+                ]);
+
+                autoTable(doc, {
+                    head: [phasesColumns],
+                    body: phasesRows,
+                    startY: 20,
+                    theme: 'grid',
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    headStyles: { fillColor: [66, 139, 202] }
+                });
+            }
+
+            // Add footer with generation date
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                doc.text(
+                    `Generated on: ${new Date().toLocaleDateString()} | Page ${i} of ${totalPages}`,
+                    pageWidth / 2,
+                    doc.internal.pageSize.getHeight() - 10,
+                    { align: 'center' }
+                );
+            }
+
+            // Save the PDF and trigger download
+            const fileName = `${property.name.replace(/\s+/g, '_')}_Report.pdf`;
+            doc.save(fileName);
+
+            // Show success message
+            message.success(`PDF report for ${property.name} has been generated and downloaded`);
+
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            message.error('Failed to generate PDF report');
+        }
+    };
+
+    // Unit table columns with phase pricing
     const unitColumns = [
         {
             title: 'Type',
@@ -68,6 +228,7 @@ export const PropertyDetailsDrawer = ({
                     'one_bedroom': 'One Bedroom',
                     'two_bedroom': 'Two Bedroom',
                     'three_bedroom': 'Three Bedroom',
+                    'shops': 'Shops',
                     'penthouse': 'Penthouse',
                     'plot': 'Plot',
                     'parcel': 'Parcel',
@@ -77,10 +238,26 @@ export const PropertyDetailsDrawer = ({
             }
         },
         {
-            title: 'Price (KES)',
+            title: () => (
+                <span>
+                    Current Price {property.currentPhase && (
+                        <Tooltip title={`Based on current phase: ${property.currentPhase}`}>
+                            <Tag color="blue">{property.currentPhase}</Tag>
+                        </Tooltip>
+                    )}
+                </span>
+            ),
             dataIndex: 'price',
             key: 'price',
-            render: (price) => price?.toLocaleString() || 'N/A'
+            render: (price, record) => {
+                // Get current phase price if available
+                const phasePrice = property.currentPhase && record.phasePricing
+                    ? record.phasePricing.find(p => p.phaseName === property.currentPhase)
+                    : null;
+
+                const displayPrice = phasePrice ? phasePrice.price : price;
+                return `KES ${displayPrice?.toLocaleString() || 0}`;
+            }
         },
         {
             title: 'Total Units',
@@ -122,6 +299,105 @@ export const PropertyDetailsDrawer = ({
         ...unitColumns.slice(1)
     ];
 
+    // Columns for the phases table
+    const phaseColumns = [
+        {
+            title: 'Phase Name',
+            dataIndex: 'name',
+            key: 'name',
+            render: (name, record) => (
+                <Space>
+                    {name}
+                    {record.active && <Tag color="green">Active</Tag>}
+                    {property.currentPhase === name && <Tag color="blue">Current</Tag>}
+                </Space>
+            )
+        },
+        {
+            title: 'Start Date',
+            dataIndex: 'startDate',
+            key: 'startDate',
+            render: date => formatDate(date)
+        },
+        {
+            title: 'End Date',
+            dataIndex: 'endDate',
+            key: 'endDate',
+            render: date => date ? formatDate(date) : 'Not set'
+        },
+        {
+            title: 'Description',
+            dataIndex: 'description',
+            key: 'description',
+            render: description => description || 'No description'
+        }
+    ];
+
+    // Unit pricing details for each phase
+    const renderUnitPhasePricing = () => {
+        if (!property.units || !property.phases ||
+            !Array.isArray(property.units) || !Array.isArray(property.phases) ||
+            property.units.length === 0 || property.phases.length === 0) {
+            return <Text>No phase pricing information available</Text>;
+        }
+
+        // Create columns: unit type and one column per phase
+        const columns = [
+            {
+                title: 'Unit Type',
+                dataIndex: 'unitType',
+                key: 'unitType',
+                fixed: 'left',
+                width: 150,
+                render: (text) => {
+                    const typeMap = {
+                        'studio': 'Studio',
+                        'one_bedroom': 'One Bedroom',
+                        'two_bedroom': 'Two Bedroom',
+                        'three_bedroom': 'Three Bedroom',
+                        'penthouse': 'Penthouse',
+                        'shops': 'Shops',
+                        'plot': 'Plot',
+                        'parcel': 'Parcel',
+                        'other': 'Other'
+                    };
+                    return typeMap[text] || text;
+                }
+            },
+            ...property.phases.map(phase => ({
+                title: (
+                    <div>
+                        {phase.name}
+                        {phase.name === property.currentPhase &&
+                            <Badge status="processing" style={{ marginLeft: 5 }} />
+                        }
+                    </div>
+                ),
+                dataIndex: phase.name,
+                key: phase.name,
+                width: 120,
+                render: (_, record) => {
+                    const phasePrice = record.phasePricing?.find(p => p.phaseName === phase.name);
+                    if (phasePrice) {
+                        return `KES ${phasePrice.price?.toLocaleString() || 0}`;
+                    }
+                    return `KES ${record.basePrice?.toLocaleString() || 0}`;
+                }
+            }))
+        ];
+
+        return (
+            <Table
+                dataSource={property.units}
+                columns={columns}
+                rowKey={record => record._id}
+                pagination={false}
+                size="small"
+                scroll={{ x: 'max-content' }}
+            />
+        );
+    };
+
     return (
         <Drawer
             title={`Property Details`}
@@ -131,7 +407,12 @@ export const PropertyDetailsDrawer = ({
             width={700}
             footer={
                 <div style={{ textAlign: 'right' }}>
-                    <Button type="primary" icon={<FileTextOutlined />} style={{ marginRight: 8 }}>
+                    <Button
+                        type="primary"
+                        icon={<FileTextOutlined />}
+                        style={{ marginRight: 8 }}
+                        onClick={handleGenerateReport}
+                    >
                         Generate Report
                     </Button>
                     <Button onClick={onClose}>Close</Button>
@@ -155,6 +436,12 @@ export const PropertyDetailsDrawer = ({
                                 <UserOutlined style={{ marginRight: 8 }} />
                                 Manager: {property.propertyManager?.name}
                             </Text>
+                            {property.currentPhase && (
+                                <Text>
+                                    <TagOutlined style={{ marginRight: 8 }} />
+                                    Current Phase: <Tag color="blue">{property.currentPhase}</Tag>
+                                </Text>
+                            )}
                         </Space>
                     </Col>
                     <Col span={8} style={{ textAlign: 'right' }}>
@@ -243,8 +530,8 @@ export const PropertyDetailsDrawer = ({
                                     <Descriptions.Item label="Constituency">
                                         {property.location?.constituency || 'N/A'}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Date Added">
-                                        {property.createdAt}
+                                    <Descriptions.Item label="Current Phase">
+                                        {property.currentPhase || 'None'}
                                     </Descriptions.Item>
                                 </Descriptions>
                             </Col>
@@ -263,6 +550,26 @@ export const PropertyDetailsDrawer = ({
                             pagination={false}
                             size="small"
                         />
+                    </Card>
+                </TabPane>
+
+                <TabPane tab="Pricing Phases" key="2">
+                    <Card title="Property Phases" style={{ marginBottom: 16 }}>
+                        {property.phases && property.phases.length > 0 ? (
+                            <Table
+                                dataSource={property.phases}
+                                columns={phaseColumns}
+                                rowKey={(record) => record._id || record.name}
+                                pagination={false}
+                                size="small"
+                            />
+                        ) : (
+                            <Text>No phases defined for this property</Text>
+                        )}
+                    </Card>
+
+                    <Card title="Unit Pricing by Phase" style={{ marginBottom: 16 }}>
+                        {renderUnitPhasePricing()}
                     </Card>
                 </TabPane>
 
