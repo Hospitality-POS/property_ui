@@ -57,10 +57,11 @@ export const updateProperty = async (
     throw error;
   }
 };
-export const deleteProperty = async (userId: string, token?: ParamsType) => {
+
+export const deletePropertyById = async (propertyId: string) => {
   try {
     const response = await axiosInstance.delete(
-      `${BASE_URL}/properties/${userId}`,
+      `${BASE_URL}/properties/${propertyId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
