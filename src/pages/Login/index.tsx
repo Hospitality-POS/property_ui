@@ -161,11 +161,11 @@ const LoginPage = () => {
               {/* Terms of Service */}
               <div className="text-center text-xs text-gray-500 mt-8 mb-4">
                 By signing in, you agree to Relia Property Mgt system&apos;s{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-800">
+                <a href="/terms-privacy" className="text-blue-600 hover:text-blue-800">
                   Terms of Service
                 </a>{' '}
                 and{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-800">
+                <a href="/terms-privacy" className="text-blue-600 hover:text-blue-800">
                   Privacy Policy
                 </a>
               </div>

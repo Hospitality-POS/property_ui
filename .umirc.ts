@@ -35,6 +35,19 @@ export default defineConfig({
       component: '@/components/Layout',
     },
     {
+      name: 'Account',
+      path: '/delete-account',
+      icon: 'UserOutlined',
+      layout: false,
+      component: './Account',
+    },
+    {
+      name: 'Terms',
+      path: '/terms-privacy',
+      layout: false,
+      component: './Terms',
+    },
+    {
       name: 'Dashboard',
       path: '/dashboard',
       icon: 'DashboardOutlined',
@@ -71,6 +84,7 @@ export default defineConfig({
       hideInMenu: true,
       component: './Profile',
     },
+
     {
       name: 'Quick Access',
       path: '/quick',
