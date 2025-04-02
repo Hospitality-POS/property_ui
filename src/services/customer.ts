@@ -53,10 +53,11 @@ export const updateCustomer = async (customerId: string, customerData: any) => {
     throw error;
   }
 };
-export const deleteProperty = async (propertyId: string) => {
+
+export const deleteCustomer = async (customerId: string) => {
   try {
     const response = await axiosInstance.delete(
-      `${BASE_URL}/properties/${propertyId}`,
+      `${BASE_URL}/customers/${customerId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
