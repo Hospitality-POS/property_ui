@@ -29,6 +29,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChartsSection } from "../../components/charts/dashboardCharts"
 import { useNavigate } from '@umijs/max';
 import EventCalendar from '../Calendar/index'
+import AddEditPropertyModal from '../Property/components/modals/AddEditPropertyModal';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -327,8 +328,17 @@ const DashboardContent = () => {
 
     const { leadCount } = leadData;
 
+    interface Task {
+        id: string;
+        title?: string;
+        description?: string;
+        date?: string;
+        startDate?: string;
+        priority: 'High' | 'Medium' | 'Low';
+    }
+
     // Get upcoming tasks from calendar/events API
-    const { data: upcomingTasks = [], isLoading: isLoadingTasks } = useQuery({
+    const { data: upcomingTasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
         queryKey: ['tasks', refreshKey],
         queryFn: async () => {
             try {
@@ -481,8 +491,6 @@ const DashboardContent = () => {
     return (
         <>
             <Space className="mb-4">
-                <Button type="primary" onClick={() => navigate("/property")}>Add New Property</Button>
-                <Button onClick={() => navigate("/customer")}>Add New Customer</Button>
                 <Button onClick={() => setRefreshKey(prev => prev + 1)}>Refresh Data</Button>
             </Space>
 
@@ -657,41 +665,6 @@ const DashboardContent = () => {
                     </Card>
                 </Col>
             </Row>
-
-            {/* Quick Links */}
-            <Card style={{ marginTop: 16 }}>
-                <Row gutter={16}>
-                    <Col xs={24} sm={8} md={4}>
-                        <Button
-                            type="default"
-                            block
-                            icon={<HomeOutlined />}
-                            onClick={() => navigate("/property")}
-                        >
-                            Add Property
-                        </Button>
-                    </Col>
-                    <Col xs={24} sm={8} md={4}>
-                        <Button type="default" block icon={<UserOutlined />}
-                            onClick={() => navigate("/customer")}
-                        >
-                            Add Customer
-                        </Button>
-                    </Col>
-                    <Col xs={24} sm={8} md={4}>
-                        <Button type="default" block icon={<DollarOutlined />}
-                            onClick={() => navigate("/sales")}>
-                            Record Payment
-                        </Button>
-                    </Col>
-                    <Col xs={24} sm={8} md={4}>
-                        <Button type="default" block icon={<TeamOutlined />}
-                            onClick={() => navigate("/users")}>
-                            Manage Agents
-                        </Button>
-                    </Col>
-                </Row>
-            </Card>
         </>
     );
 };
