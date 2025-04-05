@@ -1,0 +1,19 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set commit hash as environment variable
+        run: echo "COMMIT_HASH=${GITHUB_SHA}" >> $GITHUB_ENV
+
+      # - name: Build Umi Max project
+      #   run: yarn build
