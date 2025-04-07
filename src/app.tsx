@@ -88,7 +88,7 @@ export async function getInitialState(): Promise<any> {
   }
 
   // No token for protected routes - redirect to login
-  history.push('/login');
+  //history.push('/login');
   return { currentUser: null, fetchUserInfo: getUserInfo };
 }
 
@@ -248,6 +248,10 @@ export const layout: RunTimeLayoutConfig = ({
               <Menu.Item key="payment" icon={<BankOutlined />} style={{ height: 40, lineHeight: '40px' }}>
                 Make Payment
               </Menu.Item>
+              <Menu.Item key="commission" icon={<BankOutlined />} style={{ height: 40, lineHeight: '40px' }}>
+                Commission Payment
+              </Menu.Item>
+
             </Menu.ItemGroup>
           </Menu>
         );

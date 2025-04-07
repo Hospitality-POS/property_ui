@@ -235,6 +235,7 @@ const AgentCommissionsTable: React.FC<AgentCommissionsTableProps> = ({
                     title: `Commission Report for ${record.agentName}`,
                     subtitle: `Generated on ${new Date().toLocaleDateString()}`,
                     columns: [
+                        { header: 'Sale Code', dataKey: 'saleCode' },
                         { header: 'Amount Paid by Client', dataKey: 'amountPaid' },
                         { header: 'Commission Amount', dataKey: 'accruedCommission' },
                         { header: 'Commission Paid', dataKey: 'commissionPaid' },

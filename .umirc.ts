@@ -24,10 +24,10 @@ export default defineConfig({
     title: 'RPM System',
   },
   routes: [
-    {
-      path: '/',
-      redirect: '/dashboard',
-    },
+    // {
+    //   path: '/',
+    //   redirect: '/dashboard',
+    // },
     {
       name: 'Login',
       path: '/login',
