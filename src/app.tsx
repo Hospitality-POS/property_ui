@@ -1,4 +1,3 @@
-// 运行时配置
 import React from 'react';
 import {
   DashboardOutlined,
@@ -36,6 +35,9 @@ import Loading from './loading';
 import { getUserInfo } from './services/auth.api';
 import logo from '/public/assets/images/icon.png';
 
+// Non-authenticated paths that should not redirect to login
+const PUBLIC_PATHS = ['/login', '/delete-account', '/terms-privacy'];
+
 const checkIfUserIsValid = async () => {
   try {
     const userData = await getUserInfo();
@@ -55,17 +57,39 @@ const handleLogout = () => {
 };
 
 export async function getInitialState(): Promise<any> {
-  let token = localStorage.getItem('property_token');
-  if (token) {
-    const userData = await checkIfUserIsValid();
+  const currentPath = window.location.pathname;
 
-    if (!userData) {
+  // Check if the current path is public (doesn't require authentication)
+  const isPublicPath = PUBLIC_PATHS.some(path => currentPath === path);
+
+  // For public paths, don't try to fetch user data or redirect
+  if (isPublicPath) {
+    return { currentUser: null, fetchUserInfo: getUserInfo };
+  }
+
+  // Get token only for protected routes
+  let token = localStorage.getItem('property_token');
+
+  // Protected routes logic
+  if (token) {
+    try {
+      const userData = await checkIfUserIsValid();
+
+      if (!userData) {
+        history.push('/login');
+        return { currentUser: null, fetchUserInfo: getUserInfo };
+      }
+
+      return { currentUser: userData, fetchUserInfo: getUserInfo };
+    } catch (error) {
       history.push('/login');
       return { currentUser: null, fetchUserInfo: getUserInfo };
     }
-
-    return { currentUser: userData, fetchUserInfo: getUserInfo };
   }
+
+  // No token for protected routes - redirect to login
+  //history.push('/login');
+  return { currentUser: null, fetchUserInfo: getUserInfo };
 }
 
 export const layout: RunTimeLayoutConfig = ({
@@ -74,7 +98,7 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState,
 }) => {
   // Function to go to quick page with a specific form opened
-  const goToQuickWithForm = (formType) => {
+  const goToQuickWithForm = (formType: string) => {
     // Get the current path to use as return URL
     const currentPath = window.location.pathname;
     // Navigate to quick form with returnUrl parameter
@@ -82,6 +106,10 @@ export const layout: RunTimeLayoutConfig = ({
   };
 
   const queryClient = new QueryClient();
+
+  const currentPath = window.location.pathname;
+  const isPublicPath = PUBLIC_PATHS.some(path => currentPath === path);
+
   return {
     logo: `${logo}`,
     title: 'RPM System',
@@ -90,40 +118,51 @@ export const layout: RunTimeLayoutConfig = ({
     menu: {
       locale: false,
     },
+    // Only show menu for authenticated paths
+    menuRender: isPublicPath ? false : undefined,
+    // Hide header on public paths
+    headerRender: isPublicPath ? false : undefined,
     childrenRender: (children) => {
       if (loading) {
         return <Loading />;
       }
+
+      // For public paths, render without PageContainer
+      if (isPublicPath) {
+        return (
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        );
+      }
+
+      // For authenticated paths, render with PageContainer
       return (
         <QueryClientProvider client={queryClient}>
-          {history.location.pathname === '/login' ? (
-            <>{children}</>
-          ) : (
-            <PageContainer
-              header={{
-                extra: [
-                  <Space key="headerActions" size="middle">
-                    <Breadcrumb key="breadcrumb">
-                      <Breadcrumb.Item>
-                        <DashboardOutlined />
-                        <span>Dashboard</span>
-                      </Breadcrumb.Item>
-                      <Breadcrumb.Item>
-                        <ShopOutlined />
-                        <span>Products</span>
-                      </Breadcrumb.Item>
-                      <Breadcrumb.Item>
-                        <UserOutlined />
-                        <span>Customers</span>
-                      </Breadcrumb.Item>
-                    </Breadcrumb>
-                  </Space>
-                ],
-              }}
-            >
-              {children}
-            </PageContainer>
-          )}
+          <PageContainer
+            header={{
+              extra: [
+                <Space key="headerActions" size="middle">
+                  <Breadcrumb key="breadcrumb">
+                    <Breadcrumb.Item>
+                      <DashboardOutlined />
+                      <span>Dashboard</span>
+                    </Breadcrumb.Item>
+                    <Breadcrumb.Item>
+                      <ShopOutlined />
+                      <span>Products</span>
+                    </Breadcrumb.Item>
+                    <Breadcrumb.Item>
+                      <UserOutlined />
+                      <span>Customers</span>
+                    </Breadcrumb.Item>
+                  </Breadcrumb>
+                </Space>
+              ],
+            }}
+          >
+            {children}
+          </PageContainer>
         </QueryClientProvider>
       );
     },
@@ -209,6 +248,10 @@ export const layout: RunTimeLayoutConfig = ({
               <Menu.Item key="payment" icon={<BankOutlined />} style={{ height: 40, lineHeight: '40px' }}>
                 Make Payment
               </Menu.Item>
+              <Menu.Item key="commission" icon={<BankOutlined />} style={{ height: 40, lineHeight: '40px' }}>
+                Commission Payment
+              </Menu.Item>
+
             </Menu.ItemGroup>
           </Menu>
         );
@@ -253,6 +296,7 @@ export const layout: RunTimeLayoutConfig = ({
       },
     },
     onPageChange: () => {
+      // No redirects in page change handler
       return true;
     },
   };

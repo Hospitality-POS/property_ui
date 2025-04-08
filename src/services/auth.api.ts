@@ -1,7 +1,6 @@
 import axios from 'axios';
 import axiosInstance, { resetTokenPromise, getRequest, postRequest, putRequest, deleteRequest } from './request';
 
-
 // DO NOT get token at module level as this only runs once on import
 
 export const loginUser = async (
@@ -120,6 +119,68 @@ export const resetPassword = async (email: string) => {
     return response.data;
   } catch (error) {
     console.log('Reset password error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Request OTP for account deletion
+ * 
+ * @param {string} companyCode - The company code
+ * @param {string} email - The email address
+ * @returns {Promise<any>} Response from the API
+ */
+export const requestOTP = async (companyCode: string, email: string) => {
+  try {
+    const response = await postRequest(
+      `${BASE_URL}/users/send-otp`,
+      { companyCode, email, purpose: 'account-deletion' }
+    );
+    return response.data;
+  } catch (error) {
+    console.log('Request OTP error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify OTP for account deletion
+ * 
+ * @param {string} companyCode - The company code
+ * @param {string} email - The email address
+ * @param {string} otpCode - The 4-digit OTP code
+ * @returns {Promise<any>} Response from the API
+ */
+export const verifyOTP = async (companyCode: string, email: string, otpCode: string) => {
+  try {
+    const response = await postRequest(
+      `${BASE_URL}/users/verify-otp`,
+      { companyCode, email, otpCode, purpose: 'account-deletion' }
+    );
+    return response.data;
+  } catch (error) {
+    console.log('Verify OTP error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete user account
+ * 
+ * @param {string} companyCode - The company code
+ * @param {string} email - The email address
+ * @returns {Promise<any>} Response from the API
+ */
+export const deleteAccount = async (companyCode: string, email: string) => {
+  try {
+    // Use the axiosInstance's deleteRequest which handles token automatically
+    const response = await deleteRequest(
+      `${BASE_URL}/users/delete-account`,
+      { data: { companyCode, email } }
+    );
+    return response.data;
+  } catch (error) {
+    console.log('Delete account error:', error);
     throw error;
   }
 };

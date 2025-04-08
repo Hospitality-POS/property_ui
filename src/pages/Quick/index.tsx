@@ -17,6 +17,7 @@ import AddEditUserModal from "@/pages/Users/components/modal/AddUserModal";
 import AddSaleModal from "../../components/Modals/addSales";
 import AddValuationModal from "../../components/Modals/addValuation";
 import PaymentModal from "../../components/Modals/addPayment";
+import AgentCommissionModal from "../../components/Modals/agentCommisionForm";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -36,6 +37,7 @@ const QuickPage = () => {
     const [salesForm] = Form.useForm();
     const [valuationsForm] = Form.useForm();
     const [paymentForm] = Form.useForm();
+    const [commissionForm] = Form.useForm();
     const [loading, setLoading] = useState(true);
 
     // State to track modal visibility (used for user modal)
@@ -47,6 +49,30 @@ const QuickPage = () => {
     const [customersData, setCustomersData] = useState([]);
     const [leadsData, setLeadsData] = useState([]);
     const [salesData, setSalesData] = useState([]);
+
+    // Process user data to extract agents, property managers, and valuers
+    const processUserData = (response) => {
+        let usersArray = [];
+
+        // Handle different possible response structures
+        if (response?.data && Array.isArray(response.data)) {
+            usersArray = response.data;
+        } else if (Array.isArray(response)) {
+            usersArray = response;
+        } else if (response?.users && Array.isArray(response.users)) {
+            usersArray = response.users;
+        } else {
+            console.error('Unexpected users API response structure:', response);
+            return [];
+        }
+
+        // Map the users with a defensive approach
+        return usersArray.map(user => ({
+            ...user,
+            _id: user._id || user.id || `temp-${Date.now()}-${Math.random()}`,
+            role: user.role || user.userRole || 'unknown'
+        }));
+    };
 
     // Fetch the necessary data based on form type
     useEffect(() => {
@@ -96,6 +122,14 @@ const QuickPage = () => {
                     setPropertiesData(Array.isArray(propertiesResponse.data) ? propertiesResponse.data : []);
                     setCustomersData(Array.isArray(customersResponse.data) ? customersResponse.data : []);
                 }
+                else if (formType === 'commission') {
+                    const [userResponse, salesResponse] = await Promise.all([
+                        fetchAllUsers(),
+                        fetchAllSales()
+                    ]);
+                    setUserData(processUserData(userResponse));
+                    setSalesData(Array.isArray(salesResponse.data) ? salesResponse.data : []);
+                }
             } catch (error) {
                 console.error("Error fetching data for form:", error);
                 message.error("Failed to load data for the form");
@@ -111,30 +145,6 @@ const QuickPage = () => {
 
         fetchFormData();
     }, [formType]);
-
-    // Process user data to extract agents, property managers, and valuers
-    const processUserData = (response) => {
-        let usersArray = [];
-
-        // Handle different possible response structures
-        if (response?.data && Array.isArray(response.data)) {
-            usersArray = response.data;
-        } else if (Array.isArray(response)) {
-            usersArray = response;
-        } else if (response?.users && Array.isArray(response.users)) {
-            usersArray = response.users;
-        } else {
-            console.error('Unexpected users API response structure:', response);
-            return [];
-        }
-
-        // Map the users with a defensive approach
-        return usersArray.map(user => ({
-            ...user,
-            _id: user._id || user.id || `temp-${Date.now()}-${Math.random()}`,
-            role: user.role || user.userRole || 'unknown'
-        }));
-    };
 
     // Filter users for different roles
     const getPropertyManagersData = () => {
@@ -205,13 +215,21 @@ const QuickPage = () => {
                     response = await createNewValuation(values);
                     break;
 
+                case 'commission':
+                    // This form is for viewing commission data, no API call needed
+                    message.success("Commission data viewed successfully");
+                    response = { success: true };
+                    break;
+
                 default:
                     console.error("Unknown form type:", formType);
                     return;
             }
 
             // Show success message
-            message.success(`${formType.charAt(0).toUpperCase() + formType.slice(1)} created successfully!`);
+            if (formType !== 'commission') {
+                message.success(`${formType.charAt(0).toUpperCase() + formType.slice(1)} created successfully!`);
+            }
 
             console.log("API Response:", response);
 
@@ -222,6 +240,16 @@ const QuickPage = () => {
             console.error(`Error submitting ${formType} form:`, error);
             message.error(`Failed to create ${formType}. Please try again.`);
         }
+    };
+
+    // Commission form handler
+    const handleCommissionFormSubmit = (formData) => {
+        console.log("Commission form data:", formData);
+
+        // You could call an API here to save this information if needed
+        // For now, we'll just show a success message and return to the previous page
+        message.success("Commission information processed successfully");
+        setTimeout(() => handleCancel(), 500);
     };
 
     // Cancel handler to navigate back
@@ -272,6 +300,9 @@ const QuickPage = () => {
         // Navigate back after a delay
         setTimeout(() => handleCancel(), 800);
     };
+
+    // Format currency helper
+    const formatCurrency = (val) => `KES ${parseFloat(val || 0).toLocaleString()}`;
 
     // Render the appropriate form based on the formType from URL
     const renderForm = () => {
@@ -376,7 +407,7 @@ const QuickPage = () => {
                             onAddInstallment={() => { }}
                             onRemoveInstallment={() => { }}
                             onInstallmentChange={() => { }}
-                            formatCurrency={(val) => `KES ${val?.toLocaleString() || '0'}`}
+                            formatCurrency={formatCurrency}
                             formatDate={(date) => date}
                             onAgentAdded={handleUserAdded}
                             onPropertyManagerAdded={handleUserAdded}
@@ -392,8 +423,8 @@ const QuickPage = () => {
                             onOk={() => handleFormSubmit(paymentForm.getFieldsValue())}
                             onCancel={handleCancel}
                             salesData={salesData}
-                            customersDatacustomersData={customersData}
-                            formatCurrency={(val) => `KES ${val?.toLocaleString() || '0'}`}
+                            customersData={customersData}
+                            formatCurrency={formatCurrency}
                         />
                     </Card>
                 );
@@ -413,10 +444,33 @@ const QuickPage = () => {
                             isLoadingCustomers={false}
                             isLoadingProperties={false}
                             isLoadingUsers={false}
-                            formatCurrency={(val) => `KES ${val?.toLocaleString() || '0'}`}
+                            formatCurrency={formatCurrency}
                             onValuerAdded={handleUserAdded}
                         />
                     </Card>
+                );
+            case 'commission':
+                const commissionAgentsData = getAgentsData();
+                return (
+                    <Modal
+                        title="Agent Commission"
+                        visible={true}
+                        onCancel={handleCancel}
+                        footer={null}
+                        width={800}
+                    >
+                        <AgentCommissionModal
+                            visible={true}
+                            form={commissionForm}
+                            onOk={handleCommissionFormSubmit}
+                            onCancel={handleCancel}
+                            agentsData={commissionAgentsData}
+                            salesData={salesData}
+                            isLoadingAgents={false}
+                            isLoadingSales={false}
+                            formatCurrency={formatCurrency}
+                        />
+                    </Modal>
                 );
             default:
                 return (
@@ -433,4 +487,5 @@ const QuickPage = () => {
         </div>
     );
 };
+
 export default QuickPage;

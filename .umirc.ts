@@ -24,15 +24,28 @@ export default defineConfig({
     title: 'RPM System',
   },
   routes: [
-    {
-      path: '/',
-      redirect: '/dashboard',
-    },
+    // {
+    //   path: '/',
+    //   redirect: '/dashboard',
+    // },
     {
       name: 'Login',
       path: '/login',
       layout: false,
       component: '@/components/Layout',
+    },
+    {
+      name: 'Account',
+      path: '/delete-account',
+      icon: 'UserOutlined',
+      layout: false,
+      component: './Account',
+    },
+    {
+      name: 'Terms',
+      path: '/terms-privacy',
+      layout: false,
+      component: './Terms',
     },
     {
       name: 'Dashboard',
@@ -71,6 +84,7 @@ export default defineConfig({
       hideInMenu: true,
       component: './Profile',
     },
+
     {
       name: 'Quick Access',
       path: '/quick',

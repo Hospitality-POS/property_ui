@@ -1,14 +1,17 @@
-import LoginPage from '@/pages/Login';
+import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import LoginPage from '@/pages/Login';
 
 const queryClient = new QueryClient();
 
-function index() {
+const Layout = () => {
+
+
   return (
     <QueryClientProvider client={queryClient}>
       <LoginPage />
     </QueryClientProvider>
   );
-}
+};
 
-export default index;
+export default Layout;

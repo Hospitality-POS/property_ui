@@ -156,14 +156,14 @@ const generateTransactionData = (customer) => {
     const transactions = [];
 
     // Add opening balance
-    transactions.push({
-        date: customer.createdAt || new Date().toISOString(),
-        type: 'Opening Balance',
-        details: '***Opening Balance***',
-        amount: 0,
-        payment: 0,
-        balance: 0
-    });
+    // transactions.push({
+    //     date: customer.createdAt || new Date().toISOString(),
+    //     type: 'Opening Balance',
+    //     details: '***Opening Balance***',
+    //     amount: 0,
+    //     payment: 0,
+    //     balance: 0
+    // });
 
     // Add data from purchases
     if (Array.isArray(customer.purchases)) {
@@ -325,8 +325,8 @@ const generateCustomerStatementPDF = (customer, transactions = []) => {
             doc.text('Account Summary', 16, 127);
 
             // Add summary details
-            doc.text('Opening Balance', 14, 140);
-            doc.text('KES 0.00', 180, 140, { align: 'right' });
+            // doc.text('Opening Balance', 14, 140);
+            // doc.text('KES 0.00', 180, 140, { align: 'right' });
 
             doc.text('Invoiced Amount', 14, 147);
             doc.text(`KES ${formatCurrency(totalInvoiced)}`, 180, 147, { align: 'right' });
@@ -563,10 +563,10 @@ const CustomerStatementView = ({ customer, transactions = [], activeTab, onTabCh
                     </Col>
                     <Col span={12}>
                         <Card size="small" title="Account Summary">
-                            <Row justify="space-between">
+                            {/* <Row justify="space-between">
                                 <Col>Opening Balance</Col>
                                 <Col>KES 0.00</Col>
-                            </Row>
+                            </Row> */}
                             <Row justify="space-between">
                                 <Col>Invoiced Amount</Col>
                                 <Col>{formatCurrency(totalInvoiced)}</Col>
