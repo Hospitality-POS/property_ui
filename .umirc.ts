@@ -92,16 +92,16 @@ export default defineConfig({
       component: './Payments',
     },
     {
-      name: 'User Mgt',
-      path: '/user-management',
-      icon: 'UserOutlined',
-      component: './Users',
-    },
-    {
       name: 'Reports',
       path: '/reports',
       icon: 'BarChartOutlined',
       component: './Reports',
+    },
+    {
+      name: 'User Management',
+      path: '/user-management',
+      icon: 'UserOutlined',
+      component: './Users',
     },
     {
       name: 'Account',
