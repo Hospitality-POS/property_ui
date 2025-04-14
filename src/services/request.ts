@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import { getToken } from '@/utils/getToken';
 
-const { token } = getToken();
+const BASE_URL = process.env.API_URL || 'http://localhost:3000/api/v1';
 
 // Helper function to handle errors
 const handleError = (errorMessage: string) => {
@@ -18,14 +18,29 @@ const axiosInstance = axios.create({
 // Interceptor to add authorization token to each request if available
 axiosInstance.interceptors.request.use(
   (config) => {
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    // Skip token check for login and public routes
+    const publicRoutes = ['/users/login', '/users/register'];
+    const isPublicRoute = publicRoutes.some((route) =>
+      config.url?.includes(route),
+    );
+
+    if (!isPublicRoute) {
+      const { token } = getToken();
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      } else {
+        // If no token and not a public route, redirect to login
+        window.location.href = '/login';
+        return Promise.reject(new Error('No authentication token found'));
+      }
     }
 
     const storedCode = localStorage.getItem('companyCode');
+    const requestCompanyCode =
+      config.data?.companyCode || (config.params && config.params.companyCode);
 
-    if (storedCode || config.data?.companyCode) {
-      config.headers['companyCode'] = storedCode || config.data?.companyCode;
+    if (storedCode || requestCompanyCode) {
+      config.headers['companyCode'] = storedCode || requestCompanyCode;
     }
 
     return config;
@@ -36,19 +51,51 @@ axiosInstance.interceptors.request.use(
   },
 );
 
+// Track if we've already shown the unauthorized message
+let hasShownUnauthorized = false;
+
 // Interceptor to handle response errors globally
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Reset the flag on successful responses
+    hasShownUnauthorized = false;
+    return response;
+  },
   (error) => {
     const { response } = error;
-    if (response && response.status === 401) {
-      handleError('Unauthorized. Please login again.');
-    } else if (response.status === 403) {
-      handleError(response.data.message);
+
+    // Skip if there's no response (network error)
+    if (!response) {
+      return Promise.reject(error);
+    }
+
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+      // Only show the message once
+      if (!hasShownUnauthorized) {
+        handleError('Your session has expired. Please login again.');
+        hasShownUnauthorized = true;
+      }
+
+      // Clear user data and redirect to login
+      localStorage.removeItem('property_token');
+      localStorage.removeItem('companyCode');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
+    // Handle other error statuses
+    if (response.status === 403) {
+      handleError(
+        response.data.message ||
+          'You do not have permission to perform this action',
+      );
     } else if (response.status === 409) {
-      handleError('Company does not exist kindly contact support ');
+      handleError('Company does not exist. Please contact support.');
     } else if (response.status === 404) {
-      handleError(response.data.message);
+      handleError(
+        response.data.message || 'The requested resource was not found',
+      );
     } else {
       // handleError("An error occurred while processing your request.");
     }
