@@ -134,7 +134,7 @@ const AddEditLeadModal: React.FC<AddEditLeadModalProps> = ({
       modalProps={{
         destroyOnClose: true,
         centered: true,
-        width: 800,
+        width: 800
       }}
       initialValues={
         edit
