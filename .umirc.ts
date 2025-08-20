@@ -110,12 +110,12 @@ export default defineConfig({
       layout: false,
       component: './AccountDeletion',
     },
-    {
-      name: 'Lock Screen',
-      path: '/lock-screen',
-      layout: false,
-      component: './LockScreen',
-    },
+    // {
+    //   name: 'Lock Screen',
+    //   path: '/lock-screen',
+    //   layout: false,
+    //   component: './LockScreen',
+    // },
     {
       name: 'Terms',
       path: '/terms-privacy',
